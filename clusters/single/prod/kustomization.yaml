@@ -9,5 +9,6 @@ resources:
   - ../../../platform/cert-manager/core
   - ../../../platform/storage/base
   - ../../../platform/step-ca/base
+  - ../../../platform/external-dns/overlays/prod
   - ../../../platform/cloudflare-ddns/base
   - ../../../platform/argocd/overlays/prod
