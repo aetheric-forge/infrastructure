@@ -77,7 +77,7 @@ config:
     value: []
 
   bootstrap:argoRepoUrl:
-    value: git@github.com:aetheric-forge/aetheric-iac.git
+    value: git@github.com:aetheric-forge/infrastructure.git
   bootstrap:argoRepoSshPrivateKeyFile:
     value: ""
   bootstrap:argoRepoKnownHostsFile:

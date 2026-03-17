@@ -1,13 +1,13 @@
-# Black Circuit Kubernetes Architecture
+# Aetheric Forge Kubernetes Architecture
 
-## v0.5
+## v0.6
 
 ------------------------------------------------------------------------
 
 ## 1. Overview
 
 This document describes the reference Kubernetes architecture used for
-Black Circuit platform deployments.
+Aetheric Forge platform deployments.
 
 Version 0.4.0 introduces a fully automated dual-provider DNS control
 plane, TSIG-authenticated RFC2136 updates for internal DNS,
@@ -42,7 +42,7 @@ promotion.
 
 ## 3. DNS Control Plane
 
-v0.5 maintains a strict separation between internal and public DNS
+v0.6 maintains a strict separation between internal and public DNS
 authority.
 
 Two independent external-dns instances manage records declaratively.
@@ -214,7 +214,7 @@ Planned enhancements:
 ------------------------------------------------------------------------
 
 
-## 8. Version Summary (v0.5)
+## 8. Version Summary (v0.6)
 
 This release introduces:
 

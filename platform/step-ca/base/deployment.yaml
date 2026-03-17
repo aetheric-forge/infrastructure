@@ -58,7 +58,7 @@ spec:
             - name: STEPPATH
               value: /home/step
             - name: STEP_CA_NAME
-              value: Black Circuit Internal PKI
+              value: Aetheric Forge Internal PKI
             - name: STEP_CA_DNS
               value: step-ca.step-ca.svc.cluster.local
             - name: STEP_CA_PROVISIONER

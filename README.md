@@ -1,4 +1,4 @@
-# Black Circuit GitOps Bootstrap (v0.5)
+# Aetheric Forge GitOps Bootstrap (v0.6)
 
 This repository provides a deterministic, opinionated bootstrap workflow
 for establishing a GitOps control plane in Kubernetes using Argo CD.
@@ -8,8 +8,11 @@ The goal is not flexibility — it is reproducibility.
 Version 0.4 introduced a fully automated DNS control plane with strict
 authority separation between internal and public domains.
 
-Version 0.5 promotes step-ca to the active internal ACME issuer for internal
+Version 0.5 promoted step-ca to the active internal ACME issuer for internal
 ingress and GitOps-managed platform workloads.
+
+Version 0.6 aligns repository defaults and operational documentation with the
+OSS `aetheric-forge/infrastructure` workflow.
 
 ------------------------------------------------------------------------
 
@@ -22,7 +25,7 @@ ingress and GitOps-managed platform workloads.
 - Architecture: `docs/architecture.md`
 - Operations: `docs/operations.md`
 - GitHub + Argo CD bootstrap setup: `docs/github-argocd-bootstrap.md`
-- GitOps structure: `gitops/README.md`
+- Environment overlays: `clusters/single/`
 
 ------------------------------------------------------------------------
 
@@ -34,7 +37,7 @@ Release notes follow this structure:
 
 Current release:
 
-    docs/release-notes/v0.5.md
+    docs/release-notes/v0.6.md
 
 ------------------------------------------------------------------------
 
@@ -75,7 +78,7 @@ Bootstrap installs prerequisites. GitOps owns everything else.
 
 ------------------------------------------------------------------------
 
-## DNS Architecture (v0.5)
+## DNS Architecture (v0.6)
 
 DNS is part of the control plane.
 
@@ -125,7 +128,7 @@ Private IP A-record publication is prevented by design.
 
 ## Internal PKI (step-ca)
 
-Version 0.5 runs step-ca as the active internal ACME-capable PKI service.
+Version 0.6 runs step-ca as the active internal ACME-capable PKI service.
 
 Characteristics:
 
@@ -236,6 +239,66 @@ Single-command deployment with pause for WireGuard:
 
     ENVIRONMENT=dev PULUMI_STACK=dev ./scripts/deploy-all.sh
 
+Validated no-intervention bootstrap sequence (dev):
+
+1.  Configure Pulumi bootstrap inputs:
+
+        pulumi config set bootstrap:clusterEndpointPublicAccess true
+        pulumi config set bootstrap:argoRepoSshPrivateKeyFile ~/.ssh/argocd-repo
+        pulumi config set bootstrap:sopsAgeKeyFile ~/.config/sops/age/keys.txt
+
+2.  Run infrastructure phase:
+
+        DEPLOY_PHASE=pulumi ENVIRONMENT=dev ./scripts/deploy-all.sh
+
+3.  Configure WireGuard host access (open SSH as needed, add authorized key) and run:
+
+        ./scripts/wireguard/setup-gateway-wireguard.sh
+
+4.  On WireGuard host, configure BIND master:
+
+        ./scripts/wireguard/setup-gateway-bind-master-zone.sh
+
+5.  On on-prem gateway, configure WireGuard and BIND secondary:
+
+        ./scripts/wireguard/setup-pi-wireguard.sh
+        ./scripts/wireguard/setup-bind-secondary-zone.sh
+
+6.  Add WireGuard peer on the host, then validate internal connectivity and DNS.
+
+7.  Lock the cluster API to private-only and update kubeconfig:
+
+        pulumi config set bootstrap:clusterEndpointPublicAccess false
+        pulumi up
+        pulumi stack output --show-secrets kubeconfig > ~/.kube/config
+
+8.  Configure CoreDNS forwarding for the internal zone:
+
+        FORWARD_DNS="<internal-wg-ip>" ./scripts/wireguard/configure-coredns-int-domain.sh
+
+9.  Apply platform phase with TSIG inputs:
+
+        EXTERNAL_DNS_TSIG_KEYNAME='rfc2136-tsig' \
+        EXTERNAL_DNS_TSIG_SECRET='<base64-secret>' \
+        DEPLOY_PHASE=platform ENVIRONMENT=dev ./scripts/deploy-all.sh
+
+10. Validate ingress and Argo CD:
+
+        # access
+        https://argocd-dev.int.blackcircuit.ca
+        # initial password
+        kubectl -n argocd-dev get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d
+        # root app
+        kubectl -n argocd-dev apply -f platform/argocd/bootstrap/dev-root-application.yaml
+
+11. Verify Argo CD sync and health.
+
+Operational caveats observed in successful runs:
+
+- RFC2136 update target must be resolvable/reachable from the cluster network.
+- RFC2136 server path must allow recursive lookups for names external-dns needs to resolve.
+- Do not intercept `/.well-known/acme-challenge` in Argo CD ingress.
+
 ------------------------------------------------------------------------
 
 ## Secrets Managed by Bootstrap
@@ -291,4 +354,4 @@ A clean rebuild must succeed without manual intervention.
 
 Current release:
 
-    0.5
+    0.6

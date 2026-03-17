@@ -1,12 +1,12 @@
-# Black Circuit Kubernetes Platform
+# Aetheric Forge Kubernetes Platform
 
-## Operations Guide -- v0.5
+## Operations Guide -- v0.6
 
 ------------------------------------------------------------------------
 
 ## 1. Purpose
 
-This document defines the operational model for the Black Circuit GitOps
+This document defines the operational model for the Aetheric Forge GitOps
 Kubernetes platform.
 
 It serves as a runbook for:
@@ -17,7 +17,7 @@ It serves as a runbook for:
 -   GitOps lifecycle management
 -   Controlled environment changes
 
-This guide assumes v0.5 architecture.
+This guide assumes v0.6 architecture.
 
 ------------------------------------------------------------------------
 
@@ -135,6 +135,32 @@ Standard invocation:
     pulumi up
 
 Bootstrap inputs must not be committed to Git.
+
+### 5.1 Validated Dev Bootstrap Sequence
+
+The following order has been validated to complete bootstrap + root-app
+deployment without manual drift correction:
+
+1. Configure bootstrap Pulumi inputs (`clusterEndpointPublicAccess=true`,
+   repo SSH key file, SOPS age key file).
+2. Run `DEPLOY_PHASE=pulumi ENVIRONMENT=dev ./scripts/deploy-all.sh`.
+3. Configure WireGuard host, then run WireGuard and BIND master setup scripts.
+4. Configure on-prem gateway, then run WireGuard and BIND secondary setup scripts.
+5. Add peer on WireGuard host and validate private connectivity + DNS.
+6. Set `bootstrap:clusterEndpointPublicAccess=false`, run `pulumi up`, and
+   refresh local kubeconfig from stack output.
+7. Configure CoreDNS forwarding for `int.blackcircuit.ca` using:
+   `scripts/wireguard/configure-coredns-int-domain.sh`.
+8. Run `DEPLOY_PHASE=platform ENVIRONMENT=dev ./scripts/deploy-all.sh` with
+   TSIG inputs (`EXTERNAL_DNS_TSIG_KEYNAME`, `EXTERNAL_DNS_TSIG_SECRET`).
+9. Validate `argocd-dev.int.blackcircuit.ca`, retrieve initial admin password,
+   apply `platform/argocd/bootstrap/dev-root-application.yaml`, and verify sync.
+
+### 5.2 Bootstrap Caveats
+
+- RFC2136 update target must be reachable from cluster networking.
+- RFC2136 path must support recursive lookups for required name resolution.
+- Ingress rules must not consume `/.well-known/acme-challenge` paths needed by ACME.
 
 ------------------------------------------------------------------------
 

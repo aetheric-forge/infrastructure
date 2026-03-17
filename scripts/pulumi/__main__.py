@@ -96,7 +96,7 @@ def _resolve_secret(
 def create_bootstrap_secrets(config, platform: ClusterOutputs) -> None:
     cfg = pulumi.Config("bootstrap")
 
-    argo_repo_url = cfg.get("argoRepoUrl") or "git@github.com:aetheric-forge/aetheric-iac.git"
+    argo_repo_url = cfg.get("argoRepoUrl") or "git@github.com:aetheric-forge/infrastructure.git"
     argo_repo_ssh_private_key = _resolve_secret(
         cfg,
         "argoRepoSshPrivateKey",
