@@ -8,8 +8,8 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: git@github.com:aetheric-forge/aetheric-iac.git
-    targetRevision: refs/heads/v0.5
+    repoURL: git@github.com:aetheric-forge/infrastructure.git
+    targetRevision: v0.6
     path: clusters/single/dev
   destination:
     server: https://kubernetes.default.svc
