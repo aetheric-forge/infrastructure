@@ -1,14 +1,14 @@
-# Contributing to Black Circuit Infrastructure
+# Contributing to Aetheric Forge Infrastructure
 
-Thank you for your interest in contributing to Black Circuit Infrastructure.
+Thank you for your interest in contributing to Aetheric Forge Infrastructure.
 
-This repository represents the internal development foundation of the Black Circuit ecosystem. Contributions are evaluated with a strong emphasis on architectural consistency, long-term maintainability, and alignment with project governance.
+This repository is the OSS development foundation of the Aetheric Forge infrastructure ecosystem. Contributions are evaluated with a strong emphasis on architectural consistency, long-term maintainability, and alignment with project governance.
 
 ---
 
 ## Guiding Principles
 
-* **Internal First:** Black Circuit is the primary development environment. Public releases occur separately through Aetheric Forge when explicitly approved.
+* **OSS-First:** This repository is the primary public source of truth for platform evolution.
 * **Minimalism Over Complexity:** Contributions should favor clarity and stability rather than feature expansion.
 * **Reproducibility:** All infrastructure changes must be declarative and compatible with the existing GitOps workflow. Changes must converge under Argo CD without manual intervention.
 * **Architectural Integrity:** Changes should respect established namespace boundaries, deployment patterns, and repository structure.
@@ -65,7 +65,7 @@ By contributing to this repository, you agree that your contributions fall under
 
 ## Governance
 
-Final decisions regarding architecture, acceptance of contributions, and repository direction are made by the Black Circuit maintainers.
+Final decisions regarding architecture, acceptance of contributions, and repository direction are made by the Aetheric Forge maintainers.
 
 This project evolves deliberately. Thoughtful proposals are encouraged; rushed changes are not.
 

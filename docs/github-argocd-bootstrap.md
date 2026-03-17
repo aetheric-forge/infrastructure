@@ -32,9 +32,9 @@ kustomize version
 
 ## 1) Protect the deployment branch
 
-Recommended branch for cluster reconciliation: `v0.5`.
+Recommended branch for cluster reconciliation: `v0.6`.
 
-In GitHub branch protection for `v0.5`:
+In GitHub branch protection for `v0.6`:
 
 - Require pull requests before merging.
 - Require status checks to pass.
@@ -80,7 +80,7 @@ Use the private key and GitHub host key to create the secret in each Argo CD nam
 ssh-keyscan github.com > /tmp/github_known_hosts
 
 kubectl -n argocd-dev create secret generic repo-git-ssh \
-  --from-literal=url=git@github.com:aetheric-forge/aetheric-iac.git \
+  --from-literal=url=git@github.com:aetheric-forge/infrastructure.git \
   --from-literal=type=git \
   --from-file=sshPrivateKey=$HOME/.ssh/argocd-repo \
   --from-file=known_hosts=/tmp/github_known_hosts \

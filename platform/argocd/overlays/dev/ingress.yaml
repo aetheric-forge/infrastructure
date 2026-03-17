@@ -7,6 +7,7 @@ metadata:
     argocd.argoproj.io/sync-wave: "20"
     cert-manager.io/cluster-issuer: step-ca-int-acme
     nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
 spec:
   ingressClassName: nginx-private
   tls:

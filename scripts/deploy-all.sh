@@ -9,6 +9,15 @@ UPDATE_CABUNDLE="${UPDATE_CABUNDLE:-true}"
 RESET_ACME_ACCOUNT="${RESET_ACME_ACCOUNT:-true}"
 DEPLOY_PHASE="${DEPLOY_PHASE:-all}"
 WAIT_FOR_WIREGUARD="${WAIT_FOR_WIREGUARD:-true}"
+DEPLOY_EXTERNAL_DNS_INTERNAL="${DEPLOY_EXTERNAL_DNS_INTERNAL:-true}"
+EXTERNAL_DNS_INTERNAL_PATH="${EXTERNAL_DNS_INTERNAL_PATH:-platform/external-dns/overlays/${ENVIRONMENT}}"
+EXTERNAL_DNS_INTERNAL_NAMESPACE="${EXTERNAL_DNS_INTERNAL_NAMESPACE:-external-dns-internal}"
+EXTERNAL_DNS_TSIG_SECRET_NAME="${EXTERNAL_DNS_TSIG_SECRET_NAME:-rfc2136-tsig}"
+EXTERNAL_DNS_TSIG_KEYNAME="${EXTERNAL_DNS_TSIG_KEYNAME:-}"
+EXTERNAL_DNS_TSIG_SECRET="${EXTERNAL_DNS_TSIG_SECRET:-}"
+EXTERNAL_DNS_TSIG_ALGORITHM="${EXTERNAL_DNS_TSIG_ALGORITHM:-hmac-sha256}"
+EXTERNAL_DNS_RFC2136_HOST="${EXTERNAL_DNS_RFC2136_HOST:-}"
+EXTERNAL_DNS_RFC2136_PORT="${EXTERNAL_DNS_RFC2136_PORT:-}"
 
 CLUSTER_ISSUER_NAME="${CLUSTER_ISSUER_NAME:-step-ca-int-acme}"
 CLUSTER_ISSUER_MANIFEST="${CLUSTER_ISSUER_MANIFEST:-platform/cert-manager/issuers/clusterissuer-step-ca-internal.yaml}"
@@ -23,6 +32,22 @@ Environment variables:
   KUSTOMIZE_OVERLAY   Cluster overlay path (default: clusters/single/$ENVIRONMENT)
   DEPLOY_PHASE        all | pulumi | platform (default: all)
   WAIT_FOR_WIREGUARD  Pause between Pulumi and platform phase in all mode (default: true)
+  DEPLOY_EXTERNAL_DNS_INTERNAL Apply/wait external-dns internal before full overlay (default: true)
+  EXTERNAL_DNS_INTERNAL_PATH Path to external-dns internal kustomization
+                      (default: platform/external-dns/overlays/$ENVIRONMENT)
+  EXTERNAL_DNS_INTERNAL_NAMESPACE Namespace for external-dns internal resources
+                      (default: external-dns-internal)
+  EXTERNAL_DNS_TSIG_SECRET_NAME Name of TSIG secret consumed by external-dns
+                      (default: rfc2136-tsig)
+  EXTERNAL_DNS_TSIG_KEYNAME RFC2136 TSIG key name; when set with secret, deploy-all
+                      will create/update the TSIG secret.
+  EXTERNAL_DNS_TSIG_SECRET RFC2136 TSIG secret value; when set with keyname, deploy-all
+                      will create/update the TSIG secret.
+  EXTERNAL_DNS_TSIG_ALGORITHM RFC2136 TSIG algorithm (default: hmac-sha256)
+  EXTERNAL_DNS_RFC2136_HOST Override RFC2136 update server host for external-dns
+                      (optional; for example wg-dev.int.blackcircuit.ca)
+  EXTERNAL_DNS_RFC2136_PORT Override RFC2136 update server port for external-dns
+                      (optional; for example 5335)
   UPDATE_CABUNDLE     Update ClusterIssuer acme.caBundle from live step-ca cert (default: true)
   RESET_ACME_ACCOUNT  Delete stale ACME account key secret before reconcile (default: true)
   CLUSTER_ISSUER_NAME ClusterIssuer name (default: step-ca-int-acme)
@@ -71,6 +96,46 @@ delete_acme_account_secrets() {
   done
 }
 
+ensure_external_dns_tsig_secret() {
+  if [[ -n "${EXTERNAL_DNS_TSIG_KEYNAME}" || -n "${EXTERNAL_DNS_TSIG_SECRET}" ]]; then
+    if [[ -z "${EXTERNAL_DNS_TSIG_KEYNAME}" || -z "${EXTERNAL_DNS_TSIG_SECRET}" ]]; then
+      echo "Both EXTERNAL_DNS_TSIG_KEYNAME and EXTERNAL_DNS_TSIG_SECRET are required when setting TSIG from env." >&2
+      exit 1
+    fi
+    kubectl create namespace "${EXTERNAL_DNS_INTERNAL_NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
+    kubectl -n "${EXTERNAL_DNS_INTERNAL_NAMESPACE}" create secret generic "${EXTERNAL_DNS_TSIG_SECRET_NAME}" \
+      --from-literal=rfc2136_tsig_keyname="${EXTERNAL_DNS_TSIG_KEYNAME}" \
+      --from-literal=rfc2136_tsig_secret="${EXTERNAL_DNS_TSIG_SECRET}" \
+      --from-literal=rfc2136_tsig_algorithm="${EXTERNAL_DNS_TSIG_ALGORITHM}" \
+      --dry-run=client -o yaml | kubectl apply -f -
+    return 0
+  fi
+
+  if ! kubectl -n "${EXTERNAL_DNS_INTERNAL_NAMESPACE}" get secret "${EXTERNAL_DNS_TSIG_SECRET_NAME}" >/dev/null 2>&1; then
+    echo "Missing required secret: ${EXTERNAL_DNS_INTERNAL_NAMESPACE}/${EXTERNAL_DNS_TSIG_SECRET_NAME}" >&2
+    echo "Create it first, or set EXTERNAL_DNS_TSIG_KEYNAME + EXTERNAL_DNS_TSIG_SECRET env vars." >&2
+    exit 1
+  fi
+}
+
+apply_external_dns_runtime_overrides() {
+  if [[ -z "${EXTERNAL_DNS_RFC2136_HOST}" && -z "${EXTERNAL_DNS_RFC2136_PORT}" ]]; then
+    return 0
+  fi
+
+  local set_env_args=()
+  if [[ -n "${EXTERNAL_DNS_RFC2136_HOST}" ]]; then
+    set_env_args+=("RFC2136_HOST=${EXTERNAL_DNS_RFC2136_HOST}")
+  fi
+  if [[ -n "${EXTERNAL_DNS_RFC2136_PORT}" ]]; then
+    set_env_args+=("RFC2136_PORT=${EXTERNAL_DNS_RFC2136_PORT}")
+  fi
+
+  echo "==> apply external-dns runtime overrides (${set_env_args[*]})"
+  kubectl -n "${EXTERNAL_DNS_INTERNAL_NAMESPACE}" set env deployment/external-dns-internal "${set_env_args[@]}"
+  kubectl -n "${EXTERNAL_DNS_INTERNAL_NAMESPACE}" rollout status deploy/external-dns-internal --timeout=300s
+}
+
 run_pulumi_phase() {
   echo "==> pulumi up (${PULUMI_STACK})"
   (
@@ -85,12 +150,24 @@ run_platform_phase() {
   kustomize build --enable-helm platform/cert-manager/core | kubectl apply -f -
   kubectl wait --for=condition=Established crd/clusterissuers.cert-manager.io --timeout=300s
 
+  if [[ "${DEPLOY_EXTERNAL_DNS_INTERNAL}" == "true" ]]; then
+    echo "==> deploy external-dns internal (${EXTERNAL_DNS_INTERNAL_PATH})"
+    ensure_external_dns_tsig_secret
+    kubectl apply -k "${EXTERNAL_DNS_INTERNAL_PATH}"
+    apply_external_dns_runtime_overrides
+    kubectl -n "${EXTERNAL_DNS_INTERNAL_NAMESPACE}" rollout status deploy/external-dns-internal --timeout=300s
+  fi
+
   echo "==> apply full overlay (${KUSTOMIZE_OVERLAY})"
   kustomize build \
     --enable-helm \
     --enable-alpha-plugins \
     --enable-exec \
     "${KUSTOMIZE_OVERLAY}" | kubectl apply -f -
+
+  if [[ "${DEPLOY_EXTERNAL_DNS_INTERNAL}" == "true" ]]; then
+    apply_external_dns_runtime_overrides
+  fi
 
   echo "==> wait for step-ca rollout"
   kubectl -n step-ca rollout status deploy/step-ca --timeout=300s

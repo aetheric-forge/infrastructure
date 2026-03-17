@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: external-dns-internal
+  namespace: external-dns-internal
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: external-dns-internal
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: external-dns-internal
+    spec:
+      serviceAccountName: external-dns-internal
+      containers:
+        - name: external-dns
+          image: registry.k8s.io/external-dns/external-dns:v0.14.2
+          args:
+            - --source=ingress
+            - --provider=rfc2136
+            - --registry=txt
+            - --policy=sync
+            - --domain-filter=int.blackcircuit.ca
+            - --txt-owner-id=internal-1
+            - --ingress-class=nginx-private
+            - --rfc2136-host=$(RFC2136_HOST)
+            - --rfc2136-port=$(RFC2136_PORT)
+            - --rfc2136-zone=int.blackcircuit.ca
+            - --rfc2136-tsig-keyname=$(RFC2136_TSIG_KEYNAME)
+            - --rfc2136-tsig-secret=$(RFC2136_TSIG_SECRET)
+            - --rfc2136-tsig-secret-alg=$(RFC2136_TSIG_SECRET_ALGORITHM)
+          env:
+            - name: RFC2136_HOST
+              value: pi.int.blackcircuit.ca
+            - name: RFC2136_PORT
+              value: "5335"
+            - name: RFC2136_TSIG_KEYNAME
+              valueFrom:
+                secretKeyRef:
+                  name: rfc2136-tsig
+                  key: rfc2136_tsig_keyname
+            - name: RFC2136_TSIG_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: rfc2136-tsig
+                  key: rfc2136_tsig_secret
+            - name: RFC2136_TSIG_SECRET_ALGORITHM
+              valueFrom:
+                secretKeyRef:
+                  name: rfc2136-tsig
+                  key: rfc2136_tsig_algorithm
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi

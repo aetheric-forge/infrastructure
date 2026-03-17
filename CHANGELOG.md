@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 This project follows Semantic Versioning.
 
+## [0.6.0] - 2026-03-17
+
+### Changed
+
+- Documentation branding updated from Black Circuit to Aetheric Forge
+  across active bootstrap/operations docs.
+- Active documentation version references updated to `v0.6`
+  (historical release notes unchanged).
+- Default bootstrap repository URL updated to:
+  `git@github.com:aetheric-forge/infrastructure.git`.
+- GitHub bootstrap runbook updated for `v0.6` branch guidance and
+  OSS repository URL examples.
+- step-ca deployment metadata updated to Aetheric Forge naming.
+
+------------------------------------------------------------------------
+
 ## [0.4.2] - 2026-02-13
 
 ### Added
