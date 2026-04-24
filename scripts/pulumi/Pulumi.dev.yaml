@@ -1,9 +1,10 @@
 config:
-  bootstrap:clusterEndpointPublicAccess: "false"
+  bootstrap:clusterEndpointPublicAccess: "true"
+  bootstrap:clusterEndpointPrivateAccess: "true"
   aws:region: ca-west-1
-  bootstrap:clusterPublicAccessCidrs: '["198.53.65.215/32"]'
+  bootstrap:clusterPublicAccessCidrs: '["104.157.114.32/32"]'
   bootstrap:officeLanCidrs: '["192.168.1.0/24"]'
-  bootstrap:wireGuardAllowedCidrs: '["198.53.65.215/32"]'
+  bootstrap:wireGuardAllowedCidrs: '["104.157.114.32/32"]'
   bootstrap:enableWireGuard: "true"
   bootstrap:nodeMinSize: "2"
   bootstrap:nodeMaxSize: "4"
