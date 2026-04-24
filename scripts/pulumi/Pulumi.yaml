@@ -27,11 +27,11 @@ config:
       - 10.42.192.0/18
 
   bootstrap:kubernetesVersion:
-    value: "1.33"
+    value: "1.34"
   bootstrap:clusterEndpointPrivateAccess:
-    value: true
-  bootstrap:clusterEndpointPublicAccess:
     value: false
+  bootstrap:clusterEndpointPublicAccess:
+    value: true
   bootstrap:clusterPublicAccessCidrs:
     value: []
 

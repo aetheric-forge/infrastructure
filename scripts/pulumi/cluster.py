@@ -118,17 +118,6 @@ def create_cluster(
         policy_arn="arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy",
     )
 
-    aws.eks.Addon(
-        f"{names.prefix}-ebs-csi-addon",
-        cluster_name=cluster.eks_cluster.name,
-        addon_name="aws-ebs-csi-driver",
-        service_account_role_arn=ebs_csi_role.arn,
-        resolve_conflicts_on_create="OVERWRITE",
-        resolve_conflicts_on_update="OVERWRITE",
-        tags=config.tags,
-        opts=pulumi.ResourceOptions(depends_on=[cluster, ebs_csi_policy_attachment]),
-    )
-
     node_group = eks.ManagedNodeGroup(
         names.node_group_name,
         cluster=cluster,
@@ -150,6 +139,17 @@ def create_cluster(
             "Name": names.node_group_name,
         },
         opts=pulumi.ResourceOptions(depends_on=[cluster]),
+    )
+
+    aws.eks.Addon(
+        f"{names.prefix}-ebs-csi-addon",
+        cluster_name=cluster.eks_cluster.name,
+        addon_name="aws-ebs-csi-driver",
+        service_account_role_arn=ebs_csi_role.arn,
+        resolve_conflicts_on_create="OVERWRITE",
+        resolve_conflicts_on_update="OVERWRITE",
+        tags=config.tags,
+        opts=pulumi.ResourceOptions(depends_on=[cluster, node_group, ebs_csi_policy_attachment]),
     )
 
     return ClusterOutputs(
