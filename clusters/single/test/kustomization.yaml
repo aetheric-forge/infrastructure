@@ -9,5 +9,6 @@ resources:
   - ../../../platform/cert-manager/core
   - ../../../platform/storage/base
   - ../../../platform/step-ca/base
-  - ../../../platform/external-dns/overlays/test
-  - ../../../platform/argocd/overlays/test
+#  - ../../../platform/external-dns/overlays/test
+  - ../../../platform/argocd/overlays/test;wq
+
