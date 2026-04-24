@@ -10,5 +10,5 @@ resources:
   - ../../../platform/storage/base
   - ../../../platform/step-ca/base
 #  - ../../../platform/external-dns/overlays/test
-  - ../../../platform/argocd/overlays/test;wq
+  - ../../../platform/argocd/overlays/test
 
