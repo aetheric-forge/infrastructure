@@ -146,6 +146,8 @@ run_pulumi_phase() {
 }
 
 run_platform_phase() {
+  echo "🌐 Generating DNS config..."
+  ./scripts/generate-external-dns-env.sh dev
   echo "==> bootstrap cert-manager CRDs"
   kustomize build --enable-helm platform/cert-manager/core | kubectl apply -f -
   kubectl wait --for=condition=Established crd/clusterissuers.cert-manager.io --timeout=300s

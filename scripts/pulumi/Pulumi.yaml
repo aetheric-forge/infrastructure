@@ -86,3 +86,8 @@ config:
     value: "true"
   bootstrap:sopsAgeKeyFile:
     value: ""
+
+  bootstrap:internalDomainName:
+    value: ""
+  bootstrap:externalDomainName:
+    value: ""

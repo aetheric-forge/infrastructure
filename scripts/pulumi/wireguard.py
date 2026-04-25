@@ -122,6 +122,15 @@ sysctl --system
         description="Allow EKS API access from WireGuard gateway",
     )
 
+    with open(config.wireguard_ssh_public_key_path, "r") as f:
+        public_key = f.read()
+
+    aws.ec2.KeyPair(
+        f"{names.prefix}-wg-keypair",
+        key_name=config.wireguard_ssh_key_name,
+        public_key=public_key,
+    )
+
     instance = aws.ec2.Instance(
         f"{names.prefix}-wg",
         ami=ami_id,

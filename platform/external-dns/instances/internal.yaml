@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: external-dns-internal
+  namespace: external-dns
+spec:
+  selector:
+    matchLabels:
+      app: external-dns-internal
+  template:
+    metadata:
+      labels:
+        app: external-dns-internal
+    spec:
+      serviceAccountName: external-dns-internal
+      containers:
+        - name: external-dns
+          image: registry.k8s.io/external-dns/external-dns:v0.14.2
+          args:
+            - --source=service
+            - --source=ingress
+            - --provider=aws
+            - --registry=txt
+            - --policy=sync
+            - --txt-owner-id=internal
+            - --domain-filter=$(INTERNAL_DOMAIN)
+            - --zone-id-filter=$(INTERNAL_ZONE_ID)
+            - --aws-zone-type=private

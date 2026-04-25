@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import ipaddress
+import os
 from typing import Dict, List, Literal, cast
 
 import pulumi
@@ -41,6 +42,7 @@ class BootstrapConfig:
     wireguard_ami_arch: NodeArch
     wireguard_ami_id: str | None
     wireguard_ssh_key_name: str | None
+    wireguard_ssh_public_key_path: str | None
     wireguard_tunnel_cidr: str
     wireguard_attach_private_interface: bool
     wireguard_private_subnet_index: int
@@ -210,6 +212,9 @@ def get_bootstrap_config() -> BootstrapConfig:
     wireguard_ami_arch = cast(NodeArch, wireguard_ami_arch_raw)
     wireguard_ami_id = cfg.get("wireGuardAmiId") or None
     wireguard_ssh_key_name = cfg.get("wireGuardSshKeyName") or None
+    pubkey_path = os.path.expanduser(
+        cfg.get("wireguardSshPublicKeyPath") or "~/.ssh/id_ed25519.pub"
+    )
     wireguard_tunnel_cidr = cfg.get("wireGuardTunnelCidr") or "10.200.10.0/24"
     wireguard_attach_private_interface = _get_bool(cfg, "wireGuardAttachPrivateInterface", True)
     wireguard_private_subnet_index = _require_int(cfg, "wireGuardPrivateSubnetIndex", 0)
@@ -254,6 +259,7 @@ def get_bootstrap_config() -> BootstrapConfig:
         wireguard_ami_arch=wireguard_ami_arch,
         wireguard_ami_id=wireguard_ami_id,
         wireguard_ssh_key_name=wireguard_ssh_key_name,
+        wireguard_ssh_public_key_path=pubkey_path,
         wireguard_tunnel_cidr=wireguard_tunnel_cidr,
         wireguard_attach_private_interface=wireguard_attach_private_interface,
         wireguard_private_subnet_index=wireguard_private_subnet_index,

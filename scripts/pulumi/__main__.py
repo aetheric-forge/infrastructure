@@ -2,6 +2,7 @@ from pathlib import Path
 import subprocess
 
 import pulumi
+from pulumi_aws.ec2 import vpc
 import pulumi_kubernetes as k8s
 
 from cluster import ClusterOutputs, create_cluster
@@ -9,6 +10,7 @@ from config import get_bootstrap_config
 from naming import build_names
 from network import create_network
 from wireguard import create_wireguard_gateway
+from route53 import create_zones
 
 
 def _secret_from_file(path_value: str, config_key: str) -> pulumi.Output[str]:
@@ -188,6 +190,7 @@ wireguard = create_wireguard_gateway(
     network,
     platform.cluster.cluster_security_group_id,
 ) if config.enable_wireguard else None
+create_zones(network.vpc.id)
 
 create_bootstrap_secrets(config, platform)
 

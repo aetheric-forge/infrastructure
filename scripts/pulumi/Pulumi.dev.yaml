@@ -1,8 +1,8 @@
 config:
-  bootstrap:clusterEndpointPublicAccess: "true"
+  bootstrap:clusterEndpointPublicAccess: "false"
   bootstrap:clusterEndpointPrivateAccess: "true"
   aws:region: ca-west-1
-  bootstrap:clusterPublicAccessCidrs: '["104.157.114.32/32"]'
+  bootstrap:clusterPublicAccessCidrs: '[]'
   bootstrap:officeLanCidrs: '["192.168.1.0/24"]'
   bootstrap:wireGuardAllowedCidrs: '["104.157.114.32/32"]'
   bootstrap:enableWireGuard: "true"
@@ -15,3 +15,7 @@ config:
   bootstrap:sopsAgeKeyFile: /home/valkyr/.config/sops/age/keys.txt
   bootstrap:kubernetesVersion: "1.34"
   bootstrap:argoRepoUrl: git@github.com:aetheric-forge/infrastructure.git
+  bootstrap:wireGuardSshKeyName: valkyr@vulcan
+  bootstrap:wireguardSshPublicKeyPath: /home/valkyr/.ssh/id_ed25519-valkyr.pub
+  bootstrap:internalDomainName: int.aethericforge.ca
+  bootstrap:externalDomainName: aethericforge.ca
