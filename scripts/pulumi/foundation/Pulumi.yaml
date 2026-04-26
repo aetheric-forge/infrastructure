@@ -1,0 +1,11 @@
+name: aetheric-forge-platform-aws
+description: Aetheric Forge Platform AWS
+runtime:
+  name: python
+  options:
+    toolchain: pip
+    virtualenv: venv
+config:
+  pulumi:tags:
+    value:
+      pulumi:template: aws-python
