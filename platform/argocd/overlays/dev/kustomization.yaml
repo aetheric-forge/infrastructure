@@ -79,3 +79,21 @@ helmCharts:
       configs:
         cm:
           kustomize.buildOptions: "--enable-helm --enable-alpha-plugins --enable-exec"
+
+      rbac:
+        create: true
+
+        controller:
+          clusterRole:
+            create: true
+            rules:
+              - apiGroups: ["*"]
+                resources: ["*"]
+                verbs: ["*"]
+
+          clusterRoleBinding:
+            create: true
+            clusterRoleRef:
+              name: cluster-admin
+              kind: ClusterRole
+              apiGroup: rbac.authorization.k8s.io
