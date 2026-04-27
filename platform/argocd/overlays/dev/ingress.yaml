@@ -12,10 +12,10 @@ spec:
   ingressClassName: nginx-private
   tls:
     - hosts:
-        - argocd-dev.int.blackcircuit.ca
-      secretName: argocd-dev-int-blackcircuit-ca-tls
+        - argocd-dev.int.aethericforge.ca
+      secretName: argocd-dev-int-aethericforge-ca-tls
   rules:
-    - host: argocd-dev.int.blackcircuit.ca
+    - host: argocd-dev.int.aethericforge.ca
       http:
         paths:
           - path: /

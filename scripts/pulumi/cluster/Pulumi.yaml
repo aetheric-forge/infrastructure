@@ -1,5 +1,5 @@
-name: aetheric-forge-platform-aws
-description: Aetheric Forge Platform AWS
+name: aetheric-forge-platform-cluster
+description: Kubernetes cluster for the Aetheric Forge platform
 runtime:
   name: python
   options:

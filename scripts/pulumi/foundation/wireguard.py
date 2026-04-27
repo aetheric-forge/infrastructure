@@ -1,4 +1,5 @@
 import os
+import pulumi
 import pulumi_aws as aws
 from config import Config, prefix
 from network import Network
@@ -20,7 +21,7 @@ def create_wireguard(cfg: Config, network: Network) -> Wireguard | None:
     # SSH key
     public_key = open(os.path.expanduser(cfg.wg_ssh_public_key_file)).read()
 
-    key_pair = aws.ec2.KeyPair(
+    aws.ec2.KeyPair(
         f"{name}-wg-key",
         key_name=cfg.wg_ssh_key_name,
         public_key=public_key,
@@ -55,6 +56,9 @@ def create_wireguard(cfg: Config, network: Network) -> Wireguard | None:
         ],
     )
 
+    # EIP for public access
+    eip = aws.ec2.Eip(f"{name}-wg-eip")
+
     # Private ENI (primary)
     private_eni = aws.ec2.NetworkInterface(
         f"{name}-wg-private-eni",
@@ -69,14 +73,29 @@ def create_wireguard(cfg: Config, network: Network) -> Wireguard | None:
         security_groups=[sg.id],
     )
 
-    # EIP for public access
-    eip = aws.ec2.Eip(f"{name}-wg-eip")
-
-    aws.ec2.EipAssociation(
+    eip_assoc = aws.ec2.EipAssociation(
         f"{name}-wg-eip-assoc",
         network_interface_id=public_eni.id,
         allocation_id=eip.id,
+        opts=pulumi.ResourceOptions(parent=public_eni),
     )
+
+    user_data = """#!/bin/bash
+set -e
+
+# Enable IP forwarding
+cat <<EOF >/etc/sysctl.d/99-wireguard.conf
+net.ipv4.ip_forward=1
+EOF
+sysctl --system
+
+# NAT for VPC access (private interface)
+iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+
+# Persist iptables
+yum install -y iptables-services || true
+service iptables save || true
+"""
 
     # Instance
     instance = aws.ec2.Instance(
@@ -96,12 +115,14 @@ def create_wireguard(cfg: Config, network: Network) -> Wireguard | None:
         primary_network_interface=aws.ec2.InstancePrimaryNetworkInterfaceArgs(
             network_interface_id=private_eni.id,
         ),
+        user_data=user_data,
     )
 
     aws.ec2.NetworkInterfaceAttachment(
         f"{name}-wg-public-eni-attach",
         instance_id=instance.id,
         network_interface_id=public_eni.id,
+        opts=pulumi.ResourceOptions(depends_on=[eip_assoc]),
         device_index=1,
     )
 

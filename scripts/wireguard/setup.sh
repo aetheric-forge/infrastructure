@@ -73,7 +73,7 @@ Address = 10.200.10.2/24
 [Peer]
 PublicKey = $REMOTE_PUB
 Endpoint = $WIREGUARD_PUBLIC_IP:51820
-AllowedIPs = 10.42.0.0/16,10.200.10.1/32
+AllowedIPs = 10.0.0.0/16,10.200.10.1/32
 PersistentKeepalive = 25
 EOF
 
@@ -94,6 +94,9 @@ EOC
 
 sudo systemctl enable wg-quick@wg0
 sudo systemctl restart wg-quick@wg0
+sudo iptables -t nat -A POSTROUTING -s 10.200.10.0/24 -o ens5 -j MASQUERADE
+sudo iptables -A FORWARD -i wg0 -o ens5 -j ACCEPT
+sudo iptables -A FORWARD -i ens5 -o wg0 -m state --state RELATED,ESTABLISHED -j ACCEPT
 EOF
 
 echo "🚀 Starting local interface"
@@ -103,6 +106,7 @@ sudo wg-quick up "$WG_DIR/wg0.conf" || true
 echo "🔍 Verifying tunnel"
 
 ping -c 2 10.200.10.1 >/dev/null
+nc -vz 10.0.0.2 53 >/dev/null
 
 echo "🔒 Closing temporary SSH access"
 

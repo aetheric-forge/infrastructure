@@ -28,7 +28,7 @@ txtOwnerId: internal
 policy: sync
 
 serviceAccount:
-  create: false
+  create: true
   name: external-dns-internal
 EOF
 
@@ -51,7 +51,7 @@ txtOwnerId: external
 policy: sync
 
 serviceAccount:
-  create: false
+  create: true
   name: external-dns-external
 EOF
 
