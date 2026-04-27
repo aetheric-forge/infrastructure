@@ -107,4 +107,39 @@ def create_cluster():
         instance_types=instance_types,
     )
 
+    external_dns_policy = aws.iam.Policy(
+        "external-dns-policy",
+        policy="""{
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": ["route53:ChangeResourceRecordSets"],
+              "Resource": ["arn:aws:route53:::hostedzone/*"]
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "route53:ListHostedZones",
+                "route53:ListResourceRecordSets"
+              ],
+              "Resource": ["*"]
+            }
+          ]
+        }"""
+    )
+
+    external_dns_role = aws.iam.Role(
+        "external-dns-role",
+        assume_role_policy=oidc_assume_role_policy,  # you already have this pattern for cluster
+    )
+
+    aws.iam.RolePolicyAttachment(
+        "external-dns-attach",
+        role=external_dns_role.name,
+        policy_arn=external_dns_policy.arn,
+    )
+
+    pulumi.export("external_dns_role_arn", external_dns_role.arn)
+
     return cluster
