@@ -3,3 +3,18 @@ kind: Kustomization
 
 resources:
   - namespace.yaml
+
+patches:
+  - path: rbac.yaml
+    target:
+      group: rbac.authorization.k8s.io
+      version: v1
+      kind: ClusterRole
+      name: argocd-application-controller
+
+  - path: rbac-binding.yaml
+    target:
+      group: rbac.authorization.k8s.io
+      version: v1
+      kind: ClusterRoleBinding
+      name: argocd-application-controller
