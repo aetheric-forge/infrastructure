@@ -1,0 +1,19 @@
+provider: aws
+
+sources:
+  - service
+  - ingress
+
+domainFilters:
+  - aethericforge.ca
+
+zoneIdFilters:
+  - Z041542419B9OMUN3IUNS
+
+registry: txt
+txtOwnerId: external
+policy: sync
+
+serviceAccount:
+  create: true
+  name: external-dns-external
