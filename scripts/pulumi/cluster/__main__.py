@@ -25,3 +25,4 @@ install_ebs_csi(cluster_name, cluster)
 install_autoscaler(cluster, cluster_name, region)
 
 pulumi.export("kubeconfig", pulumi.Output.secret(cluster.kubeconfig))
+

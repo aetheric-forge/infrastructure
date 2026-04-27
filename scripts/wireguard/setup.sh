@@ -4,8 +4,8 @@ set -euo pipefail
 echo "⚡ WireGuard setup"
 
 set -a
-source .env
-source .env.pulumi.generated
+source ../../../.env
+source ../../../.env.pulumi.generated
 set +a
 
 if [[ "${WIREGUARD_ENABLED:-false}" != "true" ]]; then

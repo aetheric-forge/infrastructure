@@ -15,7 +15,11 @@ def create_dns(cfg: Config, network: Network) -> Dns:
     internal = aws.route53.Zone(
         f"{name}-internal",
         name=cfg.internal_domain,
-        vpcs=[aws.route53.ZoneVpcArgs(vpc_id=network.vpc.id)],
+        vpcs=[
+            aws.route53.ZoneVpcArgs(
+                vpc_id=network.vpc.id, vpc_region=network.vpc.region
+            )
+        ],
     )
 
     external = aws.route53.Zone(

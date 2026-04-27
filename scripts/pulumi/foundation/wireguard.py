@@ -6,10 +6,12 @@ from network import Network
 
 
 class Wireguard:
-    def __init__(self, instance, public_ip, security_group):
+    def __init__(self, instance, public_ip, security_group, public_eni, eni_attach):
         self.instance = instance
         self.public_ip = public_ip
         self.security_group = security_group
+        self.public_eni_urn = public_eni.urn
+        self.eni_attach_urn = eni_attach.urn
 
 
 def create_wireguard(cfg: Config, network: Network) -> Wireguard | None:
@@ -56,28 +58,26 @@ def create_wireguard(cfg: Config, network: Network) -> Wireguard | None:
         ],
     )
 
-    # EIP for public access
-    eip = aws.ec2.Eip(f"{name}-wg-eip")
-
-    # Private ENI (primary)
-    private_eni = aws.ec2.NetworkInterface(
-        f"{name}-wg-private-eni",
-        subnet_id=network.private_subnets[0].id,
-        security_groups=[sg.id],
-    )
-
-    # Public ENI
+    # 2) Make ENI (and anything that touches it) wait for that destroy step
     public_eni = aws.ec2.NetworkInterface(
         f"{name}-wg-public-eni",
         subnet_id=network.public_subnets[0].id,
         security_groups=[sg.id],
     )
 
+    eip = aws.ec2.Eip(f"{name}-wg-eip")
+
     eip_assoc = aws.ec2.EipAssociation(
-        f"{name}-wg-eip-assoc",
-        network_interface_id=public_eni.id,
+        f"{name}-wg-public-eip-assoc",
         allocation_id=eip.id,
-        opts=pulumi.ResourceOptions(parent=public_eni),
+        network_interface_id=public_eni.id,
+    )
+
+    # Private ENI (primary)
+    private_eni = aws.ec2.NetworkInterface(
+        f"{name}-wg-private-eni",
+        subnet_id=network.private_subnets[0].id,
+        security_groups=[sg.id],
     )
 
     user_data = """#!/bin/bash
@@ -118,7 +118,7 @@ service iptables save || true
         user_data=user_data,
     )
 
-    aws.ec2.NetworkInterfaceAttachment(
+    eni_attach = aws.ec2.NetworkInterfaceAttachment(
         f"{name}-wg-public-eni-attach",
         instance_id=instance.id,
         network_interface_id=public_eni.id,
@@ -130,4 +130,6 @@ service iptables save || true
         instance=instance,
         public_ip=eip.public_ip,
         security_group=sg,
+        eni_attach=eni_attach,
+        public_eni=public_eni,
     )

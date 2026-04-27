@@ -1,13 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-STACK_DIR=${1:-scripts/pulumi/cluster}
-
 TMP=$(mktemp)
 
 # Get fresh kubeconfig
 (
-	cd "$STACK_DIR"
 	pulumi stack output kubeconfig --show-secrets
 ) >"$TMP"
 

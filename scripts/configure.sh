@@ -56,11 +56,11 @@ echo "SYSTEM_NAME=$SYSTEM_NAME" >>"$TMP"
 echo "PULUMI_STACK=$ENVIRONMENT" >>"$TMP"
 
 # --- AWS ---
-AWS_REGION=$(prompt "AWS_REGION" "AWS region" "ca-central-1")
+AWS_REGION=$(prompt "AWS_REGION" "AWS region" "ca-west-1")
 echo "AWS_REGION=$AWS_REGION" >>"$TMP"
 
 # --- Domain ---
-BASE_DOMAIN=$(prompt "BASE_DOMAIN" "Base domain (e.g. example.com)")
+BASE_DOMAIN=$(prompt "BASE_DOMAIN" "Base domain (e.g. example.com)" "aethericforge.ca")
 echo "BASE_DOMAIN=$BASE_DOMAIN" >>"$TMP"
 
 echo "INTERNAL_DOMAIN=int.$BASE_DOMAIN" >>"$TMP"
@@ -107,6 +107,12 @@ fi
 # --- GitOps ---
 GIT_REPO_URL=$(prompt "GIT_REPO_URL" "Git repository URL")
 echo "GIT_REPO_URL=$GIT_REPO_URL" >>"$TMP"
+
+SSH_REPO_KEY=$(prompt "SSH_REPO_KEY" "Path to repo SSH key" "~/.ssh/argocd-repo")
+echo "SSH_REPO_KEY=$SSH_REPO_KEY" >>"$TMP"
+
+SOPS_AGE_KEY=$(prompt "SOPS_AGE_KEY" "Path to SOPS key" "~/.config/sops/age/keys.txt")
+echo "SOPS_AGE_KEY=$SOPS_AGE_KEY" >>"$TMP"
 
 # --- Finalize ---
 mv "$TMP" "$ENV_FILE"

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-source .env
-source .env.pulumi.generated
+source ../../../.env
+source ../../../.env.pulumi.generated
 
-OUT_DIR="platform/external-dns/generated"
+OUT_DIR="../../../platform/external-dns/generated"
 mkdir -p "$OUT_DIR"
 
 echo "⚙️ Generating external-dns values"
