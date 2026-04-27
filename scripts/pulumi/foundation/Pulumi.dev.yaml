@@ -1,0 +1,25 @@
+config:
+  aws:region: ca-west-1
+  bootstrap:orgName: aetheric-forge
+  bootstrap:environment: dev
+  bootstrap:systemName: platform
+  bootstrap:vpcCidr: 10.42.0.0/16
+  bootstrap:availabilityZoneCount: "2"
+  bootstrap:publicSubnetCidrs: '["10.42.0.0/18","10.42.64.0/18"]'
+  bootstrap:privateSubnetCidrs: '["10.42.128.0/18","10.42.192.0/18"]'
+  bootstrap:kubernetesVersion: "1.34"
+  bootstrap:clusterEndpointPrivateAccess: "true"
+  bootstrap:clusterEndpointPublicAccess: "false"
+  bootstrap:clusterPublicAccessCidrs: '["104.157.114.32/32"]'
+  bootstrap:nodeArch: arm64
+  bootstrap:nodeDesiredSize: "2"
+  bootstrap:nodeMinSize: "2"
+  bootstrap:nodeMaxSize: "4"
+  bootstrap:nodeDiskSize: "20"
+  bootstrap:armInstanceTypes: '["t4g.small"]'
+  bootstrap:amdInstanceTypes: '["t3.small"]'
+  bootstrap:enableWireGuard: "true"
+  bootstrap:wireGuardTunnelCidr: 10.200.10.0/24
+  bootstrap:wireGuardSshKeyName: valkyr@vulcan
+  bootstrap:wireGuardSshPublicKeyPath: /home/valkyr/.ssh/id_ed25519-valkyr.pub
+  bootstrap:wireGuardAllowedCidrs: '["104.157.114.32/32"]'

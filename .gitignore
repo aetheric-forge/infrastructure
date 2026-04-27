@@ -69,3 +69,7 @@ charts/
 **/charts/
 
 .venv/
+venv/
+.env*
+.kubeconfig*
+.wireguard/

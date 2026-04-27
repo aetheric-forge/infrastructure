@@ -1,0 +1,11 @@
+name: aetheric-forge-platform-cluster
+description: Kubernetes cluster for the Aetheric Forge platform
+runtime:
+  name: python
+  options:
+    toolchain: pip
+    virtualenv: ../../../.venv
+config:
+  pulumi:tags:
+    value:
+      pulumi:template: aws-python
