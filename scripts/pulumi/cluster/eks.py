@@ -129,6 +129,7 @@ def create_cluster():
                                 f"{args[1].replace('https://', '')}:sub": [
                                     "system:serviceaccount:external-dns:external-dns-internal",
                                     "system:serviceaccount:external-dns:external-dns-external",
+                                    "system:serviceaccount:cert-manager:cert-manager",
                                 ]
                             }
                         },
@@ -138,8 +139,8 @@ def create_cluster():
         )
     )
 
-    external_dns_policy = aws.iam.Policy(
-        f"{cluster_name}-external-dns-policy",
+    route53_policy = aws.iam.Policy(
+        f"{cluster_name}-route53-policy",
         policy="""{
               "Version": "2012-10-17",
               "Statement": [
@@ -160,15 +161,15 @@ def create_cluster():
             }""",
     )
 
-    external_dns_role = aws.iam.Role(
-        f"{cluster_name}-external-dns-role",
+    route53_role = aws.iam.Role(
+        f"{cluster_name}-route53-role",
         assume_role_policy=assume_role_policy,  # you already have this pattern for cluster
     )
 
     aws.iam.RolePolicyAttachment(
-        f"{cluster_name}-external-dns-policy",
+        f"{cluster_name}-route53-policy",
         role=external_dns_role.name,
-        policy_arn=external_dns_policy.arn,
+        policy_arn=route53_policy.arn,
     )
 
     k8s_provider = k8s.Provider(
@@ -182,13 +183,19 @@ def create_cluster():
         opts=pulumi.ResourceOptions(provider=k8s_provider),
     )
 
+    cert_manager_ns = k8s.core.v1.Namespace(
+        "cert-manager",
+        metadata={"name": "cert-manager"},
+        opts=pulumi.ResourceOptions(provider=k8s_provider),
+    )
+
     k8s.core.v1.ServiceAccount(
         "external-dns-internal",
         metadata={
             "name": "external-dns-internal",
             "namespace": "external-dns",
             "annotations": {
-                "eks.amazonaws.com/role-arn": external_dns_role.arn
+                "eks.amazonaws.com/role-arn": route53_role.arn
             },
         },
         opts=pulumi.ResourceOptions(
@@ -203,12 +210,27 @@ def create_cluster():
             "name": "external-dns-external",
             "namespace": "external-dns",
             "annotations": {
-                "eks.amazonaws.com/role-arn": external_dns_role.arn
+                "eks.amazonaws.com/role-arn": route53_role.arn
             },
         },
         opts=pulumi.ResourceOptions(
             provider=k8s_provider,
             depends_on=[external_dns_ns],
+        ),
+    )
+
+    k8s.core.v1.ServiceAccount(
+        "cert-manager",
+        metadata={
+            "name": "cert-manager",
+            "namespace": "cert-manager",
+            "annotations": {
+                "eks.amazonaws.com/role-arn": route53_role.arn
+            },
+        },
+        opts=pulumi.ResourceOptions(
+            provider=k8s_provider,
+            depends_on=[cert_manager_ns],
         ),
     )
 

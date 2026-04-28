@@ -11,6 +11,7 @@ spec:
       name: step-ca-int-acme-account-key
     server: "https://step-ca.step-ca.svc.cluster.local/acme/acme/directory"
     solvers:
-      - http01:
-          ingress:
-            ingressClassName: nginx-public
+      - dns01:
+          route53:
+            region: ca-west-1
+

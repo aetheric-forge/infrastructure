@@ -21,4 +21,6 @@ helmCharts:
         enabled: true
       prometheus:
         enabled: false
-
+      serviceAccount:
+        create: false
+        name: cert-manager
