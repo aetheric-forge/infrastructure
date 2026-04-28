@@ -8,7 +8,7 @@ domainFilters:
   - int.aethericforge.ca
 
 zoneIdFilters:
-  - Z10476292JQF6ME1QC662
+  - Z03359022B635WFSIEQL2
 
 registry: txt
 txtOwnerId: internal
