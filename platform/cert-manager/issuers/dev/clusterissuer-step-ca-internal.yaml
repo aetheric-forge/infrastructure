@@ -16,11 +16,12 @@ spec:
             - "int.aethericforge.ca"
         dns01:
           route53:
-            hostedZoneName: "int.aethericforge.ca."
+            region: ca-west-1
 
       - selector:
           dnsZones:
             - "aethericforge.ca"
         dns01:
           route53:
-            hostedZoneName: "aethericforge.ca."
+            region: ca-west-1
+

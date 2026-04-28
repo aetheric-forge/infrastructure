@@ -21,7 +21,7 @@ warn() {
 ########################################
 
 check_kube_api() {
-	timeout 5 kubectl get ns kube-system >/dev/null 2>&1
+	timeout 20 kubectl get ns kube-system >/dev/null 2>&1
 	return $?
 }
 
@@ -32,7 +32,6 @@ check_kube_api() {
 update_resolv() {
 	log "Updating resolv.conf..."
 
-	pwd
 	# Example — replace with your real logic
 	if [ -f .resolv.conf.backup ]; then
 		sudo mv -f .resolv.conf.backup /etc/resolv.conf
@@ -54,7 +53,7 @@ EOF
 unwind_gitops() {
 	if check_kube_api; then
 		log "Cluster reachable → unwinding GitOps resources..."
-		kubectl delete -n argocd -f platform/argocd/bootstrap/dev-root-application.yaml || true >/dev/null 2>&1
+		kubectl delete -n argocd -f platform/argocd/bootstrap/dev-root-application.yaml --ignore-not-found
 		kustomize build --enable-helm --enable-alpha-plugins clusters/single/dev | kubectl delete \
 			--ignore-not-found \
 			--grace-period=0 \
