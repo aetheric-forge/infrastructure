@@ -50,4 +50,15 @@ kubectl patch secret repo-git-ssh -n argocd --type merge -p "
 }
 "
 
+echo "[Forge] Installing kube CA bundle in cert-manager"
+
+kubectl create namespace cert-manager --dry-run=client -o yaml | kubectl apply -f -
+
+kubectl get configmap kube-root-ca.crt -n kube-system -o jsonpath='{.data.ca\.crt}' |
+	kubectl create secret generic kube-ca \
+		-n cert-manager \
+		--from-file=ca.crt=/dev/stdin \
+		--dry-run=client -o yaml |
+	kubectl apply -f -
+
 echo "[Forge] Done"
