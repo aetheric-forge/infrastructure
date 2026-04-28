@@ -4,7 +4,7 @@ kind: Kustomization
 resources:
   - namespaces.yaml
   - ../../../platform/external-dns
-  - ../../../platform/cert-manager/core
+  - ../../../platform/cert-manager/overlays/dev
   - ../../../platform/ingress-nginx/overlays/dev
   - ../../../platform/step-ca/base
   - ../../../platform/storage/base
