@@ -166,7 +166,7 @@ def create_cluster():
     )
 
     aws.iam.RolePolicyAttachment(
-        f"{cluster_name}-external-dns-attach",
+        f"{cluster_name}-external-dns-policy",
         role=external_dns_role.name,
         policy_arn=external_dns_policy.arn,
     )

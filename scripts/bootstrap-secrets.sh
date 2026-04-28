@@ -50,15 +50,16 @@ kubectl patch secret repo-git-ssh -n argocd --type merge -p "
 }
 "
 
-echo "[Forge] Installing kube CA bundle in cert-manager"
+echo "[Forge] Installing step-ca CA bundle in cert-manager"
 
-kubectl create namespace cert-manager --dry-run=client -o yaml | kubectl apply -f -
+kubectl exec -n step-ca deploy/step-ca -- \
+	sh -c "echo | openssl s_client -connect 127.0.0.1:9000 2>/dev/null \
+  | awk 'BEGIN{c=0}/BEGIN CERT/{c++} c==2{print}'" |
+	base64 -w0 |
+	xargs -I {} kubectl patch clusterissuer step-ca-int-acme \
+		--type='merge' \
+		-p "{\"spec\":{\"acme\":{\"caBundle\":\"{}\"}}}"
 
-kubectl get configmap kube-root-ca.crt -n kube-system -o jsonpath='{.data.ca\.crt}' |
-	kubectl create secret generic kube-ca \
-		-n cert-manager \
-		--from-file=ca.crt=/dev/stdin \
-		--dry-run=client -o yaml |
-	kubectl apply -f -
+kubectl -n cert-manager rollout restart deployment cert-manager
 
 echo "[Forge] Done"
