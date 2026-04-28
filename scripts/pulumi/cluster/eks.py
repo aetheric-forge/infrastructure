@@ -126,7 +126,7 @@ def create_cluster():
                         "Action": "sts:AssumeRoleWithWebIdentity",
                         "Condition": {
                             "StringEquals": {
-                                f"{args[1]}:sub": [
+                                f"{args[1].replace('https://', '')}:sub": [
                                     "system:serviceaccount:external-dns:external-dns-internal",
                                     "system:serviceaccount:external-dns:external-dns-external",
                                 ]
