@@ -3,7 +3,7 @@ kind: ClusterIssuer
 metadata:
   name: step-ca-int-acme
   annotations:
-    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   acme:
     email: pki@blackcircuit.ca
