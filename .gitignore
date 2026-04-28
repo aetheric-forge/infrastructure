@@ -70,5 +70,6 @@ venv/
 .env*
 .kubeconfig*
 .wireguard/
+.resolv.conf.backup
 
 *.log

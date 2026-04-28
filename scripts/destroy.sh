@@ -54,7 +54,7 @@ EOF
 unwind_gitops() {
 	if check_kube_api; then
 		log "Cluster reachable → unwinding GitOps resources..."
-		kubectl delete -n argocd -f platform/argocd/bootstrap/dev-root-application.yaml >/dev/null 2>&1 || true
+		kubectl delete -n argocd -f platform/argocd/bootstrap/dev-root-application.yaml || true >/dev/null 2>&1
 		kustomize build --enable-helm --enable-alpha-plugins clusters/single/dev | kubectl delete \
 			--ignore-not-found \
 			--grace-period=0 \
