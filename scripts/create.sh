@@ -17,6 +17,9 @@ SCRIPTS_DIR="$ROOT_DIR/scripts"
 FOUNDATION_DIR="$ROOT_DIR/scripts/pulumi/foundation"
 CLUSTER_DIR="$ROOT_DIR/scripts/pulumi/cluster"
 
+NS_CM="cert-manager"
+NS_CA="step-ca"
+
 ########################################
 # Helpers
 ########################################
@@ -119,35 +122,6 @@ verify() {
 	log "Verification passed"
 }
 
-patch_step_ca_bundle() {
-	log "Patching ClusterIssuer with step-ca CA bundle"
-
-	# wait for issuer + deps to actually exist
-	kubectl wait --for=condition=Available deployment -n cert-manager cert-manager --timeout=300s
-	kubectl wait --for=condition=Available deployment -n cert-manager cert-manager-webhook --timeout=300s
-	kubectl wait --for=condition=Ready pod -n step-ca -l app=step-ca --timeout=300s
-	kubectl wait --for=jsonpath='{.metadata.name}'=step-ca-int-acme clusterissuer/step-ca-int-acme --timeout=120s || true
-
-	# extract the correct CA (2nd cert in chain)
-	CA_BUNDLE=$(kubectl exec -n step-ca deploy/step-ca -- \
-		sh -c "echo | openssl s_client -connect 127.0.0.1:9000 2>/dev/null \
-        | awk 'BEGIN{c=0}/BEGIN CERT/{c++} c==2{print}'" |
-		base64 -w0)
-
-	# patch only if needed (idempotent)
-	CURRENT=$(kubectl get clusterissuer step-ca-int-acme -o jsonpath='{.spec.acme.caBundle}' 2>/dev/null || echo "")
-	if [ "$CURRENT" != "$CA_BUNDLE" ]; then
-		kubectl patch clusterissuer step-ca-int-acme \
-			--type=merge \
-			-p "{\"spec\":{\"acme\":{\"caBundle\":\"${CA_BUNDLE}\"}}}"
-	fi
-
-	# reset ACME once so it re-registers with the new trust
-	kubectl delete secret step-ca-int-acme-account-key -n cert-manager --ignore-not-found
-
-	log "CA bundle patched"
-}
-
 ########################################
 # Main
 ########################################
@@ -160,7 +134,6 @@ main() {
 	dns_apply
 	deploy_cluster
 	deploy_gitops
-	patch_step_ca_bundle
 	verify
 
 	log "Forge is online 🔥"

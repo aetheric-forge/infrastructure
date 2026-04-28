@@ -11,7 +11,16 @@ spec:
       name: step-ca-int-acme-account-key
     server: "https://step-ca.step-ca.svc.cluster.local/acme/acme/directory"
     solvers:
-      - dns01:
+      - selector:
+          dnsZones:
+            - "int.aethericforge.ca"
+        dns01:
           route53:
-            region: ca-west-1
+            hostedZoneName: "int.aethericforge.ca."
 
+      - selector:
+          dnsZones:
+            - "aethericforge.ca"
+        dns01:
+          route53:
+            hostedZoneName: "aethericforge.ca."

@@ -129,7 +129,7 @@ def create_cluster():
                                 f"{args[1].replace('https://', '')}:sub": [
                                     "system:serviceaccount:external-dns:external-dns-internal",
                                     "system:serviceaccount:external-dns:external-dns-external",
-                                    "system:serviceaccount:cert-manager:cert-manager",
+                                    "system:serviceaccount:cert-manager:cert-manager"
                                 ]
                             }
                         },
@@ -153,6 +153,7 @@ def create_cluster():
                   "Effect": "Allow",
                   "Action": [
                     "route53:ListHostedZones",
+                    "route53:ListHostedZonesByName",
                     "route53:ListResourceRecordSets"
                   ],
                   "Resource": ["*"]
@@ -168,12 +169,12 @@ def create_cluster():
 
     aws.iam.RolePolicyAttachment(
         f"{cluster_name}-route53-policy",
-        role=external_dns_role.name,
+        role=route53_role.name,
         policy_arn=route53_policy.arn,
     )
 
     k8s_provider = k8s.Provider(
-        f"{cluster_name}-external-dns-k8s",
+        f"{cluster_name}-eks-k8s",
         kubeconfig=cluster.kubeconfig,
     )
 
