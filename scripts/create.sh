@@ -8,7 +8,7 @@ source .env
 ########################################
 
 DNS_SERVER="${DNS_SERVER:-10.0.0.2}"
-BACKUP_FILE="/tmp/resolv.conf.backup"
+BACKUP_FILE=".resolv.conf.backup"
 RESOLV_CONF="/etc/resolv.conf"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -35,6 +35,7 @@ fail() {
 ########################################
 
 dns_apply() {
+	pwd
 	log "Applying DNS override → $DNS_SERVER"
 
 	if [ ! -f "$BACKUP_FILE" ]; then

@@ -1,3 +1,4 @@
+import pulumi
 import pulumi_aws as aws
 from config import Config, prefix
 from network import Network
@@ -20,6 +21,7 @@ def create_dns(cfg: Config, network: Network) -> Dns:
                 vpc_id=network.vpc.id, vpc_region=network.vpc.region
             )
         ],
+        opts=pulumi.ResourceOptions(depends_on=[network.vpc])
     )
 
     external = aws.route53.Zone(

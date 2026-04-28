@@ -2,6 +2,7 @@
 set -euo pipefail
 
 source .env
+source .env.pulumi.generated
 
 ########################################
 # Logging
@@ -98,12 +99,19 @@ teardown_cluster() {
 teardown_foundation() {
 	log "Tearing down foundation..."
 
-	# disassociate EIPs because Pulumi doesn't properly do so before detaching the ENI
-	aws ec2 describe-addresses \
-		--query 'Addresses[?AssociationId!=null].AssociationId' \
-		--output text |
-		xargs -r -n1 aws ec2 disassociate-address --association-id || true
+	ASSOC_ID="$(
+		aws ec2 describe-addresses \
+			--region "$AWS_REGION" \
+			--filters "Name=public-ip,Values=${WIREGUARD_PUBLIC_IP}" \
+			--query 'Addresses[0].AssociationId' \
+			--output text
+	)"
 
+	if [[ "$ASSOC_ID" != "None" && "$ASSOC_ID" != "null" && -n "$ASSOC_ID" ]]; then
+		aws ec2 disassociate-address \
+			--region "$AWS_REGION" \
+			--association-id "$ASSOC_ID"
+	fi
 	cd scripts/pulumi/foundation && pulumi destroy -y || true
 	cd ../../..
 }
