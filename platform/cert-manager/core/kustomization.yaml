@@ -15,3 +15,8 @@ helmCharts:
         enabled: true
       prometheus:
         enabled: false
+      acme:
+        server: https://step-ca.step-ca.svc.cluster.local/acme/acme/directory
+        caBundleSecretRef:
+          name: kube-ca
+          key: ca.crt
