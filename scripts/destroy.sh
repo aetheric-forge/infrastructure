@@ -20,31 +20,9 @@ warn() {
 # Kube API detection (fast TCP probe)
 ########################################
 
-get_kube_host_port() {
-	local server host port
-
-	server=$(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}' 2>/dev/null || true)
-
-	if [[ -z "${server:-}" ]]; then
-		return 1
-	fi
-
-	host=$(echo "$server" | sed -E 's#https?://([^:/]+).*#\1#')
-	port=$(echo "$server" | sed -E 's#https?://[^:/]+:([0-9]+).*#\1#')
-
-	port=${port:-443}
-
-	echo "$host $port"
-}
-
 check_kube_api() {
-	local host port
-
-	if ! read -r host port < <(get_kube_host_port); then
-		return 1
-	fi
-
-	timeout 2 bash -c "</dev/tcp/$host/$port" >/dev/null 2>&1
+	timeout 5 kubectl get ns kube-system >/dev/null 2>&1
+	return $?
 }
 
 ########################################
@@ -76,11 +54,14 @@ EOF
 unwind_gitops() {
 	if check_kube_api; then
 		log "Cluster reachable → unwinding GitOps resources..."
-
-		# Replace path with your actual kustomize target
-		kustomize build ./gitops |
-			kubectl delete -f - --ignore-not-found=true ||
-			warn "kubectl delete returned non-zero (continuing)"
+		kubectl delete -n argocd -f platform/argocd/bootstrap/dev-root-application.yaml >/dev/null 2>&1 || true
+		kustomize build --enable-helm --enable-alpha-plugins clusters/single/dev | kubectl delete \
+			--ignore-not-found \
+			--grace-period=0 \
+			--force \
+			--wait=false \
+			--request-timeout='5s' \
+			-f -
 	else
 		log "Cluster API unreachable → skipping GitOps unwind"
 	fi

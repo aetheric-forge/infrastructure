@@ -1,6 +1,9 @@
 import os
+import pulumi
+import json
 import pulumi_aws as aws
 import pulumi_eks as eks
+import pulumi_kubernetes as k8s
 
 
 def must(name: str) -> str:
@@ -107,33 +110,37 @@ def create_cluster():
         instance_types=instance_types,
     )
 
-    oidc = cluster.eks_cluster.oidc_provider
-
     assume_role_policy = pulumi.Output.all(
-        oidc.oidc_issuer_url,
-        oidc.oidc_issuer_arn
-    ).apply(lambda args: json.dumps({
-        "Version": "2012-10-17",
-        "Statement": [
+        cluster.oidc_provider_arn,
+        cluster.oidc_provider_url,
+    ).apply(
+        lambda args: json.dumps(
             {
-                "Effect": "Allow",
-                "Principal": {
-                    "Federated": args[1]  # arn
-                },
-                "Action": "sts:AssumeRoleWithWebIdentity",
-                "Condition": {
-                    "StringEquals": {
-                        f"{args[0]}:sub":
-                            "system:serviceaccount:external-dns:external-dns"
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Principal": {
+                            "Federated": args[0]  # arn
+                        },
+                        "Action": "sts:AssumeRoleWithWebIdentity",
+                        "Condition": {
+                            "StringEquals": {
+                                f"{args[1]}:sub": [
+                                    "system:serviceaccount:external-dns:external-dns-internal",
+                                    "system:serviceaccount:external-dns:external-dns-external",
+                                ]
+                            }
+                        },
                     }
-                }
+                ],
             }
-        ]
-    }))
+        )
+    )
 
     external_dns_policy = aws.iam.Policy(
-            "external-dns-policy",
-            policy="""{
+        f"{cluster_name}-external-dns-policy",
+        policy="""{
               "Version": "2012-10-17",
               "Statement": [
                 {
@@ -150,20 +157,59 @@ def create_cluster():
                   "Resource": ["*"]
                 }
               ]
-            }"""
-        )
+            }""",
+    )
 
     external_dns_role = aws.iam.Role(
-        "external-dns-role",
+        f"{cluster_name}-external-dns-role",
         assume_role_policy=assume_role_policy,  # you already have this pattern for cluster
     )
 
     aws.iam.RolePolicyAttachment(
-        "external-dns-attach",
+        f"{cluster_name}-external-dns-attach",
         role=external_dns_role.name,
         policy_arn=external_dns_policy.arn,
     )
 
-    pulumi.export("external_dns_role_arn", external_dns_role.arn)
+    k8s_provider = k8s.Provider(
+        f"{cluster_name}-external-dns-k8s",
+        kubeconfig=cluster.kubeconfig,
+    )
+
+    external_dns_ns = k8s.core.v1.Namespace(
+        "external-dns",
+        metadata={"name": "external-dns"},
+        opts=pulumi.ResourceOptions(provider=k8s_provider),
+    )
+
+    k8s.core.v1.ServiceAccount(
+        "external-dns-internal",
+        metadata={
+            "name": "external-dns-internal",
+            "namespace": "external-dns",
+            "annotations": {
+                "eks.amazonaws.com/role-arn": external_dns_role.arn
+            },
+        },
+        opts=pulumi.ResourceOptions(
+            provider=k8s_provider,
+            depends_on=[external_dns_ns],
+        ),
+    )
+
+    k8s.core.v1.ServiceAccount(
+        "external-dns-external",
+        metadata={
+            "name": "external-dns-external",
+            "namespace": "external-dns",
+            "annotations": {
+                "eks.amazonaws.com/role-arn": external_dns_role.arn
+            },
+        },
+        opts=pulumi.ResourceOptions(
+            provider=k8s_provider,
+            depends_on=[external_dns_ns],
+        ),
+    )
 
     return cluster
