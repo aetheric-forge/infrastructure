@@ -3,11 +3,11 @@ kind: Kustomization
 
 resources:
   - namespaces.yaml
+  - ../../../platform/storage/base
   - ../../../platform/bind-dns/overlays/dev
   - ../../../platform/external-dns
   - ../../../platform/cert-manager/overlays/dev
   - ../../../platform/ingress-nginx/overlays/dev
   - ../../../platform/step-ca/base
-  - ../../../platform/storage/base
   - ../../../platform/argocd/overlays/dev
 

@@ -2,9 +2,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: bind-dns
-  namespace: platform
+  namespace: bind-dns
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: bind-dns
