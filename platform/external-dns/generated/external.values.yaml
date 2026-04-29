@@ -1,19 +1,24 @@
-provider: aws
+provider: cloudflare
 
-sources:
-  - service
-  - ingress
+env:
+  - name: CF_API_TOKEN
+    valueFrom:
+      secretKeyRef:
+        name: cloudflare-api-token
+        key: api-token
+
+policy: sync
+registry: txt
+txtOwnerId: external-dns
 
 domainFilters:
   - aethericforge.ca
 
-zoneIdFilters:
-  - Z042963214MHQUN095Z4Z
+interval: 30s
+logLevel: debug
 
-registry: txt
-txtOwnerId: external
-policy: sync
+sources:
+  - ingress
+  - service
 
-serviceAccount:
-  create: true
-  name: external-dns-external
+txtPrefix: cf-

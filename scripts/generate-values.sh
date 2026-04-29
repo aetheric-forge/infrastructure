@@ -11,30 +11,32 @@ echo "⚙️ Generating external-dns values"
 
 # INTERNAL
 cat >"$OUT_DIR/internal.values.yaml" <<EOF
-provider: aws
+provider: rfc2136
 
-sources:
-  - service
-  - ingress
+policy: sync
+registry: txt
+txtOwnerId: internal-dns
 
 domainFilters:
-  - ${INTERNAL_DOMAIN}
+  - int.aethericforge.ca
 
-zoneIdFilters:
-  - ${INTERNAL_ZONE_ID}
+rfc2136:
+  host: bind-dns.platform.svc.cluster.local
+  port: 53
+  zone: int.aethericforge.ca
+  tsigSecretSecretRef:
+    - name: bind-tsig
+      key: tsig-key
+      
 
-registry: txt
-txtOwnerId: internal
-policy: sync
+interval: 30s
 
-serviceAccount:
-  create: true
-  name: external-dns-internal
+logLevel: debug
 EOF
 
 # EXTERNAL
 cat >"$OUT_DIR/external.values.yaml" <<EOF
-provider: aws
+provider: cloudflare
 
 sources:
   - service
@@ -42,9 +44,6 @@ sources:
 
 domainFilters:
   - ${EXTERNAL_DOMAIN}
-
-zoneIdFilters:
-  - ${EXTERNAL_ZONE_ID}
 
 registry: txt
 txtOwnerId: external
