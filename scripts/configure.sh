@@ -59,6 +59,8 @@ echo "PULUMI_STACK=$ENVIRONMENT" >>"$TMP"
 AWS_REGION=$(prompt "AWS_REGION" "AWS region" "ca-west-1")
 echo "AWS_REGION=$AWS_REGION" >>"$TMP"
 
+AWS_VPC_CIDR=$(prompt "AWS_VPC_CIDR" "AWS VPC CIDR (e.g. 10.42.0.0/16)" "10.42.0.0/16")
+echo "AWS_VPC_CIDR=$AWS_VPC_CIDR" >>"$TMP"
 # --- Domain ---
 BASE_DOMAIN=$(prompt "BASE_DOMAIN" "Base domain (e.g. example.com)" "aethericforge.ca")
 echo "BASE_DOMAIN=$BASE_DOMAIN" >>"$TMP"
@@ -74,13 +76,13 @@ echo "K8S_VERSION=$K8S_VERSION" >>"$TMP"
 NODE_ARCH=$(prompt "NODE_ARCH" "Node architecture (arm64/amd64)" "arm64")
 echo "NODE_ARCH=$NODE_ARCH" >>"$TMP"
 
-NODE_DESIRED_SIZE=$(prompt "NODE_DESIRED_SIZE" "Node desired size" "1")
+NODE_DESIRED_SIZE=$(prompt "NODE_DESIRED_SIZE" "Node desired size" "2")
 echo "NODE_DESIRED_SIZE=$NODE_DESIRED_SIZE" >>"$TMP"
 
-NODE_MIN_SIZE=$(prompt "NODE_MIN_SIZE" "Node min size" "1")
+NODE_MIN_SIZE=$(prompt "NODE_MIN_SIZE" "Node min size" "2")
 echo "NODE_MIN_SIZE=$NODE_MIN_SIZE" >>"$TMP"
 
-NODE_MAX_SIZE=$(prompt "NODE_MAX_SIZE" "Node max size" "2")
+NODE_MAX_SIZE=$(prompt "NODE_MAX_SIZE" "Node max size" "4")
 echo "NODE_MAX_SIZE=$NODE_MAX_SIZE" >>"$TMP"
 
 # --- WireGuard ---
@@ -97,7 +99,7 @@ if [[ "$WIREGUARD_ENABLED" == "true" ]]; then
 	WG_SSH_PUBLIC_KEY_FILE=$(prompt "WIREGUARD_SSH_PUBLIC_KEY_FILE" "Wireguard SSH public key file" "$HOME/.ssh/id_ed25519.pub")
 	echo "WIREGUARD_SSH_PUBLIC_KEY_FILE=$WG_SSH_PUBLIC_KEY_FILE" >>$TMP
 
-	WG_ACCESS_CIDRS="$MY_IP/32"
+	WG_ACCESS_CIDRS=$(prompt "WIREGUARD_ACCESS_CIDRS" "Wireguard access CIDR(s)" "$MY_IP/32")
 	echo "WIREGUARD_ACCESS_CIDRS=$WG_ACCESS_CIDRS" >>$TMP
 
 	WG_LOCAL_CIDRS=$(prompt "WIREGUARD_LOCAL_CIDRS" "Local network CIDR(s)" "192.168.1.0/24")
@@ -113,6 +115,9 @@ echo "SSH_REPO_KEY=$SSH_REPO_KEY" >>"$TMP"
 
 SOPS_AGE_KEY=$(prompt "SOPS_AGE_KEY" "Path to SOPS key" "~/.config/sops/age/keys.txt")
 echo "SOPS_AGE_KEY=$SOPS_AGE_KEY" >>"$TMP"
+
+TSIG_KEY=$(prompt "TSIG_KEY" "Path to TSIG key" "~/.aethericforge/keys/tsig/external-dns.key")
+echo "TSIG_KEY=$TSIG_KEY" >>"$TMP"
 
 # --- Finalize ---
 mv "$TMP" "$ENV_FILE"

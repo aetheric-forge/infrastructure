@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: bind-dns
+  namespace: platform
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-scheme: "internal"
+spec:
+  type: LoadBalancer
+  selector:
+    app: bind-dns
+  ports:
+    - name: dns-udp
+      port: 53
+      protocol: UDP
+    - name: dns-tcp
+      port: 53
+      protocol: TCP

@@ -66,7 +66,7 @@ deploy_foundation() {
 
 	"$SCRIPTS_DIR"/pulumi/pulumi-up.sh || fail "Foundation deployment failed"
 	"$SCRIPTS_DIR"/generate-env.sh || fail "Could not update .env"
-	"$SCRIPTS_DIR"/generate-values.sh || fail "Could not generate external-dns values.yaml"
+	#"$SCRIPTS_DIR"/generate-values.sh || fail "Could not generate external-dns values.yaml"
 }
 
 ########################################
@@ -131,9 +131,9 @@ main() {
 
 	deploy_foundation
 	setup_wireguard
-	dns_apply
+	#	dns_apply
 	deploy_cluster
-	deploy_gitops
+	#deploy_gitops
 	verify
 
 	log "Forge is online 🔥"

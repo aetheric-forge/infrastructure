@@ -110,7 +110,7 @@ main() {
 	teardown_cluster
 
 	# Step 4 — perform required DNS mutation (critical ordering)
-	update_resolv
+	#update_resolv
 
 	# Step 5 — tear down base infrastructure
 	teardown_foundation

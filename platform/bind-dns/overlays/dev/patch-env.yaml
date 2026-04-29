@@ -1,0 +1,7 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bind-dns
+  namespace: platform
+spec:
+  replicas: 2
