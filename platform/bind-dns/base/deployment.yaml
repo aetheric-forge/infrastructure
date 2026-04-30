@@ -34,23 +34,26 @@ spec:
         - name: config
           configMap:
             name: bind-config
-        - name: tsig
-          secret:
-            secretName: bind-tsig
         - name: zones
           persistentVolumeClaim:
             claimName: bind-zones
-    initContainers:
-      - name: init-zone
-        image: busybox
-        command:
-          - sh
-          - -c
-          - |
-            if [ ! -f /zones/db.int.aethericforge.ca ]; then
-              cp /bootstrap/db.int.aethericforge.ca /zones/db.int.aethericforge.ca
-            fi
-        volumeMounts:
+        - name: bootstrap
+          configMap:
+            name: bind-zone-bootstrap
+        - name: tsig
+          secret:
+            secretName: bind-tsig
+      initContainers:
+        - name: init-zone
+          image: busybox
+          command:
+            - sh
+            - -c
+            - |
+              if [ ! -f /zones/db.int.aethericforge.ca ]; then
+                cp /bootstrap/db.int.aethericforge.ca /zones/db.int.aethericforge.ca
+              fi
+          volumeMounts:
           - name: zones
             mountPath: /zones
           - name: bootstrap

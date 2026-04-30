@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: bind-config
-  namespace: platform
+  namespace: bind-dns
 data:
   named.conf: |
     options {
@@ -24,7 +24,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: bind-zone-bootstrap
-  namespace: platform
+  namespace: bind-dns
 data:
   db.int.aethericforge.ca: |
     $TTL 300
