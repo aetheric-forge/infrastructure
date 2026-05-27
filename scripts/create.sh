@@ -1,21 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-source .env
+ssh-add 2>/dev/null || true
 
 ########################################
 # Config
 ########################################
 
-DNS_SERVER="${DNS_SERVER:-10.0.0.2}"
-BACKUP_FILE="../../../.resolv.conf.backup"
-RESOLV_CONF="/etc/resolv.conf"
+export ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export SCRIPTS_DIR="$ROOT_DIR/scripts"
+source "$SCRIPTS_DIR/lib/paths.sh"
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-
-SCRIPTS_DIR="$ROOT_DIR/scripts"
-FOUNDATION_DIR="$ROOT_DIR/scripts/pulumi/foundation"
-CLUSTER_DIR="$ROOT_DIR/scripts/pulumi/cluster"
+source "$ROOT_DIR/.env"
 
 NS_CM="cert-manager"
 NS_CA="step-ca"
@@ -33,26 +29,14 @@ fail() {
 	exit 1
 }
 
-########################################
-# Stage 0 — DNS Override
-########################################
+pause_for_operator() {
+	local message="$1"
 
-dns_apply() {
-	log "Applying DNS override → $DNS_SERVER"
-
-	if [ ! -f "$BACKUP_FILE" ]; then
-		cp "$RESOLV_CONF" "$BACKUP_FILE"
-		log "Backed up resolv.conf → $BACKUP_FILE"
+	if [[ -t 0 ]]; then
+		read -rp "$message"
 	else
-		log "Backup already exists"
+		log "$message"
 	fi
-
-	sudo tee "$RESOLV_CONF" >/dev/null <<EOF
-# Managed by Forge create.sh
-search $INTERNAL_DOMAIN
-nameserver $DNS_SERVER
-options edns0
-EOF
 }
 
 ########################################
@@ -60,13 +44,13 @@ EOF
 ########################################
 
 deploy_foundation() {
-	log "Deploying foundation (Pulumi)"
-
+	log "⚙️  Applying foundational laws..."
 	cd "$FOUNDATION_DIR" || fail "Missing foundation dir"
 
 	"$SCRIPTS_DIR"/pulumi/pulumi-up.sh || fail "Foundation deployment failed"
 	"$SCRIPTS_DIR"/generate-env.sh || fail "Could not update .env"
-	#"$SCRIPTS_DIR"/generate-values.sh || fail "Could not generate external-dns values.yaml"
+	"$SCRIPTS_DIR"/generate-values.sh || fail "Could not generate external-dns values.yaml"
+	echo "⚡ The foundation holds. All else may now rise."
 }
 
 ########################################
@@ -74,19 +58,27 @@ deploy_foundation() {
 ########################################
 
 deploy_cluster() {
-	log "Deploying cluster (Pulumi)"
-
+	log "🧱  Assembling nodes into a coherent reality..."
 	cd "$CLUSTER_DIR" || fail "Missing cluster dir"
 
 	"$SCRIPTS_DIR"/pulumi/pulumi-up.sh || fail "Cluster deployment failed"
 	"$SCRIPTS_DIR"/merge-kubeconfig.sh || fail "Could not update ~/.kube/config"
 	"$SCRIPTS_DIR"/bootstrap-secrets.sh || fail "Could not bootstrap kube secrets"
+	log "✅ Cluster manifestation complete."
 }
 
 setup_wireguard() {
-	log "Bringing up WireGuard tunnel to AWS"
+	if [[ "${WIREGUARD_ENABLED:-}" != "true" ]]; then
+		log "🌀 Wireguard disabled."
+		return 0
+	fi
 
+	log "🔑 Binding keys to unseen gates..."
 	"$SCRIPTS_DIR"/wireguard/setup.sh
+	log "⚡ The conduit holds. You may pass."
+
+	pause_for_operator \
+		"Enable the local DNS AWS forwarder now, then press Enter to continue..."
 }
 
 ########################################
@@ -94,15 +86,50 @@ setup_wireguard() {
 ########################################
 
 deploy_gitops() {
-	log "Deploying GitOps (ArgoCD via Kustomize)"
+	log "Deploying bootstrap substrate"
 
 	kubectl get ns argocd >/dev/null 2>&1 || kubectl create ns argocd
 	kubectl get ns external-dns >/dev/null 2>&1 || kubectl create ns external-dns
+	kubectl get ns cert-manager >/dev/null 2>&1 || kubectl create ns cert-manager
 
-	kustomize build --enable-helm --enable-alpha-plugins ../../../clusters/single/dev | kubectl apply -f - || fail "GitOps deployment failed"
-	kubectl -n argocd apply -f ../../../platform/argocd/bootstrap/dev-root-application.yaml
+	kustomize build \
+		--enable-helm \
+		--enable-alpha-plugins \
+		--enable-exec \
+		"$ROOT_DIR/clusters/single/dev/bootstrap" \
+		| kubectl apply -f - \
+		|| fail "Bootstrap deployment failed"
+
+	log "Waiting for cert-manager CRDs..."
+
+	kubectl wait \
+		--for=condition=Established \
+		crd/certificates.cert-manager.io \
+		--timeout=120s \
+		|| fail "cert-manager CRDs failed"
+
+	log "Waiting for cert-manager webhook..."
+
+	kubectl rollout status \
+		deployment/cert-manager-webhook \
+		-n cert-manager \
+		--timeout=120s \
+		|| fail "cert-manager webhook failed"
+
+	log "Waiting for ArgoCD..."
+
+	kubectl rollout status \
+		deployment/argocd-server \
+		-n argocd \
+		--timeout=120s \
+		|| fail "ArgoCD failed"
+
+	log "Handing control to GitOps"
+
+	kubectl apply \
+		-f "$ROOT_DIR/clusters/single/dev/gitops/dev-root-application.yaml" \
+		|| fail "GitOps root app failed"
 }
-
 ########################################
 # Stage 4 — Verification (light sanity)
 ########################################
@@ -127,14 +154,14 @@ verify() {
 ########################################
 
 main() {
-	log "Forge bootstrap starting"
-
+	log "✨ Let there be infrastructure."
+	sleep 0.5
+	echo "🌌 Spinning up the universe..."
 	deploy_foundation
 	setup_wireguard
-	#	dns_apply
 	deploy_cluster
-	#deploy_gitops
-	verify
+	deploy_gitops
+	#verify
 
 	log "Forge is online 🔥"
 }

@@ -4,7 +4,6 @@ metadata:
   name: bind-dns
   namespace: bind-dns
 spec:
-  replicas: 2
   selector:
     matchLabels:
       app: bind-dns
@@ -16,21 +15,30 @@ spec:
       containers:
         - name: bind
           image: internetsystemsconsortium/bind9:9.18
+          command:
+            - named
+            - -g
+            - -c
+            - /config/named.conf
           ports:
             - containerPort: 53
               protocol: UDP
             - containerPort: 53
               protocol: TCP
           volumeMounts:
+            - name: bind-cache
+              mountPath: /var/cache/bind
             - name: config
-              mountPath: /etc/bind/named.conf
-              subPath: named.conf
+              mountPath: /config
             - name: tsig
-              mountPath: /etc/bind/tsig.key
-              subPath: tsig.key
+              mountPath: /etc/bind
             - name: zones
               mountPath: /zones
+      securityContext:
+        fsGroup: 1000
       volumes:
+        - name: bind-cache
+          emptyDir: {}
         - name: config
           configMap:
             name: bind-config
@@ -43,6 +51,7 @@ spec:
         - name: tsig
           secret:
             secretName: bind-tsig
+            defaultMode: 0444
       initContainers:
         - name: init-zone
           image: busybox

@@ -14,7 +14,7 @@ def _require_env(name: str) -> str:
     return value
 
 
-def create_sops_age_secret(namespace: str = ARGOCD_NAMESPACE):
+def create_sops_age_secret(namespace: k8s.core.v1.Namespace):
     return k8s.core.v1.Secret(
         "sops-age",
         metadata={
@@ -27,11 +27,12 @@ def create_sops_age_secret(namespace: str = ARGOCD_NAMESPACE):
         type="Opaque",
         opts=pulumi.ResourceOptions(
             additional_secret_outputs=["data", "stringData"],
+            depends_on=[namespace],
         ),
     )
 
 
-def create_repo_git_ssh_secret(namespace: str = ARGOCD_NAMESPACE):
+def create_repo_git_ssh_secret(namespace: k8s.core.v1.Namespace):
     return k8s.core.v1.Secret(
         "repo-git-ssh",
         metadata={
@@ -49,15 +50,21 @@ def create_repo_git_ssh_secret(namespace: str = ARGOCD_NAMESPACE):
         type="Opaque",
         opts=pulumi.ResourceOptions(
             additional_secret_outputs=["data", "stringData"],
+            depends_on=[namespace],
         ),
     )
 
 
 def create_secrets(namespace: str = ARGOCD_NAMESPACE):
-
+    ns = k8s.core.v1.Namespace(
+        namespace,
+        metadata={
+            "name": namespace,
+        }
+    )
     return {
-        "sops_age": create_sops_age_secret(namespace),
-        "repo_git_ssh": create_repo_git_ssh_secret(namespace),
+        "sops_age": create_sops_age_secret(ns),
+        "repo_git_ssh": create_repo_git_ssh_secret(ns),
     }
 
 

@@ -1,8 +1,7 @@
 import os
 import ipaddress
 import pulumi_aws as aws
-from config import Config, prefix
-
+from config import Config, AWSConfig, prefix
 
 class Network:
     def __init__(
@@ -17,8 +16,12 @@ class Network:
 
 
 def create_network(cfg: Config) -> Network:
+    aws_cfg = cfg.aws
+    if aws_cfg is None:
+        raise Exception("Required AWS configuration is missing. Run make configure")
+
     name = prefix(cfg)
-    vpc_cidr = ipaddress.ip_network(os.environ["AWS_VPC_CIDR"])
+    vpc_cidr = ipaddress.ip_network(aws_cfg.vpc_cidr)
 
     vpc = aws.ec2.Vpc(
         f"{name}-vpc",

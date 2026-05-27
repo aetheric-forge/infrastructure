@@ -5,10 +5,10 @@ resources:
   - namespaces.yaml
 
   # Bootstrap platform (iteration 1)
-  - ../../../platform/ingress-nginx/overlays/test
-  - ../../../platform/cert-manager/overlays/test
-  - ../../../platform/storage/base
-  - ../../../platform/step-ca/base
-#  - ../../../platform/external-dns/overlays/test
-  - ../../../platform/argocd/overlays/test
+  #- ../../../platform/ingress-nginx/overlays/test
+  #- ../../../platform/cert-manager/overlays/test
+  #- ../../../platform/storage/base
+  #- ../../../platform/step-ca/base
+# #- ../../../platform/external-dns/overlays/test
+  #- ../../../platform/argocd/overlays/test
 

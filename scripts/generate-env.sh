@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
+
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/paths.sh"
+
 set -a
-source ../../../.env
+source "$ROOT_DIR/.env"
 set +a
 
 echo "⚙️  Generating .env.pulumi.generated"
 
-OUTPUT_FILE="../../../.env.pulumi.generated"
+OUTPUT_FILE="$ROOT_DIR/.env.pulumi.generated"
+PULUMI_OUTPUT_FILE="$ROOT_DIR/.pulumi-output.json"
 
 # Ensure stack is selected
 if [[ -z "${PULUMI_STACK:-}" ]]; then
@@ -17,7 +21,7 @@ fi
 pulumi stack select "$PULUMI_STACK" >/dev/null
 
 # Dump outputs
-pulumi stack output --json >../../../.pulumi-output.json
+pulumi stack output --json >"$PULUMI_OUTPUT_FILE"
 
 # Start fresh
 TMP=$(mktemp)
@@ -33,9 +37,9 @@ jq -r '
   else
     "\(.key | ascii_upcase)=\(.value | @json)"
   end
-' ../../../.pulumi-output.json >>"$TMP"
+' "$PULUMI_OUTPUT_FILE" >>"$TMP"
 
 cp -f "$TMP" "$OUTPUT_FILE"
-rm ../../../.pulumi-output.json
+rm "$PULUMI_OUTPUT_FILE"
 
 echo "✅ Wrote $OUTPUT_FILE"

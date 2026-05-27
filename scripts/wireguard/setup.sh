@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/lib/paths.sh"
+
 echo "⚡ WireGuard setup"
 
 set -a
-source ../../../.env
-source ../../../.env.pulumi.generated
+source "$ROOT_DIR/.env"
+source "$ROOT_DIR/.env.pulumi.generated"
 set +a
 
 if [[ "${WIREGUARD_ENABLED:-false}" != "true" ]]; then
@@ -34,7 +36,7 @@ ssh "ec2-user@$HOST" <<'EOF'
 set -e
 
 if command -v yum >/dev/null; then
-  sudo yum install -y wireguard-tools
+  sudo yum install -y wireguard-tools iptables iptables-services
 else
   sudo apt update && sudo apt install -y wireguard
 fi
@@ -49,8 +51,9 @@ EOF
 
 echo "🔑 Fetching remote public key"
 
-mkdir -p .wireguard
-ssh "ec2-user@$HOST" "sudo cat /etc/wireguard/public.key" >.wireguard/remote.pub
+WIREGUARD_STATE_DIR="$ROOT_DIR/.wireguard"
+mkdir -p "$WIREGUARD_STATE_DIR"
+ssh "ec2-user@$HOST" "sudo cat /etc/wireguard/public.key" >"$WIREGUARD_STATE_DIR/remote.pub"
 
 echo "💻 Configuring local"
 
@@ -61,7 +64,7 @@ fi
 
 LOCAL_PRIV=$(sudo cat "$WG_DIR/private.key")
 LOCAL_PUB=$(sudo cat "$WG_DIR/public.key")
-REMOTE_PUB=$(cat .wireguard/remote.pub)
+REMOTE_PUB=$(cat "$WIREGUARD_STATE_DIR/remote.pub")
 
 echo "⚙️ Building configs"
 

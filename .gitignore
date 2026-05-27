@@ -70,6 +70,10 @@ venv/
 .env*
 .kubeconfig*
 .wireguard/
-.resolv.conf.backup
+.codex
 
 *.log
+
+backups/
+
+.vscode/

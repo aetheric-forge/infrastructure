@@ -16,12 +16,4 @@ spec:
             - "int.aethericforge.ca"
         dns01:
           route53:
-            region: ca-west-1
-
-      - selector:
-          dnsZones:
-            - "aethericforge.ca"
-        dns01:
-          route53:
-            region: ca-west-1
-
+            hostedZoneID: ZPLACEHOLDER

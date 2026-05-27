@@ -4,3 +4,7 @@ kind: Kustomization
 resources:
   - ../../base
   - ../../issuers/dev
+  - ../../generated
+
+generators:
+  - ksops-secrets.yaml

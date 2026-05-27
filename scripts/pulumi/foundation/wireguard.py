@@ -15,17 +15,21 @@ class Wireguard:
 
 
 def create_wireguard(cfg: Config, network: Network) -> Wireguard | None:
-    if not cfg.wg_enabled:
+    wg_cfg = cfg.wireguard
+    if not wg_cfg:
+        return None
+
+    if not wg_cfg.ssh_public_key_file:
         return None
 
     name = prefix(cfg)
 
     # SSH key
-    public_key = open(os.path.expanduser(cfg.wg_ssh_public_key_file)).read()
+    public_key = open(os.path.expanduser(wg_cfg.ssh_public_key_file)).read()
 
     aws.ec2.KeyPair(
         f"{name}-wg-key",
-        key_name=cfg.wg_ssh_key_name,
+        key_name=wg_cfg.ssh_key_name,
         public_key=public_key,
     )
 
@@ -39,13 +43,13 @@ def create_wireguard(cfg: Config, network: Network) -> Wireguard | None:
                 protocol="udp",
                 from_port=51820,
                 to_port=51820,
-                cidr_blocks=cfg.wg_access_cidrs,
+                cidr_blocks=wg_cfg.access_cidrs,
             ),
             aws.ec2.SecurityGroupIngressArgs(
                 protocol="tcp",
                 from_port=22,
                 to_port=22,
-                cidr_blocks=cfg.wg_access_cidrs,
+                cidr_blocks=wg_cfg.access_cidrs,
             ),
         ],
         egress=[
@@ -111,7 +115,7 @@ service iptables save || true
                 }
             ],
         ).id,
-        key_name=cfg.wg_ssh_key_name,
+        key_name=wg_cfg.ssh_key_name,
         primary_network_interface=aws.ec2.InstancePrimaryNetworkInterfaceArgs(
             network_interface_id=private_eni.id,
         ),
