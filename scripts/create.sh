@@ -153,9 +153,9 @@ bootstrap_step_ca_trust() {
 	log "[Forge] Bootstrapping Step CA trust"
 
 	log "Waiting for step-ca namespace..."
-	kubectl wait --for=jsonpath='{.metadata.name}'=step-ca \
-	namespace/step-ca \
-	--timeout=300s
+	until kubectl get namespace step-ca >/dev/null 2>&1; do
+		sleep 2
+	done
 
 	log "Waiting for step-ca deployment..."
 	kubectl rollout status deploy/step-ca \
