@@ -97,3 +97,26 @@ helmCharts:
               name: cluster-admin
               kind: ClusterRole
               apiGroup: rbac.authorization.k8s.io
+
+secretGenerator:
+  - name: step-ca-root-ca
+    namespace: step-ca
+    files:
+      - ca.crt=path/to/root_ca.crt
+    options:
+      disableNameSuffixHash: true
+
+replacements:
+  - source:
+      kind: Secret
+      name: step-ca-root-ca
+      namespace: step-ca
+      fieldPath: data.ca\.crt
+    targets:
+      - select:
+          kind: ClusterIssuer
+          name: step-ca-int-acme
+        fieldPaths:
+          - spec.acme.caBundle
+        options:
+          create: true

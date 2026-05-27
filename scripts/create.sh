@@ -149,6 +149,36 @@ verify() {
 	log "Verification passed"
 }
 
+bootstrap_step_ca_trust() {
+	log "[Forge] Bootstrapping Step CA trust"
+
+	kubectl rollout status deploy/step-ca -n step-ca --timeout=300s
+	kubectl rollout status deploy/cert-manager -n cert-manager --timeout=300s
+
+	kubectl exec -n step-ca deploy/step-ca -- \
+		cat /home/step/certs/root_ca.crt \
+		> /tmp/root_ca.crt
+
+	kubectl create secret generic step-ca-root-ca \
+		-n cert-manager \
+		--from-file=ca.crt=/tmp/root_ca.crt \
+		--dry-run=client -o yaml | kubectl apply -f -
+
+	CA_BUNDLE=$(base64 -w0 /tmp/root_ca.crt)
+
+	kubectl patch clusterissuer step-ca-int-acme \
+		--type merge \
+		-p "{
+			\"spec\": {
+				\"acme\": {
+					\"caBundle\": \"${CA_BUNDLE}\"
+				}
+			}
+		}"
+
+	rm -f /tmp/root_ca.crt
+}
+
 ########################################
 # Main
 ########################################
@@ -161,7 +191,8 @@ main() {
 	setup_wireguard
 	deploy_cluster
 	deploy_gitops
-	#verify
+	bootstrap_step_ca_trust
+	verify
 
 	log "Forge is online 🔥"
 }
