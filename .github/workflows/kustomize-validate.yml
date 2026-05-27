@@ -5,7 +5,7 @@ on:
   push:
     branches:
       - main
-      - v0.5
+      - v0.7
 
 jobs:
   validate:
