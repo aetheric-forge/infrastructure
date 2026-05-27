@@ -4,4 +4,4 @@ kind: Kustomization
 resources:
   - dev-root-application.yaml
   - ../../../../platform/external-dns
-  - ../../../../platform/step-ca
+  - ../../../../platform/step-ca/overlays/dev
