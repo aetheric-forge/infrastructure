@@ -27,7 +27,8 @@ helmCharts:
           default: false
         watchIngressWithoutClass: false
         service:
-          type: NodePort
+          type: LoadBalancer
+          loadBalancerIP: 192.168.1.240
   - name: ingress-nginx
     repo: https://kubernetes.github.io/ingress-nginx
     version: 4.13.3

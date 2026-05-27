@@ -3,5 +3,6 @@ kind: Kustomization
 
 resources:
   - dev-root-application.yaml
+  - ../../../../platform/metallb/overlays/dev
   - ../../../../platform/external-dns
   - ../../../../platform/step-ca/overlays/dev
