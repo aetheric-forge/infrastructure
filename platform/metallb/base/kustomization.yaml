@@ -9,3 +9,11 @@ helmCharts:
     version: 0.15.2
     releaseName: metallb
     namespace: metallb-system
+    includeCRDs: true
+    valuesInline:
+      crds:
+        enabled: true
+
+resources:
+  - namespace.yaml
+
