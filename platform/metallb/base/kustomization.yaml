@@ -9,7 +9,3 @@ helmCharts:
     version: 0.15.2
     releaseName: metallb
     namespace: metallb-system
-
-resources:
-  - ipaddresspool.yaml
-  - l2advertisement.yaml
