@@ -47,7 +47,7 @@ extraArgs:
   - --rfc2136-port=53
   - --rfc2136-zone=${INTERNAL_DOMAIN}
   - --rfc2136-tsig-secret-alg=hmac-sha256
-  - --rfc2136-tsig-keyname=external-dns-internal-tsig
+  - --rfc2136-tsig-keyname=external-dns-key
   - --rfc2136-tsig-axfr
 
 env:
