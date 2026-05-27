@@ -152,8 +152,15 @@ verify() {
 bootstrap_step_ca_trust() {
 	log "[Forge] Bootstrapping Step CA trust"
 
-	kubectl rollout status deploy/step-ca -n step-ca --timeout=300s
-	kubectl rollout status deploy/cert-manager -n cert-manager --timeout=300s
+	log "Waiting for step-ca namespace..."
+	kubectl wait --for=jsonpath='{.metadata.name}'=step-ca \
+	namespace/step-ca \
+	--timeout=300s
+
+	log "Waiting for step-ca deployment..."
+	kubectl rollout status deploy/step-ca \
+	-n step-ca \
+	--timeout=300s
 
 	kubectl exec -n step-ca deploy/step-ca -- \
 		cat /home/step/certs/root_ca.crt \
