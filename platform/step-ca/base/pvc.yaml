@@ -4,7 +4,6 @@ metadata:
   name: step-ca-data
   namespace: step-ca
 spec:
-  storageClassName: gp3
   accessModes:
     - ReadWriteOnce
   resources:
