@@ -164,7 +164,15 @@ bootstrap_step_ca_trust() {
 
 	kubectl exec -n step-ca deploy/step-ca -- \
 		cat /home/step/certs/root_ca.crt \
-		> /tmp/root_ca.crt
+		> /tmp/root_ca.crt || {
+			log "Failed to extract root CA"
+			return 1
+		}
+
+		test -s /tmp/root_ca.crt || {
+			log "root_ca.crt is empty"
+			return 1
+		}
 
 	kubectl create secret generic step-ca-root-ca \
 		-n cert-manager \
