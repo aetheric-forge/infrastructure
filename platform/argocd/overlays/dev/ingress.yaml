@@ -10,7 +10,7 @@ metadata:
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
     external-dns.alpha.kubernetes.io/hostname: argocd-dev.int.aethericforge.ca
     external-dns.alpha.kubernetes.io/ttl: "60"
-    external-dns.alpha.kubernetes.io/target: 192.168.1.240
+    external-dns.alpha.kubernetes.io/target: "192.168.1.240"
 spec:
   ingressClassName: nginx-private
   tls:
