@@ -11,14 +11,14 @@ spec:
       name: step-ca-int-acme-account-key
     server: "https://step-ca.step-ca.svc.cluster.local/acme/acme/directory"
     solvers:
-  - selector:
-      dnsZones:
-        - int.aethericforge.ca
-    dns01:
-      rfc2136:
-        nameserver: 192.168.1.240:53
-        tsigKeyName: external-dns-key
-        tsigAlgorithm: HMACSHA256
-        tsigSecretSecretRef:
-          name: external-dns-internal-tsig
-          key: tsig-secret
+      - selector:
+          dnsZones:
+            - int.aethericforge.ca
+        dns01:
+          rfc2136:
+            nameserver: 192.168.1.240:53
+            tsigKeyName: external-dns-key
+            tsigAlgorithm: HMACSHA256
+            tsigSecretSecretRef:
+              name: external-dns-internal-tsig
+              key: tsig-secret
