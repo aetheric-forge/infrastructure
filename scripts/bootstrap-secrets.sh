@@ -53,15 +53,17 @@ kubectl patch secret repo-git-ssh -n argocd --type merge -p "
 
 echo "[Forge] Creating secret cloudflare-api-token"
 
-kubectl create ns external-dns --dry-run=client -o yaml | kubectl apply -f -
-kubectl -n external-dns create secret generic cloudflare-api-token \
-	--from-literal=api-token="$CF_API_KEY" \
-	--dry-run=client -o yaml |
-	kubectl apply -f -
+for ns in external-dns cert-manager; do
+	kubectl create ns "$ns" --dry-run=client -o yaml | kubectl apply -f -
+	kubectl -n "$ns" create secret generic cloudflare-api-token \
+		--from-literal=api-token="$CF_API_KEY" \
+		--dry-run=client -o yaml |
+		kubectl apply -f -
 
-kubectl -n external-dns create secret generic external-dns-internal-tsig \
-    --from-literal=tsig-secret="$TSIG_KEY" \
-	--dry-run=client -o yaml |
-	kubectl apply -f -
+	kubectl -n "$ns" create secret generic external-dns-internal-tsig \
+		--from-literal=tsig-secret="$TSIG_KEY" \
+		--dry-run=client -o yaml |
+		kubectl apply -f -
 
+done
 echo "[Forge] Done"
