@@ -27,10 +27,7 @@ helmCharts:
           default: false
         watchIngressWithoutClass: false
         service:
-          type: NodePort
-          nodePorts:
-            http: 30081
-            https: 30444
+          type: LoadBalancer
   - name: ingress-nginx
     repo: https://kubernetes.github.io/ingress-nginx
     version: 4.13.3
@@ -51,7 +48,4 @@ helmCharts:
           default: false
         watchIngressWithoutClass: false
         service:
-          type: NodePort
-          nodePorts:
-            http: 30080
-            https: 30443
+          type: LoadBalancer
