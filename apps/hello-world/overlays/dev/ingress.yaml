@@ -6,6 +6,7 @@ metadata:
   annotations:
     cert-manager.io/cluster-issuer: le-staging
     metallb.io/address-pool: "public-pool"
+    external-dns.alpha.kubernetes.io/controller: dns-controller
     external-dns.alpha.kubernetes.io/hostname: hello.aethericforge.ca
     external-dns.alpha.kubernetes.io/ttl: "300"
     external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
