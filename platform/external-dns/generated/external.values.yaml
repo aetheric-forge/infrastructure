@@ -19,6 +19,10 @@ registry: txt
 txtOwnerId: external
 policy: sync
 
+extraArgs:
+  - --cloudflare-proxied
+  - --ingress-class=nginx-public
+
 serviceAccount:
   create: true
   name: external-dns-external
