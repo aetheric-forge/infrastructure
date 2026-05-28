@@ -2,6 +2,9 @@ apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
   name: le-staging
+  annotations:
+    cert-manager.io/acme-ca-uri: https://acme-staging-v02.api.letsencrypt.org/directory
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   acme:
     email: brian@aethericforge.ca
