@@ -5,3 +5,4 @@ resources:
   - dev-root-application.yaml
   - ../../../../platform/external-dns
   - ../../../../platform/step-ca/overlays/dev
+  - ../../../../apps/hello-world/overlays/dev
