@@ -23,7 +23,7 @@ helmCharts:
         ingressClassResource:
           enabled: true
           name: nginx-private
-          controllerValue: k8s.io/nginx-private-ingress-nginx
+          controllerValue: k8s.io/ingress-nginx
           default: false
         watchIngressWithoutClass: false
         service:
@@ -46,7 +46,7 @@ helmCharts:
         ingressClassResource:
           enabled: true
           name: nginx-public
-          controllerValue: k8s.io/nginx-public-ingress-nginx
+          controllerValue: k8s.io/ingress-nginx
           default: false
         watchIngressWithoutClass: false
         service:
