@@ -2,7 +2,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: hello-world
-  namespace: hello-world
+  namespace: argocd
 spec:
   project: example
   source:
