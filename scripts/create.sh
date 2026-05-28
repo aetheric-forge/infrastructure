@@ -91,6 +91,7 @@ deploy_gitops() {
 	kubectl get ns argocd >/dev/null 2>&1 || kubectl create ns argocd
 	kubectl get ns external-dns >/dev/null 2>&1 || kubectl create ns external-dns
 	kubectl get ns cert-manager >/dev/null 2>&1 || kubectl create ns cert-manager
+	kubectl get ns metallb-system >/dev/null 2>&1 || kubectl create ns metallb-system
 
 	kustomize build \
 		--enable-helm \
@@ -99,6 +100,14 @@ deploy_gitops() {
 		"$ROOT_DIR/clusters/single/dev/bootstrap" \
 		| kubectl apply -f - \
 		|| fail "Bootstrap deployment failed"
+
+	log "Waiting for metallb CRDs..."
+
+	kubectl wait \
+		--for=condition=Established \
+		crd/ipaddresspools.metallb.io \
+		crd/l2advertisements.metallb.io \
+		--timeout=120s
 
 	log "Waiting for cert-manager CRDs..."
 
@@ -116,6 +125,14 @@ deploy_gitops() {
 		--timeout=120s \
 		|| fail "cert-manager webhook failed"
 
+	log "Waiting for metallb controller..."
+
+	kubectl rollout status \
+		deployment/metallb-controller \
+		-n metallb-system \
+		--timeout=120s \
+		|| fail "metallb controller failed"
+
 	log "Waiting for ArgoCD..."
 
 	kubectl rollout status \
@@ -127,7 +144,7 @@ deploy_gitops() {
 	log "Handing control to GitOps"
 
 	kubectl apply \
-		-f "$ROOT_DIR/clusters/single/dev/gitops/dev-root-application.yaml" \
+		-f "$ROOT_DIR/apps/dev-root-application.yaml" \
 		|| fail "GitOps root app failed"
 }
 ########################################
