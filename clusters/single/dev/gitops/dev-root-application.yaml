@@ -17,3 +17,23 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: hello-world
+  namespace: hello-world
+spec:
+  project: example
+  source:
+    repoURL: git@github.com:aetheric-forge/infrastructure.git
+    targetRevision: v0.7
+    path: apps/hello-world
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
