@@ -19,8 +19,8 @@ for var in "${required_vars[@]}"; do
 	fi
 done
 
-DNS_DIR="$ROOT_DIR/platform/external-dns/generated"
-CM_DIR="$ROOT_DIR/platform/cert-manager/generated"
+DNS_DIR="$ROOT_DIR/platform/external-dns/base/generated"
+CM_DIR="$ROOT_DIR/platform/cert-manager/base/generated"
 mkdir -p "$DNS_DIR"
 mkdir -p "$CM_DIR"
 
