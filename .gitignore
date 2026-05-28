@@ -58,9 +58,6 @@ nunit-*.xml
 !.env.example
 
 # skip the generated files for bootstrap
-generated/
-inputs/
-
 __pycache__/
 .idea/
 
@@ -73,3 +70,10 @@ venv/
 .env*
 .kubeconfig*
 .wireguard/
+.codex
+
+*.log
+
+backups/
+
+.vscode/

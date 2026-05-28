@@ -1,6 +1,7 @@
+import os
+import ipaddress
 import pulumi_aws as aws
-from config import Config, prefix
-
+from config import Config, AWSConfig, prefix
 
 class Network:
     def __init__(
@@ -15,11 +16,16 @@ class Network:
 
 
 def create_network(cfg: Config) -> Network:
+    aws_cfg = cfg.aws
+    if aws_cfg is None:
+        raise Exception("Required AWS configuration is missing. Run make configure")
+
     name = prefix(cfg)
+    vpc_cidr = ipaddress.ip_network(aws_cfg.vpc_cidr)
 
     vpc = aws.ec2.Vpc(
         f"{name}-vpc",
-        cidr_block="10.0.0.0/16",
+        cidr_block=str(vpc_cidr),
         enable_dns_support=True,
         enable_dns_hostnames=True,
         tags={"Name": f"{name}-vpc"},
@@ -36,12 +42,14 @@ def create_network(cfg: Config) -> Network:
     public_subnets = []
     private_subnets = []
 
+    subnets = list(vpc_cidr.subnets(new_prefix=24))
+
     for i, az in enumerate(azs):
         public_subnets.append(
             aws.ec2.Subnet(
                 f"{name}-public-{i}",
                 vpc_id=vpc.id,
-                cidr_block=f"10.0.{i}.0/24",
+                cidr_block=str(subnets[i]),
                 availability_zone=az,
                 map_public_ip_on_launch=True,
             )
@@ -51,13 +59,13 @@ def create_network(cfg: Config) -> Network:
             aws.ec2.Subnet(
                 f"{name}-private-{i}",
                 vpc_id=vpc.id,
-                cidr_block=f"10.0.{i + 10}.0/24",
+                cidr_block=str(subnets[i + len(azs)]),
                 availability_zone=az,
                 map_public_ip_on_launch=False,
             )
         )
 
-    # Route table for public
+   # Route table for public
     public_rt = aws.ec2.RouteTable(
         f"{name}-public-rt",
         vpc_id=vpc.id,

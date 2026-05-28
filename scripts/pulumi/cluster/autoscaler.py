@@ -68,7 +68,7 @@ def install_autoscaler(cluster, cluster_name: str, region: str):
     )
 
     aws.iam.RolePolicyAttachment(
-        f"{cluster_name}-cluster-autoscaler-attach",
+        f"{cluster_name}-cluster-autoscaler-policy",
         role=autoscaler_role.name,
         policy_arn=autoscaler_policy.arn,
     )

@@ -1,28 +1,19 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-namespace: argocd-dev
+namespace: argocd
 
 resources:
   - ../../base
   - ingress.yaml
-
-patches:
-  - target:
-      version: v1
-      kind: Namespace
-      name: argocd
-    patch: |-
-      - op: replace
-        path: /metadata/name
-        value: argocd-dev
+  - argocd-certificate.yaml
 
 helmCharts:
   - name: argo-cd
     repo: https://argoproj.github.io/argo-helm
     version: 9.3.5
-    releaseName: argocd-dev
-    namespace: argocd-dev
+    releaseName: argocd
+    namespace: argocd
     includeCRDs: true
     valuesInline:
       fullnameOverride: argocd
@@ -89,3 +80,22 @@ helmCharts:
       configs:
         cm:
           kustomize.buildOptions: "--enable-helm --enable-alpha-plugins --enable-exec"
+
+      rbac:
+        create: true
+
+        controller:
+          clusterRole:
+            create: true
+            rules:
+              - apiGroups: ["*"]
+                resources: ["*"]
+                verbs: ["*"]
+
+          clusterRoleBinding:
+            create: true
+            clusterRoleRef:
+              name: cluster-admin
+              kind: ClusterRole
+              apiGroup: rbac.authorization.k8s.io
+

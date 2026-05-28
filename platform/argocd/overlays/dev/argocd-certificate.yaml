@@ -1,0 +1,14 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: argocd-dev-int-aethericforge-ca-tls
+  namespace: argocd
+spec:
+  secretName: argocd-dev-int-aethericforge-ca-tls
+
+  issuerRef:
+    name: step-ca-int-acme
+    kind: ClusterIssuer
+
+  dnsNames:
+    - argocd-dev.int.aethericforge.ca

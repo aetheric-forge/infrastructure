@@ -1,0 +1,17 @@
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: private-pool
+  namespace: metallb-system
+spec:
+  addresses:
+    - 192.168.1.241-192.168.1.250
+---
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: public-pool
+  namespace: metallb-system
+spec:
+  addresses:
+    - 104.157.114.0-104.157.114.63

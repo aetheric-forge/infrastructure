@@ -3,7 +3,9 @@ kind: Kustomization
 
 resources:
   - ../../base
-  - secrets.enc.yaml
+
+generators:
+  - ksops-secrets.yaml
 
 namespace: example-dev
 nameSuffix: -dev

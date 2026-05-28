@@ -2,5 +2,28 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-  - ../core
-  - ../issuers
+  - https://github.com/cert-manager/cert-manager/releases/download/v1.18.2/cert-manager.crds.yaml
+
+patches:
+  - target:
+      kind: ValidatingWebhookConfiguration
+      name: cert-manager-webhook
+    patch: |-
+      - op: replace
+        path: /webhooks/0/failurePolicy
+        value: Ignore
+
+helmCharts:
+  - name: cert-manager
+    repo: https://charts.jetstack.io
+    version: v1.18.2
+    releaseName: cert-manager
+    namespace: cert-manager
+    valuesInline:
+      crds:
+        enabled: false
+      prometheus:
+        enabled: false
+      serviceAccount:
+        create: false
+        name: cert-manager

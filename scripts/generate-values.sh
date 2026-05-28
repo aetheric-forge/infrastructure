@@ -1,17 +1,35 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-source .env
-source .env.pulumi.generated
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/paths.sh"
 
-OUT_DIR="platform/external-dns/generated"
-mkdir -p "$OUT_DIR"
+source "$ROOT_DIR/.env"
+source "$ROOT_DIR/.env.pulumi.generated"
 
-echo "⚙️ Generating external-dns values"
+required_vars=(
+	INTERNAL_DOMAIN
+	EXTERNAL_DOMAIN
+	INT_DNS_HOST
+)
 
+for var in "${required_vars[@]}"; do
+	if [[ -z "${!var:-}" ]]; then
+		echo "❌ ${var} is not set. Run foundation Pulumi and generate-env first."
+		exit 1
+	fi
+done
+
+DNS_DIR="$ROOT_DIR/platform/external-dns/generated"
+CM_DIR="$ROOT_DIR/platform/cert-manager/generated"
+mkdir -p "$DNS_DIR"
+mkdir -p "$CM_DIR"
+
+echo "⚙️ Generating external-dns and cert-manager values"
+
+cat >"$DNS_DIR/internal.values.yaml" <<EOF
 # INTERNAL
-cat >"$OUT_DIR/internal.values.yaml" <<EOF
-provider: aws
+provider:
+  name: rfc2136
 
 sources:
   - service
@@ -20,21 +38,41 @@ sources:
 domainFilters:
   - ${INTERNAL_DOMAIN}
 
-zoneIdFilters:
-  - ${INTERNAL_ZONE_ID}
-
 registry: txt
 txtOwnerId: internal
 policy: sync
 
+extraArgs:
+  - --rfc2136-host=${INT_DNS_HOST}
+  - --rfc2136-port=53
+  - --rfc2136-zone=${INTERNAL_DOMAIN}
+  - --rfc2136-tsig-secret-alg=hmac-sha256
+  - --rfc2136-tsig-keyname=external-dns-key
+  - --rfc2136-tsig-axfr
+
+env:
+  - name: EXTERNAL_DNS_RFC2136_TSIG_SECRET
+    valueFrom:
+      secretKeyRef:
+        name: external-dns-internal-tsig
+        key: tsig-secret
+
 serviceAccount:
-  create: true
+  create: false
   name: external-dns-internal
 EOF
 
 # EXTERNAL
-cat >"$OUT_DIR/external.values.yaml" <<EOF
-provider: aws
+cat >"$DNS_DIR/external.values.yaml" <<EOF
+provider:
+  name: cloudflare
+
+env:
+  - name: CF_API_TOKEN
+    valueFrom:
+      secretKeyRef:
+        name: cloudflare-api-token
+        key: api-token
 
 sources:
   - service
@@ -42,9 +80,6 @@ sources:
 
 domainFilters:
   - ${EXTERNAL_DOMAIN}
-
-zoneIdFilters:
-  - ${EXTERNAL_ZONE_ID}
 
 registry: txt
 txtOwnerId: external
@@ -54,5 +89,28 @@ serviceAccount:
   create: true
   name: external-dns-external
 EOF
+
+cat >"$CM_DIR/kustomization.yaml" <<EOF
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+EOF
+
+if [ "$CLOUD" == "aws" ]; then
+	cat >>"$CM_DIR/kustomization.yaml" <<EOF
+
+patches:
+- target:
+    kind: ClusterIssuer
+    name: step-ca-int-acme
+  patch: |
+    - op: replace
+      path: /spec/acme/solvers/0/dns01/route53/hostedZoneID
+      value: ${INTERNAL_ZONE_ID}
+EOF
+else
+	cat >>"$CM_DIR/kustomization.yaml" <<EOF
+patches: []
+EOF
+fi
 
 echo "✅ external-dns values generated"

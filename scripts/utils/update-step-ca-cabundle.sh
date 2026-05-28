@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/lib/paths.sh"
+
 NAMESPACE="${NAMESPACE:-step-ca}"
 DEPLOYMENT="${DEPLOYMENT:-step-ca}"
 ROOT_CERT_PATH="${ROOT_CERT_PATH:-/home/step/certs/root_ca.crt}"
 
 TARGET_FILES=(
-  "platform/cert-manager/base/clusterissuer-step-ca-internal.yaml"
-  "platform/cert-manager/issuers/clusterissuer-step-ca-internal.yaml"
+  "$ROOT_DIR/platform/cert-manager/issuers/dev/clusterissuer-step-ca-internal.yaml"
 )
 
 if ! command -v kubectl >/dev/null 2>&1; then

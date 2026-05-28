@@ -6,24 +6,30 @@ from network import Network
 
 
 class Wireguard:
-    def __init__(self, instance, public_ip, security_group):
+    def __init__(self, instance, public_ip, security_group, public_eni, eni_attach):
         self.instance = instance
         self.public_ip = public_ip
         self.security_group = security_group
+        self.public_eni_urn = public_eni.urn
+        self.eni_attach_urn = eni_attach.urn
 
 
 def create_wireguard(cfg: Config, network: Network) -> Wireguard | None:
-    if not cfg.wg_enabled:
+    wg_cfg = cfg.wireguard
+    if not wg_cfg:
+        return None
+
+    if not wg_cfg.ssh_public_key_file:
         return None
 
     name = prefix(cfg)
 
     # SSH key
-    public_key = open(os.path.expanduser(cfg.wg_ssh_public_key_file)).read()
+    public_key = open(os.path.expanduser(wg_cfg.ssh_public_key_file)).read()
 
     aws.ec2.KeyPair(
         f"{name}-wg-key",
-        key_name=cfg.wg_ssh_key_name,
+        key_name=wg_cfg.ssh_key_name,
         public_key=public_key,
     )
 
@@ -37,13 +43,13 @@ def create_wireguard(cfg: Config, network: Network) -> Wireguard | None:
                 protocol="udp",
                 from_port=51820,
                 to_port=51820,
-                cidr_blocks=cfg.wg_access_cidrs,
+                cidr_blocks=wg_cfg.access_cidrs,
             ),
             aws.ec2.SecurityGroupIngressArgs(
                 protocol="tcp",
                 from_port=22,
                 to_port=22,
-                cidr_blocks=cfg.wg_access_cidrs,
+                cidr_blocks=wg_cfg.access_cidrs,
             ),
         ],
         egress=[
@@ -56,28 +62,26 @@ def create_wireguard(cfg: Config, network: Network) -> Wireguard | None:
         ],
     )
 
-    # EIP for public access
-    eip = aws.ec2.Eip(f"{name}-wg-eip")
-
-    # Private ENI (primary)
-    private_eni = aws.ec2.NetworkInterface(
-        f"{name}-wg-private-eni",
-        subnet_id=network.private_subnets[0].id,
-        security_groups=[sg.id],
-    )
-
-    # Public ENI
+    # 2) Make ENI (and anything that touches it) wait for that destroy step
     public_eni = aws.ec2.NetworkInterface(
         f"{name}-wg-public-eni",
         subnet_id=network.public_subnets[0].id,
         security_groups=[sg.id],
     )
 
+    eip = aws.ec2.Eip(f"{name}-wg-eip")
+
     eip_assoc = aws.ec2.EipAssociation(
-        f"{name}-wg-eip-assoc",
-        network_interface_id=public_eni.id,
+        f"{name}-wg-public-eip-assoc",
         allocation_id=eip.id,
-        opts=pulumi.ResourceOptions(parent=public_eni),
+        network_interface_id=public_eni.id,
+    )
+
+    # Private ENI (primary)
+    private_eni = aws.ec2.NetworkInterface(
+        f"{name}-wg-private-eni",
+        subnet_id=network.private_subnets[0].id,
+        security_groups=[sg.id],
     )
 
     user_data = """#!/bin/bash
@@ -111,14 +115,14 @@ service iptables save || true
                 }
             ],
         ).id,
-        key_name=cfg.wg_ssh_key_name,
+        key_name=wg_cfg.ssh_key_name,
         primary_network_interface=aws.ec2.InstancePrimaryNetworkInterfaceArgs(
             network_interface_id=private_eni.id,
         ),
         user_data=user_data,
     )
 
-    aws.ec2.NetworkInterfaceAttachment(
+    eni_attach = aws.ec2.NetworkInterfaceAttachment(
         f"{name}-wg-public-eni-attach",
         instance_id=instance.id,
         network_interface_id=public_eni.id,
@@ -130,4 +134,6 @@ service iptables save || true
         instance=instance,
         public_ip=eip.public_ip,
         security_group=sg,
+        eni_attach=eni_attach,
+        public_eni=public_eni,
     )

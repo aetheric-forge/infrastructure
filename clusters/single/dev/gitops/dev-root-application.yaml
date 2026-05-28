@@ -2,18 +2,15 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: root-dev
-  namespace: argocd-dev
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
+  namespace: argocd
 spec:
   project: default
   source:
     repoURL: git@github.com:aetheric-forge/infrastructure.git
     targetRevision: v0.7
-    path: clusters/single/dev
+    path: clusters/single/dev/gitops
   destination:
     server: https://kubernetes.default.svc
-    namespace: argocd-dev
   syncPolicy:
     automated:
       prune: true

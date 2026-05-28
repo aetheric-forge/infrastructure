@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/lib/paths.sh"
+
 # Some environments (non-login shells, services) omit /snap/bin even when
 # kustomize is installed via snap.
 if [[ -d /snap/bin ]] && [[ ":${PATH}:" != *":/snap/bin:"* ]]; then
@@ -40,7 +42,7 @@ if [[ ! -x "${KSOPS_PLUGIN_BIN}" ]]; then
   chmod 0755 "${KSOPS_PLUGIN_BIN}"
 fi
 
-VALIDATION_ROOT="${VALIDATION_ROOT:-.}"
+VALIDATION_ROOT="${VALIDATION_ROOT:-$ROOT_DIR}"
 TEMP_VALIDATION_ROOT=""
 
 if [[ -z "${SOPS_AGE_KEY_FILE:-}" && -z "${SOPS_AGE_KEY:-}" ]]; then

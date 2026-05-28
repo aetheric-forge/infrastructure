@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/lib/paths.sh"
+
 echo "⚡ WireGuard setup"
 
 set -a
-source .env
-source .env.pulumi.generated
+source "$ROOT_DIR/.env"
+source "$ROOT_DIR/.env.pulumi.generated"
 set +a
 
 if [[ "${WIREGUARD_ENABLED:-false}" != "true" ]]; then
@@ -34,7 +36,7 @@ ssh "ec2-user@$HOST" <<'EOF'
 set -e
 
 if command -v yum >/dev/null; then
-  sudo yum install -y wireguard-tools
+  sudo yum install -y wireguard-tools iptables iptables-services
 else
   sudo apt update && sudo apt install -y wireguard
 fi
@@ -49,8 +51,9 @@ EOF
 
 echo "🔑 Fetching remote public key"
 
-mkdir -p .wireguard
-ssh "ec2-user@$HOST" "sudo cat /etc/wireguard/public.key" >.wireguard/remote.pub
+WIREGUARD_STATE_DIR="$ROOT_DIR/.wireguard"
+mkdir -p "$WIREGUARD_STATE_DIR"
+ssh "ec2-user@$HOST" "sudo cat /etc/wireguard/public.key" >"$WIREGUARD_STATE_DIR/remote.pub"
 
 echo "💻 Configuring local"
 
@@ -61,7 +64,7 @@ fi
 
 LOCAL_PRIV=$(sudo cat "$WG_DIR/private.key")
 LOCAL_PUB=$(sudo cat "$WG_DIR/public.key")
-REMOTE_PUB=$(cat .wireguard/remote.pub)
+REMOTE_PUB=$(cat "$WIREGUARD_STATE_DIR/remote.pub")
 
 echo "⚙️ Building configs"
 
@@ -73,7 +76,7 @@ Address = 10.200.10.2/24
 [Peer]
 PublicKey = $REMOTE_PUB
 Endpoint = $WIREGUARD_PUBLIC_IP:51820
-AllowedIPs = 10.0.0.0/16,10.200.10.1/32
+AllowedIPs = $AWS_VPC_CIDR,10.200.10.1/32
 PersistentKeepalive = 25
 EOF
 
@@ -89,7 +92,7 @@ ListenPort = 51820
 
 [Peer]
 PublicKey = $LOCAL_PUB
-AllowedIPs = 10.200.10.2/32,$WIREGUARD_LOCAL_CIDRS
+AllowedIPs = $WIREGUARD_LOCAL_CIDRS,10.200.10.2/32
 EOC
 
 sudo systemctl enable wg-quick@wg0
@@ -97,6 +100,7 @@ sudo systemctl restart wg-quick@wg0
 sudo iptables -t nat -A POSTROUTING -s 10.200.10.0/24 -o ens5 -j MASQUERADE
 sudo iptables -A FORWARD -i wg0 -o ens5 -j ACCEPT
 sudo iptables -A FORWARD -i ens5 -o wg0 -m state --state RELATED,ESTABLISHED -j ACCEPT
+
 EOF
 
 echo "🚀 Starting local interface"
@@ -106,7 +110,6 @@ sudo wg-quick up "$WG_DIR/wg0.conf" || true
 echo "🔍 Verifying tunnel"
 
 ping -c 2 10.200.10.1 >/dev/null
-nc -vz 10.0.0.2 53 >/dev/null
 
 echo "🔒 Closing temporary SSH access"
 

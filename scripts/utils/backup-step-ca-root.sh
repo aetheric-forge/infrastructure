@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/lib/paths.sh"
+
 NAMESPACE="${NAMESPACE:-step-ca}"
 POD="${POD:-$(kubectl -n "$NAMESPACE" get pod -l app.kubernetes.io/name=step-ca -o jsonpath='{.items[0].metadata.name}')}"
 TIMESTAMP="$(date -u +%Y%m%dT%H%M%SZ)"
-BACKUP_DIR="${BACKUP_DIR:-./backups/step-ca/${TIMESTAMP}}"
+BACKUP_DIR="${BACKUP_DIR:-$ROOT_DIR/backups/step-ca/${TIMESTAMP}}"
 
 mkdir -p "$BACKUP_DIR"
 
