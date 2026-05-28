@@ -1,7 +1,7 @@
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: hellow-aethericforge-ca
+  name: hello-aethericforge-ca
   namespace: hello-world
 spec:
   secretName: hello-aethericforge-ca-tls
