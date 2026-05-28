@@ -1,4 +1,4 @@
-# Aetheric Forge GitOps Bootstrap (v0.6)
+# Aetheric Forge GitOps Bootstrap (v0.7)
 
 This repository provides a deterministic, opinionated bootstrap workflow
 for establishing a GitOps control plane in Kubernetes using Argo CD.
@@ -13,6 +13,20 @@ ingress and GitOps-managed platform workloads.
 
 Version 0.6 aligns repository defaults and operational documentation with the
 OSS `aetheric-forge/infrastructure` workflow.
+
+Version 0.7 adds operational hardening and automation improvements across the
+bootstrap path:
+
+- Pulumi and bootstrap automation were refactored for cleaner structure and
+  stronger AWS-focused provisioning workflows.
+- Internal DNS support was hardened with in-cluster BIND, external-dns
+  integration adjustments, and ingress/DNS fixes.
+- Networking and ingress behavior was tightened across Argo CD, metallb, SSL
+  redirect, and load balancer handling.
+- step-ca, cert-manager, and GitOps bootstrap paths were stabilized, including
+  autodeploy and drift-related fixes.
+- Kustomize validation and helper scripts were updated, and CI validation tied
+  to SOPS access was removed.
 
 ------------------------------------------------------------------------
 
@@ -37,7 +51,7 @@ Release notes follow this structure:
 
 Current release:
 
-    docs/release-notes/v0.6.md
+    docs/release-notes/v0.7.1.md
 
 ------------------------------------------------------------------------
 
