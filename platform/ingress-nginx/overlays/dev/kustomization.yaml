@@ -28,6 +28,8 @@ helmCharts:
         watchIngressWithoutClass: false
         service:
           type: LoadBalancer
+          annotations:
+            metallb.universe.tf/address-pool: private-pool
   - name: ingress-nginx
     repo: https://kubernetes.github.io/ingress-nginx
     version: 4.13.3
@@ -49,3 +51,5 @@ helmCharts:
         watchIngressWithoutClass: false
         service:
           type: LoadBalancer
+          annotations:
+            metallb.universe.tf/address-pool: public-pool
