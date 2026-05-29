@@ -27,7 +27,7 @@ helmCharts:
         enabled: false
 
       serviceAccount:
-        create: false
+        create: true
         name: cert-manager
 
       extraArgs:
