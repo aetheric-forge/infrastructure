@@ -73,7 +73,6 @@ if [ "$CLOUD" == "aws" ]; then
 	fi
 fi
 
-
 # --- Core ---
 ENVIRONMENT=$(prompt "ENVIRONMENT" "Environment name" "dev")
 echo "ENVIRONMENT=$ENVIRONMENT" >>"$TMP"
@@ -128,8 +127,11 @@ echo "SOPS_AGE_KEY=$SOPS_AGE_KEY" >>"$TMP"
 INT_DNS_HOST=$(prompt "INT_DNS_HOST" "Internal RFC2136 DNS server" "localhost")
 echo "INT_DNS_HOST=$INT_DNS_HOST" >>"$TMP"
 
-TSIG_KEY=$(prompt "TSIG_KEY" "RFC2136 TSIG key")
-echo "TSIG_KEY=$TSIG_KEY" >>"$TMP"
+EXT_DNS_TSIG_KEY=$(prompt "EXT_DNS_TSIG_KEY" "external-dns RFC2136 TSIG key")
+echo "EXT_DNS_TSIG_KEY=$EXT_DNS_TSIG_KEY" >>"$TMP"
+
+CERT_MGR_TSIG_KEY=$(prompt "CERT_MGR_TSIG_KEY" "cert-manager RFC2136 TSIG key")
+echo "CERT_MGR_TSIG_KEY=$CERT_MGR_TSIG_KEY" >>"$TMP"
 
 CF_API_KEY=$(prompt "CF_API_TOKEN" "CloudFlare API token")
 echo "CF_API_KEY=$CF_API_KEY" >>"$TMP"
