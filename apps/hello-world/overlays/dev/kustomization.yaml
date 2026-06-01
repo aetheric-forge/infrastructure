@@ -3,7 +3,7 @@ kind: Kustomization
 
 resources:
   - ../../base
-  - ../../issuers/dev
+  - hello-world-certificate.yaml
+  - ingress.yaml
 
-generators:
-  - ksops-secrets.yaml
+namespace: hello-world

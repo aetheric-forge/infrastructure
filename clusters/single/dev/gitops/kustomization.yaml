@@ -2,6 +2,9 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-  - dev-root-application.yaml
-  - ../../../../platform/external-dns
   - ../../../../platform/step-ca/overlays/dev
+  - ../../../../platform/cert-manager/overlays/dev
+  - ../../../../platform/external-dns/overlays/dev
+  - ../../../../platform/ingress-nginx/overlays/dev
+  - ../../../../platform/argocd/overlays/dev
+  - ../../../../apps

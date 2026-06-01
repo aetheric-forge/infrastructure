@@ -16,6 +16,9 @@ source "$ROOT_DIR/.env"
 NS_CM="cert-manager"
 NS_CA="step-ca"
 
+BOOTSTRAP_DIR="$ROOT_DIR/clusters/single/dev/bootstrap"
+APPS_DIR="$ROOT_DIR/apps"
+
 ########################################
 # Helpers
 ########################################
@@ -37,6 +40,92 @@ pause_for_operator() {
 	else
 		log "$message"
 	fi
+}
+
+require_cmd() {
+	command -v "$1" >/dev/null 2>&1 || fail "Missing required command: $1"
+}
+
+kustomize_build() {
+	kustomize build \
+		--enable-helm \
+		--enable-alpha-plugins \
+		--enable-exec \
+		"$@"
+}
+
+make_platform_bootstrap_overlay() {
+	local tmpdir="$1"
+
+	cp -a "$ROOT_DIR/." "$tmpdir/"
+
+	python3 - "$tmpdir/clusters/single/dev/bootstrap/kustomization.yaml" <<'PY'
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+lines = path.read_text().splitlines()
+
+out = [
+    line for line in lines
+    if line.strip() not in {
+        "- ../../../../apps",
+        "- ../../../../apps/",
+    }
+]
+
+path.write_text("\n".join(out) + "\n")
+PY
+}
+
+render_checked() {
+	local overlay="$1"
+	local output="$2"
+	local label="$3"
+
+	log "Rendering $label..."
+	kustomize_build "$overlay" > "$output"
+
+	test -s "$output" || fail "$label rendered empty"
+
+	if [[ "$label" == "platform bootstrap" ]]; then
+		grep -qi 'step-ca' "$output" || {
+			echo
+			echo "Rendered file kept at: $output"
+			fail "platform bootstrap render does not contain step-ca"
+		}
+	fi
+}
+
+apply_rendered() {
+	local rendered="$1"
+	local label="$2"
+
+	log "Applying $label..."
+	kubectl apply -f "$rendered" || fail "$label apply failed"
+}
+
+wait_for_namespace() {
+	local ns="$1"
+	local timeout="${2:-180}"
+
+	log "Waiting for namespace/$ns..."
+	kubectl wait --for=jsonpath='{.metadata.name}'="$ns" "namespace/$ns" --timeout="${timeout}s" \
+		|| fail "namespace/$ns did not appear"
+}
+
+wait_for_deployment() {
+	local ns="$1"
+	local deploy="$2"
+	local timeout="${3:-300}"
+
+	log "Waiting for deployment/$deploy in namespace/$ns..."
+	until kubectl get "deploy/$deploy" -n "$ns" >/dev/null 2>&1; do
+		sleep 2
+	done
+
+	kubectl rollout status "deploy/$deploy" -n "$ns" --timeout="${timeout}s" \
+		|| fail "deployment/$deploy did not become ready"
 }
 
 ########################################
@@ -82,26 +171,44 @@ setup_wireguard() {
 }
 
 ########################################
-# Stage 3 — GitOps (ArgoCD)
+# Stage 3 — Bootstrap platform resources
 ########################################
 
-deploy_gitops() {
-	log "Deploying bootstrap substrate"
+deploy_platform_bootstrap() {
+	log "Deploying platform bootstrap substrate"
+
+	require_cmd python3
+	require_cmd kustomize
+	require_cmd kubectl
 
 	kubectl get ns argocd >/dev/null 2>&1 || kubectl create ns argocd
 	kubectl get ns external-dns >/dev/null 2>&1 || kubectl create ns external-dns
 	kubectl get ns cert-manager >/dev/null 2>&1 || kubectl create ns cert-manager
+	kubectl get ns metallb-system >/dev/null 2>&1 || kubectl create ns metallb-system
+	kubectl get ns step-ca >/dev/null 2>&1 || kubectl create ns step-ca
 
-	kustomize build \
-		--enable-helm \
-		--enable-alpha-plugins \
-		--enable-exec \
-		"$ROOT_DIR/clusters/single/dev/bootstrap" \
-		| kubectl apply -f - \
-		|| fail "Bootstrap deployment failed"
+	local tmpdir
+	tmpdir="$(mktemp -d)"
+	trap "rm -rf '$tmpdir'" RETURN
+
+	make_platform_bootstrap_overlay "$tmpdir"
+
+	local rendered="$tmpdir/platform-bootstrap.yaml"
+	render_checked \
+	"$tmpdir/clusters/single/dev/bootstrap" \
+		"$rendered" \
+		"platform bootstrap"
+	apply_rendered "$rendered" "platform bootstrap"
+
+	log "Waiting for metallb CRDs..."
+	kubectl wait \
+		--for=condition=Established \
+		crd/ipaddresspools.metallb.io \
+		crd/l2advertisements.metallb.io \
+		--timeout=120s \
+		|| fail "metallb CRDs failed"
 
 	log "Waiting for cert-manager CRDs..."
-
 	kubectl wait \
 		--for=condition=Established \
 		crd/certificates.cert-manager.io \
@@ -109,29 +216,101 @@ deploy_gitops() {
 		|| fail "cert-manager CRDs failed"
 
 	log "Waiting for cert-manager webhook..."
-
 	kubectl rollout status \
 		deployment/cert-manager-webhook \
 		-n cert-manager \
 		--timeout=120s \
 		|| fail "cert-manager webhook failed"
 
-	log "Waiting for ArgoCD..."
+	log "Waiting for metallb controller..."
+	kubectl rollout status \
+		deployment/metallb-controller \
+		-n metallb-system \
+		--timeout=120s \
+		|| fail "metallb controller failed"
 
+	log "Waiting for ArgoCD..."
 	kubectl rollout status \
 		deployment/argocd-server \
 		-n argocd \
 		--timeout=120s \
 		|| fail "ArgoCD failed"
 
-	log "Handing control to GitOps"
-
-	kubectl apply \
-		-f "$ROOT_DIR/clusters/single/dev/gitops/dev-root-application.yaml" \
-		|| fail "GitOps root app failed"
+	wait_for_namespace step-ca 180
+	wait_for_deployment step-ca step-ca 300
 }
+
 ########################################
-# Stage 4 — Verification (light sanity)
+# Stage 4 — Step CA trust
+########################################
+
+bootstrap_step_ca_trust() {
+	log "[Forge] Bootstrapping Step CA trust"
+
+	wait_for_namespace step-ca 180
+	wait_for_deployment step-ca step-ca 300
+
+	local pod
+	pod="$(
+		kubectl get pod -n step-ca \
+			-l app.kubernetes.io/name=step-ca \
+			-o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true
+	)"
+
+	if [[ -z "$pod" ]]; then
+		pod="$(
+			kubectl get pod -n step-ca \
+				-o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true
+		)"
+	fi
+
+	[[ -n "$pod" ]] || fail "Could not find a step-ca pod"
+
+	kubectl exec -n step-ca "$pod" -- \
+		cat /home/step/certs/root_ca.crt \
+		> /tmp/root_ca.crt || fail "Failed to extract root CA"
+
+	test -s /tmp/root_ca.crt || fail "root_ca.crt is empty"
+
+	kubectl create secret generic step-ca-root-ca \
+		-n cert-manager \
+		--from-file=ca.crt=/tmp/root_ca.crt \
+		--dry-run=client -o yaml | kubectl apply -f -
+
+	local ca_bundle
+	ca_bundle="$(base64 < /tmp/root_ca.crt | tr -d '\n')"
+
+	kubectl patch clusterissuer step-ca-int-acme \
+		--type merge \
+		-p "{
+			\"spec\": {
+				\"acme\": {
+					\"caBundle\": \"${ca_bundle}\"
+				}
+			}
+		}" || fail "Could not patch step-ca-int-acme ClusterIssuer"
+
+	rm -f /tmp/root_ca.crt
+}
+
+########################################
+# Stage 5 — GitOps app declarations
+########################################
+
+deploy_gitops_apps() {
+	log "Handing control to GitOps app declarations"
+
+	if [[ -f "$APPS_DIR/kustomization.yaml" ]]; then
+		kustomize_build "$APPS_DIR" | kubectl apply -f - \
+			|| fail "GitOps app declarations failed"
+	else
+		kubectl apply -f "$ROOT_DIR/apps/dev-root-application.yaml" \
+			|| fail "GitOps root app failed"
+	fi
+}
+
+########################################
+# Stage 6 — Verification
 ########################################
 
 verify() {
@@ -139,6 +318,11 @@ verify() {
 
 	kubectl get ns argocd >/dev/null 2>&1 || fail "argocd namespace missing"
 	kubectl get ns external-dns >/dev/null 2>&1 || fail "external-dns namespace missing"
+	kubectl get ns cert-manager >/dev/null 2>&1 || fail "cert-manager namespace missing"
+	kubectl get ns step-ca >/dev/null 2>&1 || fail "step-ca namespace missing"
+
+	kubectl get deploy -n step-ca step-ca >/dev/null 2>&1 ||
+		fail "step-ca deployment missing"
 
 	kubectl get secret -n argocd sops-age >/dev/null 2>&1 ||
 		fail "sops-age secret missing"
@@ -149,51 +333,6 @@ verify() {
 	log "Verification passed"
 }
 
-bootstrap_step_ca_trust() {
-	log "[Forge] Bootstrapping Step CA trust"
-
-	log "Waiting for step-ca namespace..."
-	until kubectl get namespace step-ca >/dev/null 2>&1; do
-		sleep 2
-	done
-
-	log "Waiting for step-ca deployment..."
-	kubectl rollout status deploy/step-ca \
-	-n step-ca \
-	--timeout=300s
-
-	kubectl exec -n step-ca deploy/step-ca -- \
-		cat /home/step/certs/root_ca.crt \
-		> /tmp/root_ca.crt || {
-			log "Failed to extract root CA"
-			return 1
-		}
-
-		test -s /tmp/root_ca.crt || {
-			log "root_ca.crt is empty"
-			return 1
-		}
-
-	kubectl create secret generic step-ca-root-ca \
-		-n cert-manager \
-		--from-file=ca.crt=/tmp/root_ca.crt \
-		--dry-run=client -o yaml | kubectl apply -f -
-
-	CA_BUNDLE=$(base64 -w0 /tmp/root_ca.crt)
-
-	kubectl patch clusterissuer step-ca-int-acme \
-		--type merge \
-		-p "{
-			\"spec\": {
-				\"acme\": {
-					\"caBundle\": \"${CA_BUNDLE}\"
-				}
-			}
-		}"
-
-	rm -f /tmp/root_ca.crt
-}
-
 ########################################
 # Main
 ########################################
@@ -202,11 +341,13 @@ main() {
 	log "✨ Let there be infrastructure."
 	sleep 0.5
 	echo "🌌 Spinning up the universe..."
+
 	deploy_foundation
 	setup_wireguard
 	deploy_cluster
-	deploy_gitops
+	deploy_platform_bootstrap
 	bootstrap_step_ca_trust
+	deploy_gitops_apps
 	verify
 
 	log "Forge is online 🔥"
