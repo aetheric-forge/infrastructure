@@ -58,7 +58,7 @@ env:
         key: tsig-secret
 
 serviceAccount:
-  create: false
+  create: true
   name: cert-manager
 EOF
 

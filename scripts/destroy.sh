@@ -39,30 +39,6 @@ check_kube_api() {
 }
 
 ########################################
-# GitOps unwind (safe)
-########################################
-
-unwind_gitops() {
-	if check_kube_api; then
-		log "Cluster reachable → unwinding GitOps resources..."
-		kubectl delete -n argocd -f "$ROOT_DIR/clusters/single/dev/gitops/dev-root-application.yaml" --ignore-not-found 2>/dev/null || true
-		log "🧹 Purging DNS01 artifacts..."
-		kubectl delete cert,certificaterequest --all -A || true
-		sleep 5
-
-		kustomize build --enable-helm --enable-alpha-plugins --enable-exec "$ROOT_DIR/clusters/single/dev/bootstrap" | kubectl delete \
-			--ignore-not-found \
-			--grace-period=0 \
-			--force \
-			--wait=false \
-			--request-timeout='5s' \
-			-f - >/dev/null 2>&1 || true
-	else
-		log "Cluster API unreachable → skipping GitOps unwind"
-	fi
-}
-
-########################################
 # Teardown steps (plug in your real commands)
 ########################################
 
@@ -97,6 +73,41 @@ teardown_foundation() {
 }
 
 ########################################
+# GitOps unwind (safe)
+########################################
+
+delete_phase() {
+	local overlay="$1"
+	local label="$2"
+
+	log "Deleting $label..."
+	kustomize build --enable-helm --enable-alpha-plugins --enable-exec "$overlay" | kubectl delete -f - --ignore-not-found=true ||
+		fail "$label delete failed"
+}
+
+destroy_platform_bootstrap() {
+	if check_kube_api; then
+		log "Cluster reachable → unwinding GitOps resources..."
+		kubectl delete -n argocd -f "$ROOT_DIR/clusters/single/dev/gitops/dev-root-application.yaml" --ignore-not-found 2>/dev/null || true
+		log "🧹 Purging DNS01 artifacts..."
+		kubectl delete cert,certificaterequest --all -A || true
+		sleep 5
+	else
+		log "Cluster API unreachable → skipping GitOps unwind"
+	fi
+
+	log "Destroying platform bootstrap substrate"
+
+	delete_phase \
+		"$ROOT_DIR/clusters/single/dev/bootstrap/20-platform-config" \
+		"platform-config"
+
+	delete_phase \
+		"$ROOT_DIR/clusters/single/dev/bootstrap/10-platform-core" \
+		"platform-core"
+}
+
+########################################
 # Main sequence
 ########################################
 
@@ -104,7 +115,7 @@ main() {
 	log "Starting destroy sequence"
 
 	# Step 1 — unwind GitOps while cluster still exists
-	unwind_gitops
+	destroy_platform_bootstrap
 
 	# Step 2 — kill cluster
 	teardown_cluster
