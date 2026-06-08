@@ -8,6 +8,11 @@ kind: Namespace
 metadata:
   name: ingress-nginx
 ---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: step-ca
+---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
@@ -39955,6 +39960,16 @@ stringData:
 type: Opaque
 ---
 apiVersion: v1
+kind: Secret
+metadata:
+  name: step-ca-secrets
+  namespace: step-ca
+stringData:
+  password: QsZd+ZSAN7GgpoLbeBfqMQjcTZ+PjU8GIFitXCYNLU8=
+  provisioner_password: ez3v342pJV37yA1RqwjTE8RWhyjAczH5iJTrVd3GjEo=
+type: Opaque
+---
+apiVersion: v1
 kind: Service
 metadata:
   labels:
@@ -40082,6 +40097,55 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
+    app: cert-manager
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/instance: cert-manager
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: cert-manager
+    app.kubernetes.io/version: v1.18.2
+    helm.sh/chart: cert-manager-v1.18.2
+  name: cert-manager
+  namespace: cert-manager
+spec:
+  ports:
+  - name: tcp-prometheus-servicemonitor
+    port: 9402
+    protocol: TCP
+    targetPort: http-metrics
+  selector:
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/instance: cert-manager
+    app.kubernetes.io/name: cert-manager
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: cainjector
+    app.kubernetes.io/component: cainjector
+    app.kubernetes.io/instance: cert-manager
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: cainjector
+    app.kubernetes.io/version: v1.18.2
+    helm.sh/chart: cert-manager-v1.18.2
+  name: cert-manager-cainjector
+  namespace: cert-manager
+spec:
+  ports:
+  - name: http-metrics
+    port: 9402
+    protocol: TCP
+  selector:
+    app.kubernetes.io/component: cainjector
+    app.kubernetes.io/instance: cert-manager
+    app.kubernetes.io/name: cainjector
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
     app: webhook
     app.kubernetes.io/component: webhook
     app.kubernetes.io/instance: cert-manager
@@ -40097,6 +40161,10 @@ spec:
     port: 443
     protocol: TCP
     targetPort: https
+  - name: metrics
+    port: 9402
+    protocol: TCP
+    targetPort: http-metrics
   selector:
     app.kubernetes.io/component: webhook
     app.kubernetes.io/instance: cert-manager
@@ -40224,6 +40292,33 @@ spec:
     app.kubernetes.io/instance: ingress-nginx-public
     app.kubernetes.io/name: ingress-nginx
   type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: step-ca
+  namespace: step-ca
+spec:
+  ports:
+  - name: https
+    port: 443
+    protocol: TCP
+    targetPort: 9000
+  selector:
+    app.kubernetes.io/name: step-ca
+  type: ClusterIP
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: step-ca-data
+  namespace: step-ca
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -41842,6 +41937,10 @@ spec:
       app.kubernetes.io/name: cert-manager
   template:
     metadata:
+      annotations:
+        prometheus.io/path: /metrics
+        prometheus.io/port: "9402"
+        prometheus.io/scrape: "true"
       labels:
         app: cert-manager
         app.kubernetes.io/component: controller
@@ -41857,7 +41956,7 @@ spec:
         - --cluster-resource-namespace=$(POD_NAMESPACE)
         - --leader-election-namespace=kube-system
         - --acme-http01-solver-image=quay.io/jetstack/cert-manager-acmesolver:v1.18.2
-        - --dns01-recursive-nameservers=192.168.1.240:53
+        - --dns01-recursive-nameservers=192.168.1.1:5335
         - --dns01-recursive-nameservers-only=true
         - --max-concurrent-challenges=60
         env:
@@ -41922,6 +42021,10 @@ spec:
       app.kubernetes.io/name: cainjector
   template:
     metadata:
+      annotations:
+        prometheus.io/path: /metrics
+        prometheus.io/port: "9402"
+        prometheus.io/scrape: "true"
       labels:
         app: cainjector
         app.kubernetes.io/component: cainjector
@@ -41935,7 +42038,6 @@ spec:
       - args:
         - --v=2
         - --leader-election-namespace=kube-system
-        - --metrics-listen-address=0
         env:
         - name: POD_NAMESPACE
           valueFrom:
@@ -41944,6 +42046,10 @@ spec:
         image: quay.io/jetstack/cert-manager-cainjector:v1.18.2
         imagePullPolicy: IfNotPresent
         name: cert-manager-cainjector
+        ports:
+        - containerPort: 9402
+          name: http-metrics
+          protocol: TCP
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
@@ -41981,6 +42087,10 @@ spec:
       app.kubernetes.io/name: webhook
   template:
     metadata:
+      annotations:
+        prometheus.io/path: /metrics
+        prometheus.io/port: "9402"
+        prometheus.io/scrape: "true"
       labels:
         app: webhook
         app.kubernetes.io/component: webhook
@@ -41999,7 +42109,6 @@ spec:
         - --dynamic-serving-dns-names=cert-manager-webhook
         - --dynamic-serving-dns-names=cert-manager-webhook.$(POD_NAMESPACE)
         - --dynamic-serving-dns-names=cert-manager-webhook.$(POD_NAMESPACE).svc
-        - --metrics-listen-address=0
         env:
         - name: POD_NAMESPACE
           valueFrom:
@@ -42024,6 +42133,9 @@ spec:
           protocol: TCP
         - containerPort: 6080
           name: healthcheck
+          protocol: TCP
+        - containerPort: 9402
+          name: http-metrics
           protocol: TCP
         readinessProbe:
           failureThreshold: 3
@@ -42299,6 +42411,124 @@ spec:
       - name: webhook-cert
         secret:
           secretName: ingress-nginx-public-admission
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: step-ca
+  namespace: step-ca
+spec:
+  replicas: 1
+  revisionHistoryLimit: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: step-ca
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: step-ca
+    spec:
+      containers:
+      - args:
+        - /home/step/config/ca.json
+        - --password-file
+        - /run/secrets/step-ca/password
+        command:
+        - step-ca
+        env:
+        - name: STEPPATH
+          value: /home/step
+        image: smallstep/step-ca:0.29.0
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 9000
+            scheme: HTTPS
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        name: step-ca
+        ports:
+        - containerPort: 9000
+          name: https
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 9000
+            scheme: HTTPS
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        securityContext:
+          runAsGroup: 1000
+          runAsUser: 1000
+        volumeMounts:
+        - mountPath: /home/step
+          name: step-ca-data
+        - mountPath: /run/secrets/step-ca
+          name: step-ca-secrets
+          readOnly: true
+      initContainers:
+      - command:
+        - /bin/sh
+        - -c
+        - |
+          set -eu
+          mkdir -p /home/step/certs /home/step/config /home/step/db /home/step/secrets
+          if [ ! -f /home/step/config/ca.json ]; then
+            step ca init \
+              --name "${STEP_CA_NAME}" \
+              --dns "${STEP_CA_DNS}" \
+              --address ":9000" \
+              --provisioner "${STEP_CA_PROVISIONER}" \
+              --password-file /run/secrets/step-ca/password \
+              --provisioner-password-file /run/secrets/step-ca/provisioner_password \
+              --deployment-type standalone \
+              --acme
+          fi
+          if [ ! -r /home/step/config/ca.json ]; then
+            echo "init-step-ca: /home/step/config/ca.json missing or unreadable"
+            ls -la /home/step || true
+            ls -la /home/step/config || true
+            exit 1
+          fi
+          chown -R 1000:1000 /home/step
+          chmod 0755 /home/step /home/step/config /home/step/certs /home/step/db /home/step/secrets
+          chmod 0644 /home/step/config/ca.json
+        env:
+        - name: STEPPATH
+          value: /home/step
+        - name: STEP_CA_NAME
+          value: Aetheric Forge Internal PKI
+        - name: STEP_CA_DNS
+          value: step-ca.step-ca.svc.cluster.local
+        - name: STEP_CA_PROVISIONER
+          value: k8s-int
+        image: smallstep/step-ca:0.29.0
+        imagePullPolicy: IfNotPresent
+        name: init-step-ca
+        securityContext:
+          runAsGroup: 0
+          runAsUser: 0
+        volumeMounts:
+        - mountPath: /home/step
+          name: step-ca-data
+        - mountPath: /run/secrets/step-ca
+          name: step-ca-secrets
+          readOnly: true
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        runAsGroup: 1000
+        runAsUser: 1000
+      volumes:
+      - name: step-ca-data
+        persistentVolumeClaim:
+          claimName: step-ca-data
+      - name: step-ca-secrets
+        secret:
+          secretName: step-ca-secrets
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -43096,7 +43326,7 @@ spec:
     - dns01:
         cloudflare:
           apiTokenSecretRef:
-            key: api-token
+            key: apiToken
             name: cloudflare-api-token
           email: brian@aethericforge.ca
 ---
@@ -43115,7 +43345,7 @@ spec:
     solvers:
     - dns01:
         rfc2136:
-          nameserver: 192.168.1.240:53
+          nameserver: 192.168.1.1:5335
           tsigAlgorithm: HMACSHA256
           tsigKeyName: cert-manager-key
           tsigSecretSecretRef:

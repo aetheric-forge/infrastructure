@@ -1,8 +1,8 @@
 import os
 import pulumi
 import json
-import pulumi_kubernetes as k8s
-
+import pulumi_aws as aws
+import pulumi_eks as eks
 
 def must(name: str) -> str:
     v = os.getenv(name)
@@ -87,14 +87,14 @@ def create_cluster():
             cluster_security_group=cluster_sg,
             subnet_ids=private_subnet_ids,
             endpoint_private_access=True,
-            endpoint_public_access=(os.getenv("CLUSTER_PUBLIC_ACCESS") == True),
+            endpoint_public_access=(os.getenv("CLUSTER_PUBLIC_ACCESS").lower() == "true"),
             skip_default_node_group=True,
             instance_roles=[node_role],
             tags={
                 "k8s.io/cluster-autoscaler/enabled": "true",
                 f"k8s.io/cluster-autoscaler/{cluster_name}": "owned",
             },
-            create_oidc_provider=True,
+            create_oidc_provider=True
         )
 
         # --- Node group ---
@@ -176,49 +176,6 @@ def create_cluster():
         )
 
     kubeconfig = cluster.kubeconfig if cloud == "aws" else "~/.kube/config"
-
-    k8s_provider = k8s.Provider(
-        f"{cluster_name}-eks-k8s",
-        kubeconfig=kubeconfig,
-    )
-
-    external_dns_ns = k8s.core.v1.Namespace(
-        "external-dns",
-        metadata={"name": "external-dns"},
-        opts=pulumi.ResourceOptions(provider=k8s_provider),
-    )
-
-    cert_manager_ns = k8s.core.v1.Namespace(
-        "cert-manager",
-        metadata={"name": "cert-manager"},
-        opts=pulumi.ResourceOptions(provider=k8s_provider),
-    )
-
-    annotations = {"eks.amazonaws.com/role-arn": route53_role.arn} if cloud == "aws" else {}
-    k8s.core.v1.ServiceAccount(
-        "external-dns-internal",
-        metadata={
-            "name": "external-dns-internal",
-            "namespace": "external-dns",
-            "annotations": annotations,
-        },
-        opts=pulumi.ResourceOptions(
-            provider=k8s_provider,
-            depends_on=[external_dns_ns],
-        ),
-    )
-
-    k8s.core.v1.ServiceAccount(
-        "cert-manager",
-        metadata={
-            "name": "cert-manager",
-            "namespace": "cert-manager",
-            "annotations": annotations,
-        }, 
-        opts=pulumi.ResourceOptions(
-            provider=k8s_provider,
-            depends_on=[cert_manager_ns],
-        ),
-    )
+    pulumi.export("kubeconfig", kubeconfig)
 
     return cluster if cloud == "aws" else None

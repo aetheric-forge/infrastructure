@@ -210,6 +210,12 @@ deploy_platform_bootstrap() {
 		"platform-core"
 
 	log "Waiting for metallb CRDs..."
+	for crd in ipaddresspools.metallb.io l2advertisements.metallb.io; do
+		until kubectl get crd "$crd" >/dev/null 2>&1; do
+			sleep 2
+		done
+	done
+
 	kubectl wait \
 		--for=condition=Established \
 		crd/ipaddresspools.metallb.io \
@@ -217,33 +223,12 @@ deploy_platform_bootstrap() {
 		--timeout=120s \
 		|| fail "metallb CRDs failed"
 
-	log "Waiting for cert-manager CRDs..."
-	kubectl wait \
-		--for=condition=Established \
-		crd/certificates.cert-manager.io \
-		--timeout=120s \
-		|| fail "cert-manager CRDs failed"
-
-	log "Waiting for cert-manager webhook..."
-	kubectl rollout status \
-		deployment/cert-manager-webhook \
-		-n cert-manager \
-		--timeout=120s \
-		|| fail "cert-manager webhook failed"
-
 	log "Waiting for metallb controller..."
 	kubectl rollout status \
 		deployment/metallb-controller \
 		-n metallb-system \
 		--timeout=120s \
 		|| fail "metallb controller failed"
-
-	log "Waiting for ArgoCD..."
-	kubectl rollout status \
-		deployment/argocd-server \
-		-n argocd \
-		--timeout=120s \
-		|| fail "ArgoCD failed"
 
 	########################################
 	# Phase 2 — Configuration

@@ -17,4 +17,4 @@ spec:
             email: brian@aethericforge.ca
             apiTokenSecretRef:
               name: cloudflare-api-token
-              key: api-token
+              key: apiToken

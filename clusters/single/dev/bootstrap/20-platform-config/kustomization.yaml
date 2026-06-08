@@ -4,6 +4,7 @@ kind: Kustomization
 resources:
   - ../../../../../platform/metallb/overlays/dev
   - ../../../../../platform/ingress-nginx/overlays/dev
+  - ../../../../../platform/step-ca/overlays/dev
   - ../../../../../platform/cert-manager/overlays/dev
   - ../../../../../platform/argocd/overlays/dev
 

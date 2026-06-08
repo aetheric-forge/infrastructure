@@ -16,7 +16,7 @@ spec:
             - int.aethericforge.ca
         dns01:
           rfc2136:
-            nameserver: 192.168.1.240:53
+            nameserver: 192.168.1.1:5335
             tsigKeyName: cert-manager-key
             tsigAlgorithm: HMACSHA256
             tsigSecretSecretRef:

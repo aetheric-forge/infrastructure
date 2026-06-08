@@ -72,7 +72,7 @@ env:
     valueFrom:
       secretKeyRef:
         name: cloudflare-api-token
-        key: api-token
+        key: apiToken
 
 sources:
   - service
