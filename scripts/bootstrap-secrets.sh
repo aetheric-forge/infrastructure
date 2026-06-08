@@ -71,7 +71,7 @@ echo "[Forge] Creating secret cert-manager-internal-tsig"
 
 kubectl create ns cert-manager --dry-run=client -o yaml | kubectl apply -f -
 
-kubectl -n external-dns create secret generic cert-manager-tsig \
+kubectl -n cert-manager create secret generic cert-manager-tsig \
 	--from-literal=tsig-secret="$CERT_MGR_TSIG_KEY" \
 	--dry-run=client -o yaml |
 	kubectl apply -f -

@@ -21,4 +21,5 @@ spec:
             tsigAlgorithm: HMACSHA256
             tsigSecretSecretRef:
               name: cert-manager-tsig
+              namespace: cert-manager
               key: tsig-secret
