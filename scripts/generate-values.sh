@@ -44,7 +44,7 @@ policy: sync
 
 extraArgs:
   - --rfc2136-host=${INT_DNS_HOST}
-  - --rfc2136-port=53
+  - --rfc2136-port=5335
   - --rfc2136-zone=${INTERNAL_DOMAIN}
   - --rfc2136-tsig-secret-alg=hmac-sha256
   - --rfc2136-tsig-keyname=cert-manager-key
