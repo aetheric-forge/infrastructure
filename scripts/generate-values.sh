@@ -54,7 +54,7 @@ env:
   - name: CERT_MGR_RFC2136_TSIG_SECRET
     valueFrom:
       secretKeyRef:
-        name: cert-manager-tsig
+        name: external-dns-internal-tsig
         key: tsig-secret
 
 serviceAccount:
