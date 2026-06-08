@@ -56,7 +56,7 @@ echo "[Forge] Creating secret cloudflare-api-token"
 kubectl create ns external-dns --dry-run=client -o yaml | kubectl apply -f -
 
 kubectl -n external-dns create secret generic cloudflare-api-token \
-	--from-literal=api-token="$CF_API_KEY" \
+	--from-literal=apiToken="$CF_API_KEY" \
 	--dry-run=client -o yaml |
 	kubectl apply -f -
 
@@ -71,7 +71,7 @@ echo "[Forge] Creating secret cert-manager-internal-tsig"
 
 kubectl create ns cert-manager --dry-run=client -o yaml | kubectl apply -f -
 
-kubectl -n cert-manager create secret generic cert-manager-tsig \
+kubectl -n external-dns create secret generic cert-manager-tsig \
 	--from-literal=tsig-secret="$CERT_MGR_TSIG_KEY" \
 	--dry-run=client -o yaml |
 	kubectl apply -f -

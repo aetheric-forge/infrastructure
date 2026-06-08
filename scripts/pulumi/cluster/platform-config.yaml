@@ -40175,7 +40175,7 @@ apiVersion: v1
 kind: Service
 metadata:
   annotations:
-    metallb.universe.tf/address-pool: private-pool
+    metallb.io/address-pool: private-pool
   labels:
     app.kubernetes.io/component: controller
     app.kubernetes.io/instance: ingress-nginx-private
@@ -40236,7 +40236,7 @@ apiVersion: v1
 kind: Service
 metadata:
   annotations:
-    metallb.universe.tf/address-pool: public-pool
+    metallb.io/address-pool: public-pool
   labels:
     app.kubernetes.io/component: controller
     app.kubernetes.io/instance: ingress-nginx-public
@@ -42201,7 +42201,7 @@ spec:
         - /nginx-ingress-controller
         - --publish-service=$(POD_NAMESPACE)/ingress-nginx-private-controller
         - --election-id=ingress-nginx-private-leader
-        - --controller-class=k8s.io/ingress-nginx
+        - --controller-class=k8s.io/ingress-nginx-private
         - --ingress-class=nginx-private
         - --configmap=$(POD_NAMESPACE)/ingress-nginx-private-controller
         - --validating-webhook=:8443
@@ -42326,7 +42326,7 @@ spec:
         - /nginx-ingress-controller
         - --publish-service=$(POD_NAMESPACE)/ingress-nginx-public-controller
         - --election-id=ingress-nginx-public-leader
-        - --controller-class=k8s.io/ingress-nginx
+        - --controller-class=k8s.io/ingress-nginx-public
         - --ingress-class=nginx-public
         - --configmap=$(POD_NAMESPACE)/ingress-nginx-public-controller
         - --validating-webhook=:8443
@@ -43435,7 +43435,7 @@ metadata:
     helm.sh/chart: ingress-nginx-4.13.3
   name: nginx-private
 spec:
-  controller: k8s.io/ingress-nginx
+  controller: k8s.io/ingress-nginx-private
 ---
 apiVersion: networking.k8s.io/v1
 kind: IngressClass
@@ -43450,7 +43450,7 @@ metadata:
     helm.sh/chart: ingress-nginx-4.13.3
   name: nginx-public
 spec:
-  controller: k8s.io/ingress-nginx
+  controller: k8s.io/ingress-nginx-public
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
