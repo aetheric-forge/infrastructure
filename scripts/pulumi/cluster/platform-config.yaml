@@ -43351,6 +43351,7 @@ spec:
           tsigSecretSecretRef:
             key: tsig-secret
             name: cert-manager-tsig
+            namespace: cert-manager
       selector:
         dnsZones:
         - int.aethericforge.ca
