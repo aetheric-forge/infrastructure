@@ -47,11 +47,11 @@ extraArgs:
   - --rfc2136-port=5335
   - --rfc2136-zone=${INTERNAL_DOMAIN}
   - --rfc2136-tsig-secret-alg=hmac-sha256
-  - --rfc2136-tsig-keyname=cert-manager-key
+  - --rfc2136-tsig-keyname=external-dns-key
   - --rfc2136-tsig-axfr
 
 env:
-  - name: CERT_MGR_RFC2136_TSIG_SECRET
+  - name: EXT_DNS_RFC2136_TSIG_SECRET
     valueFrom:
       secretKeyRef:
         name: external-dns-internal-tsig
@@ -59,7 +59,7 @@ env:
 
 serviceAccount:
   create: true
-  name: cert-manager
+  name: external-dns-internal
 EOF
 
 # EXTERNAL
