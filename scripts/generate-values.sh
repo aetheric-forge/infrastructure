@@ -51,7 +51,7 @@ extraArgs:
   - --rfc2136-tsig-axfr
 
 env:
-  - name: EXT_DNS_RFC2136_TSIG_SECRET
+  - name: EXTERNAL_DNS_RFC2136_TSIG_SECRET
     valueFrom:
       secretKeyRef:
         name: external-dns-internal-tsig
