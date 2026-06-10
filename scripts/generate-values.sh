@@ -44,22 +44,21 @@ policy: sync
 
 extraArgs:
   - --rfc2136-host=${INT_DNS_HOST}
-  - --rfc2136-port=53
+  - --rfc2136-port=5335
   - --rfc2136-zone=${INTERNAL_DOMAIN}
   - --rfc2136-tsig-secret-alg=hmac-sha256
-  - --rfc2136-tsig-keyname=cert-manager-key
-  - --rfc2136-tsig-axfr
+  - --rfc2136-tsig-keyname=external-dns-key
 
 env:
-  - name: CERT_MGR_RFC2136_TSIG_SECRET
+  - name: EXTERNAL_DNS_RFC2136_TSIG_SECRET
     valueFrom:
       secretKeyRef:
-        name: cert-manager-tsig
+        name: external-dns-internal-tsig
         key: tsig-secret
 
 serviceAccount:
-  create: false
-  name: cert-manager
+  create: true
+  name: external-dns-internal
 EOF
 
 # EXTERNAL
@@ -72,7 +71,7 @@ env:
     valueFrom:
       secretKeyRef:
         name: cloudflare-api-token
-        key: api-token
+        key: apiToken
 
 sources:
   - service

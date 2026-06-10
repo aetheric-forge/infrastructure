@@ -1,7 +1,6 @@
 import pulumi
 import os
 from kubernetes import create_cluster
-from secrets import create_secrets
 
 
 def must(name: str) -> str:
@@ -20,7 +19,6 @@ cluster_name = f"{org}-{system}-{env}"
 print(f"Using cloud environment: {cloud}")
 
 cluster = create_cluster()
-create_secrets()
 
 if cloud == "aws":
     region = must("AWS_REGION")

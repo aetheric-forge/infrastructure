@@ -170,6 +170,20 @@ setup_wireguard() {
 		"Enable the local DNS AWS forwarder now, then press Enter to continue..."
 }
 
+apply_bootstrap_phase() {
+	local overlay="$1"
+	local label="$2"
+
+	local rendered="${label}.yaml"
+
+	render_checked \
+		"$overlay" \
+		"$rendered" \
+		"$label"
+
+	apply_rendered "$rendered" "$label"
+}
+
 ########################################
 # Stage 3 — Bootstrap platform resources
 ########################################
@@ -187,40 +201,27 @@ deploy_platform_bootstrap() {
 	kubectl get ns metallb-system >/dev/null 2>&1 || kubectl create ns metallb-system
 	kubectl get ns step-ca >/dev/null 2>&1 || kubectl create ns step-ca
 
-	local tmpdir
-	tmpdir="$(mktemp -d)"
-	trap "rm -rf '$tmpdir'" RETURN
+	########################################
+	# Phase 1 — Controllers / CRDs
+	########################################
 
-	make_platform_bootstrap_overlay "$tmpdir"
-
-	local rendered="$tmpdir/platform-bootstrap.yaml"
-	render_checked \
-	"$tmpdir/clusters/single/dev/bootstrap" \
-		"$rendered" \
-		"platform bootstrap"
-	apply_rendered "$rendered" "platform bootstrap"
+	apply_bootstrap_phase \
+		"$ROOT_DIR/clusters/single/dev/bootstrap/10-platform-core" \
+		"platform-core"
 
 	log "Waiting for metallb CRDs..."
+	for crd in ipaddresspools.metallb.io l2advertisements.metallb.io; do
+		until kubectl get crd "$crd" >/dev/null 2>&1; do
+			sleep 2
+		done
+	done
+
 	kubectl wait \
 		--for=condition=Established \
 		crd/ipaddresspools.metallb.io \
 		crd/l2advertisements.metallb.io \
 		--timeout=120s \
 		|| fail "metallb CRDs failed"
-
-	log "Waiting for cert-manager CRDs..."
-	kubectl wait \
-		--for=condition=Established \
-		crd/certificates.cert-manager.io \
-		--timeout=120s \
-		|| fail "cert-manager CRDs failed"
-
-	log "Waiting for cert-manager webhook..."
-	kubectl rollout status \
-		deployment/cert-manager-webhook \
-		-n cert-manager \
-		--timeout=120s \
-		|| fail "cert-manager webhook failed"
 
 	log "Waiting for metallb controller..."
 	kubectl rollout status \
@@ -229,17 +230,17 @@ deploy_platform_bootstrap() {
 		--timeout=120s \
 		|| fail "metallb controller failed"
 
-	log "Waiting for ArgoCD..."
-	kubectl rollout status \
-		deployment/argocd-server \
-		-n argocd \
-		--timeout=120s \
-		|| fail "ArgoCD failed"
+	########################################
+	# Phase 2 — Configuration
+	########################################
+
+	apply_bootstrap_phase \
+		"$ROOT_DIR/clusters/single/dev/bootstrap/20-platform-config" \
+		"platform-config"
 
 	wait_for_namespace step-ca 180
 	wait_for_deployment step-ca step-ca 300
 }
-
 ########################################
 # Stage 4 — Step CA trust
 ########################################
