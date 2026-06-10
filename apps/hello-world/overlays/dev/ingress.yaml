@@ -8,17 +8,17 @@ metadata:
     metallb.io/address-pool: "public-pool"
     external-dns.alpha.kubernetes.io/controller: dns-controller
     kubernetes.io/ingress.class: nginx-public
-    external-dns.alpha.kubernetes.io/hostname: hello.aethericforge.ca
+    external-dns.alpha.kubernetes.io/hostname: hello-dev.aethericforge.ca
     external-dns.alpha.kubernetes.io/ttl: "300"
     external-dns.alpha.kubernetes.io/cloudflare-proxied: "false"
 spec:
   ingressClassName: nginx-public
   tls:
     - hosts:
-        - hello.aethericforge.ca
-      secretName: hello-aethericforge-ca
+        - hello-dev.aethericforge.ca
+      secretName: hello-dev-aethericforge-ca
   rules:
-    - host: hello.aethericforge.ca
+    - host: hello-dev.aethericforge.ca
       http:
         paths:
           - path: /
