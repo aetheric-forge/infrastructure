@@ -83,4 +83,51 @@ kubectl -n cert-manager create secret generic cert-manager-tsig \
 	--dry-run=client -o yaml |
 	kubectl apply -f -
 
+echo "[Forge] Creating secret root-ca-secret"
+
+kubectl create ns step-ca --dry-run=client -o yaml | kubectl apply -f -
+
+if [[ -n "$STEP_CA__CERT_FILE" ]]; then
+	CERT_FILE=$STEP_CA__CERT_FILE
+	KEY_FILE=$STEP_CA__KEY_FILE
+else
+	openssl genpkey -algorithm ED25519 -out root_ca.key
+
+	openssl req -x509 -new \
+		-key root_ca.key \
+		-out root_ca.crt \
+		-days 7300 \
+		-subj "/CN=Aetheric Forge Root CA" \
+		-addext "basicConstraints=critical,CA:true" \
+		-addext "keyUsage=critical,keyCertSign,cRLSign"
+
+	CERT_FILE=root_ca.crt
+	KEY_FILE=root_ca.key
+fi
+
+DIR=$ROOT_DIR/platform/step-ca/certs/$ENVIRONMENT
+mkdir -p $DIR
+
+SECRETS_FILE="$DIR/step-ca-root-ca.yaml"
+ENCRYPTED_FILE="$DIR/step-ca-root-ca.enc.yaml"
+
+cat >"$SECRETS_FILE" <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: step-ca-root-ca
+  namespace: step-ca
+type: Opaque
+stringData:
+  root_ca.crt: |
+$(sed 's/^/    /' "$CERT_FILE")
+  root_ca.key: |
+$(sed 's/^/    /' "$KEY_FILE")
+EOF
+
+cp $SECRETS_FILE $ENCRYPTED_FILE
+sops --encrypt --in-place "$ENCRYPTED_FILE"
+
+rm "$SECRETS_FILE"
+
 echo "[Forge] Done"

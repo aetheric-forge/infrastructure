@@ -35,6 +35,14 @@ prompt() {
 	echo "$value"
 }
 
+prompt_optional() {
+	local var="$1"
+	local text="$2"
+
+	local value
+	read -rp "$text: " value
+}
+
 TMP=$(mktemp)
 
 CLOUD=$(prompt "CLOUD" "Cloud type (AWS/local)" "local")
@@ -136,6 +144,19 @@ echo "CERT_MGR_TSIG_KEY=$CERT_MGR_TSIG_KEY" >>"$TMP"
 CF_API_KEY=$(prompt "CF_API_TOKEN" "CloudFlare API token")
 echo "CF_API_KEY=$CF_API_KEY" >>"$TMP"
 
+STEP_CA__CERT_FILE=$(prompt_optional "STEP_CA__CERT_FILE" "Step CA root certificate file (blank to generate)")
+STEP_CA__KEY_FILE=""
+
+if [ -n "$STEP_CA__CERT_FILE" ]; then
+	STEP_CA__KEY_FILE=$(prompt "STEP_CA__KEY_FILE" "Step CA root certificate key file (required)")
+
+	if [ -z "$STEP_CA__KEY_FILE" ]; then
+		die "STEP_CA__KEY_FILE is required when STEP_CA__CERT_FILE is set"
+	fi
+fi
+
+echo "STEP_CA__CERT_FILE=$STEP_CA__CERT_FILE" >>"$TMP"
+echo "STEP_CA__KEY_FILE=$STEP_CA__KEY_FILE" >>"$TMP"
 # --- Finalize ---
 mv "$TMP" "$ENV_FILE"
 

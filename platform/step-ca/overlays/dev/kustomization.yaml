@@ -3,3 +3,4 @@ kind: Kustomization
 
 resources:
   - ../../base
+  - ../../certs/dev/step-ca-root-ca.enc.yaml
