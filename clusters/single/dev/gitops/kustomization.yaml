@@ -8,4 +8,4 @@ resources:
   - ../../../../platform/ingress-nginx/overlays/dev
   - ../../../../platform/argocd/overlays/dev
   - ../../../../apps/dev-root-application.yaml
-  - ../../../../apps/hello-world/overlays/dev
+  - ../../../../apps/hello-world/dev-hello-world-application.yaml
