@@ -40178,6 +40178,29 @@ type: Opaque
 apiVersion: v1
 kind: Secret
 metadata:
+  name: step-ca-root-ca
+  namespace: step-ca
+stringData:
+  root_ca.crt: |
+    -----BEGIN CERTIFICATE-----
+    MIIBZzCCARmgAwIBAgIUc2erNPX8+DIQJt4BDs2VjSJnT08wBQYDK2VwMCExHzAd
+    BgNVBAMMFkFldGhlcmljIEZvcmdlIFJvb3QgQ0EwHhcNMjYwNjExMjE0NzA5WhcN
+    NDYwNjA2MjE0NzA5WjAhMR8wHQYDVQQDDBZBZXRoZXJpYyBGb3JnZSBSb290IENB
+    MCowBQYDK2VwAyEA/lY9lAqoX0NkvJ7GiAPB5SxuxeHcyl2zmm2aHvOAEgSjYzBh
+    MB0GA1UdDgQWBBQn2TBZ/kh50D5TJnaSLLIAXv6qYzAfBgNVHSMEGDAWgBQn2TBZ
+    /kh50D5TJnaSLLIAXv6qYzAPBgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB/wQEAwIB
+    BjAFBgMrZXADQQBSUiWaVNviHpluzlPPOSL4wsfITQWqXd+/z48OG4TR1yO0unKs
+    kHHbeQ6DtXk6o1KCj3q/KmZI9qdboel7FS0D
+    -----END CERTIFICATE-----
+  root_ca.key: |
+    -----BEGIN PRIVATE KEY-----
+    MC4CAQAwBQYDK2VwBCIEIKtmEwRSpf2pklfRZRZtUsZvHXws1Phe0RgSfllS24WH
+    -----END PRIVATE KEY-----
+type: Opaque
+---
+apiVersion: v1
+kind: Secret
+metadata:
   name: step-ca-secrets
   namespace: step-ca
 stringData:
@@ -42948,6 +42971,8 @@ spec:
         - mountPath: /run/secrets/step-ca
           name: step-ca-secrets
           readOnly: true
+        - mountPath: /run/secrets/step-ca-root-ca
+          name: step-ca-root-ca
       initContainers:
       - command:
         - /bin/sh
@@ -42959,6 +42984,8 @@ spec:
             step ca init \
               --name "${STEP_CA_NAME}" \
               --dns "${STEP_CA_DNS}" \
+              --cert /run/secrets/step-ca-root-ca/root_ca.crt
+              --key /run/secrets/step-ca-root-ca/root_ca.key
               --address ":9000" \
               --provisioner "${STEP_CA_PROVISIONER}" \
               --password-file /run/secrets/step-ca/password \
@@ -43008,6 +43035,9 @@ spec:
       - name: step-ca-secrets
         secret:
           secretName: step-ca-secrets
+      - name: step-ca-root-ca
+        secret:
+          secretName: step-ca-root-ca
 ---
 apiVersion: apps/v1
 kind: StatefulSet
