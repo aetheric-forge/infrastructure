@@ -48,7 +48,7 @@ extraArgs:
   - --rfc2136-zone=${INTERNAL_DOMAIN}
   - --exclude-domains=int.aethericforge.ca
   - --rfc2136-tsig-secret-alg=hmac-sha256
-  - --rfc2136-tsig-keyname=external-dns-key
+  - --rfc2136-tsig-keyname=external-dns-$ENV-key
 
 env:
   - name: EXTERNAL_DNS_RFC2136_TSIG_SECRET

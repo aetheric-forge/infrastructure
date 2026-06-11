@@ -1,0 +1,49 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../../../../platform/metallb/overlays/test
+  - ../../../../../platform/ingress-nginx/overlays/test
+  - ../../../../../platform/external-dns/overlays/test
+  - ../../../../../platform/step-ca/overlays/test
+  - ../../../../../platform/cert-manager/overlays/test
+  - ../../../../../platform/argocd/overlays/test
+
+patches:
+  - target:
+      kind: ConfigMap
+      name: coredns
+      namespace: kube-system
+    patch: |-
+      - op: replace
+        path: /data/Corefile
+        value: |
+          .:53 {
+              errors
+              health
+              ready
+              kubernetes cluster.local in-addr.arpa ip6.arpa {
+                pods insecure
+                fallthrough in-addr.arpa ip6.arpa
+              }
+              hosts /etc/coredns/NodeHosts {
+                ttl 60
+                reload 15s
+                fallthrough
+              }
+              prometheus :9153
+              cache 30
+              loop
+              reload
+              loadbalance
+              import /etc/coredns/custom/*.override
+              forward . /etc/resolv.conf
+          }
+
+          int.aethericforge.ca:53 {
+              errors
+              cache 30
+              forward . 192.168.1.1
+          }
+
+          import /etc/coredns/custom/*.server

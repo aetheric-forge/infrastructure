@@ -17,7 +17,7 @@ spec:
         dns01:
           rfc2136:
             nameserver: 192.168.1.1:5335
-            tsigKeyName: cert-manager-dev-key
+            tsigKeyName: cert-manager-test-key
             tsigAlgorithm: HMACSHA256
             tsigSecretSecretRef:
               name: cert-manager-tsig

@@ -1,68 +1,55 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-namespace: ingress-nginx-test
+namespace: ingress-nginx
 
 resources:
   - ../../base
-
-patches:
-  - target:
-      version: v1
-      kind: Namespace
-      name: ingress-nginx
-    patch: |-
-      - op: replace
-        path: /metadata/name
-        value: ingress-nginx-test
 
 helmCharts:
   - name: ingress-nginx
     repo: https://kubernetes.github.io/ingress-nginx
     version: 4.13.3
-    releaseName: ingress-nginx-test-private
-    namespace: ingress-nginx-test
+    releaseName: ingress-nginx-private
+    namespace: ingress-nginx
     valuesInline:
       controller:
         admissionWebhooks:
           enabled: true
           patch:
             enabled: true
-        electionID: ingress-nginx-test-private-leader
+        electionID: ingress-nginx-private-leader
         ingressClass: nginx-private
         ingressClassResource:
           enabled: true
           name: nginx-private
-          controllerValue: k8s.io/nginx-private-ingress-nginx
+          controllerValue: k8s.io/ingress-nginx-private
           default: false
         watchIngressWithoutClass: false
         service:
           type: LoadBalancer
           annotations:
-            service.beta.kubernetes.io/aws-load-balancer-type: nlb
-            service.beta.kubernetes.io/aws-load-balancer-scheme: internal
-            service.beta.kubernetes.io/aws-load-balancer-internal: "true"
+            metallb.io/address-pool: private-pool
   - name: ingress-nginx
     repo: https://kubernetes.github.io/ingress-nginx
     version: 4.13.3
-    releaseName: ingress-nginx-test-public
-    namespace: ingress-nginx-test
+    releaseName: ingress-nginx-public
+    namespace: ingress-nginx
     valuesInline:
       controller:
         admissionWebhooks:
           enabled: true
           patch:
             enabled: true
-        electionID: ingress-nginx-test-public-leader
+        electionID: ingress-nginx-public-leader
         ingressClass: nginx-public
         ingressClassResource:
           enabled: true
           name: nginx-public
-          controllerValue: k8s.io/nginx-public-ingress-nginx
+          controllerValue: k8s.io/ingress-nginx-public
           default: false
         watchIngressWithoutClass: false
         service:
-          type: NodePort
-          nodePorts:
-            http: 31080
-            https: 31443
+          type: LoadBalancer
+          annotations:
+            metallb.io/address-pool: public-pool

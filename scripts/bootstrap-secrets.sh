@@ -60,6 +60,13 @@ kubectl -n external-dns create secret generic cloudflare-api-token \
 	--dry-run=client -o yaml |
 	kubectl apply -f -
 
+kubectl -n cert-manager --dry-run=client -o yaml | kubectl apply -f -
+
+kubectl -n cert-manager create secret generic cloudflare-api-token \
+	--from-literal=apiToken="$CF_API_KEY" \
+	--dry-run=client -o yaml |
+	kubectl apply -f -
+
 echo "[Forge] Creating secret external-dns-internal-tsig"
 
 kubectl -n external-dns create secret generic external-dns-internal-tsig \
