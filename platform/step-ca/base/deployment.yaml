@@ -83,6 +83,7 @@ spec:
             - step-ca
           args:
             - /home/step/config/ca.json
+            - --resolver=192.168.1.1:5335
             - --password-file
             - /run/secrets/step-ca/password
           ports:
