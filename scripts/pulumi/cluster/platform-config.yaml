@@ -43745,14 +43745,14 @@ kind: ClusterIssuer
 metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "1"
-    cert-manager.io/acme-ca-uri: https://acme-v02.api.letsencrypt.org/directory
-  name: le-prod
+    cert-manager.io/acme-ca-uri: https://acme-staging-v02.api.letsencrypt.org/directory
+  name: le-staging
 spec:
   acme:
     email: brian@aethericforge.ca
     privateKeySecretRef:
-      name: le-prod-account-key
-    server: https://acme-v02.api.letsencrypt.org/directory
+      name: le-staging-account-key
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
     solvers:
     - dns01:
         cloudflare:
@@ -43778,7 +43778,7 @@ spec:
         rfc2136:
           nameserver: 192.168.1.1:5335
           tsigAlgorithm: HMACSHA256
-          tsigKeyName: cert-manager-test-key
+          tsigKeyName: cert-manager-dev-key
           tsigSecretSecretRef:
             key: tsig-secret
             name: cert-manager-tsig
