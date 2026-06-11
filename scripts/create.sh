@@ -12,7 +12,6 @@ export SCRIPTS_DIR="$ROOT_DIR/scripts"
 source "$SCRIPTS_DIR/lib/paths.sh"
 
 source "$ROOT_DIR/.env"
-APPS_DIR="$ROOT_DIR/apps"
 
 ########################################
 # Helpers
@@ -47,30 +46,6 @@ kustomize_build() {
 		--enable-alpha-plugins \
 		--enable-exec \
 		"$@"
-}
-
-make_platform_bootstrap_overlay() {
-	local tmpdir="$1"
-
-	cp -a "$ROOT_DIR/." "$tmpdir/"
-
-	python3 - "$tmpdir/clusters/single/$ENVIRONMENT/bootstrap/kustomization.yaml" <<'PY'
-import sys
-from pathlib import Path
-
-path = Path(sys.argv[1])
-lines = path.read_text().splitlines()
-
-out = [
-    line for line in lines
-    if line.strip() not in {
-        "- ../../../../apps",
-        "- ../../../../apps/",
-    }
-]
-
-path.write_text("\n".join(out) + "\n")
-PY
 }
 
 render_checked() {
@@ -296,13 +271,8 @@ bootstrap_step_ca_trust() {
 deploy_gitops_apps() {
 	log "Handing control to GitOps app declarations"
 
-	if [[ -f "$APPS_DIR/kustomization.yaml" ]]; then
-		kustomize_build "$APPS_DIR" | kubectl apply -f - ||
-			fail "GitOps app declarations failed"
-	else
-		kubectl apply -f "$ROOT_DIR/apps/$ENVIRONMENT-root-application.yaml" ||
-			fail "GitOps root app failed"
-	fi
+	kubectl apply -f "$ROOT_DIR/apps/$ENVIRONMENT-root-application.yaml" ||
+		fail "GitOps root app failed"
 }
 
 ########################################

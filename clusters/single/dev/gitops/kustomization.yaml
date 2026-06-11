@@ -7,5 +7,4 @@ resources:
   - ../../../../platform/external-dns/overlays/dev
   - ../../../../platform/ingress-nginx/overlays/dev
   - ../../../../platform/argocd/overlays/dev
-  - ../../../../apps/dev-root-application.yaml
   - ../../../../apps/hello-world/dev-hello-world-application.yaml
