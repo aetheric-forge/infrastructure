@@ -90,19 +90,18 @@ kubectl create ns step-ca --dry-run=client -o yaml | kubectl apply -f -
 if [[ -n "$STEP_CA__CERT_FILE" ]]; then
 	CERT_FILE=$STEP_CA__CERT_FILE
 	KEY_FILE=$STEP_CA__KEY_FILE
-else
 	openssl genpkey -algorithm ED25519 -out root_ca.key
 
 	openssl req -x509 -new \
-		-key root_ca.key \
-		-out root_ca.crt \
+		-key $ROOT_DIR/platform/step-ca/certs/dev/root_ca.key \
+		-out $ROOT_DIR/platform/step-ca/certs/dev/root_ca.crt \
 		-days 7300 \
 		-subj "/CN=Aetheric Forge Root CA" \
 		-addext "basicConstraints=critical,CA:true" \
 		-addext "keyUsage=critical,keyCertSign,cRLSign"
 
-	CERT_FILE=root_ca.crt
-	KEY_FILE=root_ca.key
+	CERT_FILE=$ROOT_DIR/platform/certs/dev/root_ca.crt
+	KEY_FILE=$ROOT_DIR/platform/certs/dev/root_ca.key
 fi
 
 DIR=$ROOT_DIR/platform/step-ca/certs/$ENVIRONMENT
