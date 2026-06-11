@@ -12,11 +12,6 @@ export SCRIPTS_DIR="$ROOT_DIR/scripts"
 source "$SCRIPTS_DIR/lib/paths.sh"
 
 source "$ROOT_DIR/.env"
-
-NS_CM="cert-manager"
-NS_CA="step-ca"
-
-BOOTSTRAP_DIR="$ROOT_DIR/clusters/single/$ENVIRONMENT/bootstrap"
 APPS_DIR="$ROOT_DIR/apps"
 
 ########################################
@@ -206,7 +201,7 @@ deploy_platform_bootstrap() {
 	########################################
 
 	apply_bootstrap_phase \
-		"$ROOT_DIR/clusters/single/dev/bootstrap/10-platform-core" \
+		"$ROOT_DIR/clusters/single/$ENVIRONMENT/bootstrap/10-platform-core" \
 		"platform-core"
 
 	log "Waiting for metallb CRDs..."
@@ -235,7 +230,7 @@ deploy_platform_bootstrap() {
 	########################################
 
 	apply_bootstrap_phase \
-		"$ROOT_DIR/clusters/single/dev/bootstrap/20-platform-config" \
+		"$ROOT_DIR/clusters/single/$ENVIRONMENT/bootstrap/20-platform-config" \
 		"platform-config"
 
 	wait_for_namespace step-ca 180
@@ -305,7 +300,7 @@ deploy_gitops_apps() {
 		kustomize_build "$APPS_DIR" | kubectl apply -f - ||
 			fail "GitOps app declarations failed"
 	else
-		kubectl apply -f "$ROOT_DIR/apps/dev-root-application.yaml" ||
+		kubectl apply -f "$ROOT_DIR/apps/$ENVIRONMENT-root-application.yaml" ||
 			fail "GitOps root app failed"
 	fi
 }
