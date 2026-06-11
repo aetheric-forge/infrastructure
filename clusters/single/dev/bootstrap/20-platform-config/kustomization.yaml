@@ -40,7 +40,7 @@ patches:
               forward . /etc/resolv.conf
           }
 
-          int.aethericforge.ca:53 {
+          int.aethericforge.ca:5335 {
               errors
               cache 30
               forward . 192.168.1.1
