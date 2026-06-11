@@ -60,7 +60,7 @@ kubectl -n external-dns create secret generic cloudflare-api-token \
 	--dry-run=client -o yaml |
 	kubectl apply -f -
 
-kubectl -n cert-manager --dry-run=client -o yaml | kubectl apply -f -
+kubectl create ns cert-manager --dry-run=client -o yaml | kubectl apply -f -
 
 kubectl -n cert-manager create secret generic cloudflare-api-token \
 	--from-literal=apiToken="$CF_API_KEY" \

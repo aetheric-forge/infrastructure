@@ -16,7 +16,7 @@ source "$ROOT_DIR/.env"
 NS_CM="cert-manager"
 NS_CA="step-ca"
 
-BOOTSTRAP_DIR="$ROOT_DIR/clusters/single/dev/bootstrap"
+BOOTSTRAP_DIR="$ROOT_DIR/clusters/single/$ENVIRONMENT/bootstrap"
 APPS_DIR="$ROOT_DIR/apps"
 
 ########################################
@@ -59,7 +59,7 @@ make_platform_bootstrap_overlay() {
 
 	cp -a "$ROOT_DIR/." "$tmpdir/"
 
-	python3 - "$tmpdir/clusters/single/dev/bootstrap/kustomization.yaml" <<'PY'
+	python3 - "$tmpdir/clusters/single/$ENVIRONMENT/bootstrap/kustomization.yaml" <<'PY'
 import sys
 from pathlib import Path
 
@@ -84,7 +84,7 @@ render_checked() {
 	local label="$3"
 
 	log "Rendering $label..."
-	kustomize_build "$overlay" > "$output"
+	kustomize_build "$overlay" >"$output"
 
 	test -s "$output" || fail "$label rendered empty"
 
@@ -110,8 +110,8 @@ wait_for_namespace() {
 	local timeout="${2:-180}"
 
 	log "Waiting for namespace/$ns..."
-	kubectl wait --for=jsonpath='{.metadata.name}'="$ns" "namespace/$ns" --timeout="${timeout}s" \
-		|| fail "namespace/$ns did not appear"
+	kubectl wait --for=jsonpath='{.metadata.name}'="$ns" "namespace/$ns" --timeout="${timeout}s" ||
+		fail "namespace/$ns did not appear"
 }
 
 wait_for_deployment() {
@@ -124,8 +124,8 @@ wait_for_deployment() {
 		sleep 2
 	done
 
-	kubectl rollout status "deploy/$deploy" -n "$ns" --timeout="${timeout}s" \
-		|| fail "deployment/$deploy did not become ready"
+	kubectl rollout status "deploy/$deploy" -n "$ns" --timeout="${timeout}s" ||
+		fail "deployment/$deploy did not become ready"
 }
 
 ########################################
@@ -220,15 +220,15 @@ deploy_platform_bootstrap() {
 		--for=condition=Established \
 		crd/ipaddresspools.metallb.io \
 		crd/l2advertisements.metallb.io \
-		--timeout=120s \
-		|| fail "metallb CRDs failed"
+		--timeout=120s ||
+		fail "metallb CRDs failed"
 
 	log "Waiting for metallb controller..."
 	kubectl rollout status \
 		deployment/metallb-controller \
 		-n metallb-system \
-		--timeout=120s \
-		|| fail "metallb controller failed"
+		--timeout=120s ||
+		fail "metallb controller failed"
 
 	########################################
 	# Phase 2 — Configuration
@@ -269,7 +269,7 @@ bootstrap_step_ca_trust() {
 
 	kubectl exec -n step-ca "$pod" -- \
 		cat /home/step/certs/root_ca.crt \
-		> /tmp/root_ca.crt || fail "Failed to extract root CA"
+		>/tmp/root_ca.crt || fail "Failed to extract root CA"
 
 	test -s /tmp/root_ca.crt || fail "root_ca.crt is empty"
 
@@ -279,7 +279,7 @@ bootstrap_step_ca_trust() {
 		--dry-run=client -o yaml | kubectl apply -f -
 
 	local ca_bundle
-	ca_bundle="$(base64 < /tmp/root_ca.crt | tr -d '\n')"
+	ca_bundle="$(base64 </tmp/root_ca.crt | tr -d '\n')"
 
 	kubectl patch clusterissuer step-ca-int-acme \
 		--type merge \
@@ -302,11 +302,11 @@ deploy_gitops_apps() {
 	log "Handing control to GitOps app declarations"
 
 	if [[ -f "$APPS_DIR/kustomization.yaml" ]]; then
-		kustomize_build "$APPS_DIR" | kubectl apply -f - \
-			|| fail "GitOps app declarations failed"
+		kustomize_build "$APPS_DIR" | kubectl apply -f - ||
+			fail "GitOps app declarations failed"
 	else
-		kubectl apply -f "$ROOT_DIR/apps/dev-root-application.yaml" \
-			|| fail "GitOps root app failed"
+		kubectl apply -f "$ROOT_DIR/apps/dev-root-application.yaml" ||
+			fail "GitOps root app failed"
 	fi
 }
 

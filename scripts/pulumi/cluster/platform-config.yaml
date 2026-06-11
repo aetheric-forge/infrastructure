@@ -40171,15 +40171,6 @@ type: Opaque
 apiVersion: v1
 kind: Secret
 metadata:
-  name: cloudflare-api-token
-  namespace: cert-manager
-stringData:
-  apiToken: iEm3Sw9zxsbBRmO8WFj6D_Hzf8VVcUT6xPGpK5cu
-type: Opaque
----
-apiVersion: v1
-kind: Secret
-metadata:
   name: step-ca-secrets
   namespace: step-ca
 stringData:
@@ -42553,7 +42544,7 @@ spec:
         - --rfc2136-zone=int.aethericforge.ca
         - --exclude-domains=int.aethericforge.ca
         - --rfc2136-tsig-secret-alg=hmac-sha256
-        - --rfc2136-tsig-keyname=external-dns-key
+        - --rfc2136-tsig-keyname=external-dns-dev-key
         env:
         - name: EXTERNAL_DNS_RFC2136_TSIG_SECRET
           valueFrom:
@@ -43754,14 +43745,14 @@ kind: ClusterIssuer
 metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "1"
-    cert-manager.io/acme-ca-uri: https://acme-staging-v02.api.letsencrypt.org/directory
-  name: le-staging
+    cert-manager.io/acme-ca-uri: https://acme-v02.api.letsencrypt.org/directory
+  name: le-prod
 spec:
   acme:
     email: brian@aethericforge.ca
     privateKeySecretRef:
-      name: le-staging-account-key
-    server: https://acme-staging-v02.api.letsencrypt.org/directory
+      name: le-prod-account-key
+    server: https://acme-v02.api.letsencrypt.org/directory
     solvers:
     - dns01:
         cloudflare:
@@ -43787,7 +43778,7 @@ spec:
         rfc2136:
           nameserver: 192.168.1.1:5335
           tsigAlgorithm: HMACSHA256
-          tsigKeyName: cert-manager-key
+          tsigKeyName: cert-manager-test-key
           tsigSecretSecretRef:
             key: tsig-secret
             name: cert-manager-tsig
