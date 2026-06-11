@@ -92,12 +92,12 @@ if [[ -n "$STEP_CA__CERT_FILE" ]]; then
 	KEY_FILE=$STEP_CA__KEY_FILE
 else
 
-	CERT_FILE=$ROOT_DIR/platform/certs/dev/root_ca.crt
+	CERT_FILE=$ROOT_DIR/platform/step-ca/certs/dev/root_ca.crt
 	if [[ ! -f $CERT_FILE ]]; then
 		openssl genpkey -algorithm ED25519 -out root_ca.key
 	fi
 
-	KEY_FILE=$ROOT_DIR/platform/certs/dev/root_ca.key
+	KEY_FILE=$ROOT_DIR/platform/step-ca/certs/dev/root_ca.key
 	if [[ ! -f $KEY_FILE ]]; then
 		openssl req -x509 -new \
 			-key $KEY_FILE \
