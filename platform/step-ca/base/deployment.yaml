@@ -38,6 +38,8 @@ spec:
                 step ca init \
                   --name "${STEP_CA_NAME}" \
                   --dns "${STEP_CA_DNS}" \
+                  --cert /run/secrets/step-ca-root-ca/root_ca.crt
+                  --key /run/secrets/step-ca-root-ca/root_ca.key
                   --address ":9000" \
                   --provisioner "${STEP_CA_PROVISIONER}" \
                   --password-file /run/secrets/step-ca/password \
@@ -109,6 +111,8 @@ spec:
             - name: step-ca-secrets
               mountPath: /run/secrets/step-ca
               readOnly: true
+            - name: step-ca-root-ca
+              mountPath: /run/secrets/step-ca-root-ca
       volumes:
         - name: step-ca-data
           persistentVolumeClaim:
@@ -116,3 +120,6 @@ spec:
         - name: step-ca-secrets
           secret:
             secretName: step-ca-secrets
+        - name: step-ca-root-ca
+          secret:
+            secretName: step-ca-root-ca

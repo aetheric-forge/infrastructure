@@ -7,5 +7,3 @@ resources:
   - service.yaml
   - deployment.yaml
 
-generators:
-  - ksops-secrets.yaml
