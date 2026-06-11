@@ -140,7 +140,7 @@ setup_wireguard() {
 		"Enable the local DNS AWS forwarder now, then press Enter to continue..."
 }
 
-apply_bootstrap_phase() {
+render_overlay() {
 	local overlay="$1"
 	local label="$2"
 
@@ -175,7 +175,7 @@ deploy_platform_bootstrap() {
 	# Phase 1 — Controllers / CRDs
 	########################################
 
-	apply_bootstrap_phase \
+	render_overlay \
 		"$ROOT_DIR/clusters/single/$ENVIRONMENT/bootstrap/10-platform-core" \
 		"platform-core"
 
@@ -204,7 +204,7 @@ deploy_platform_bootstrap() {
 	# Phase 2 — Configuration
 	########################################
 
-	apply_bootstrap_phase \
+	render_overlay \
 		"$ROOT_DIR/clusters/single/$ENVIRONMENT/bootstrap/20-platform-config" \
 		"platform-config"
 
@@ -271,8 +271,9 @@ bootstrap_step_ca_trust() {
 deploy_gitops_apps() {
 	log "Handing control to GitOps app declarations"
 
-	kubectl apply -f "$ROOT_DIR/apps/$ENVIRONMENT-root-application.yaml" ||
-		fail "GitOps root app failed"
+	render_overlay \
+		"$ROOT_DIR/clusters/single/$ENVIRONMENT/gitops" \
+		"gitops"
 }
 
 ########################################
