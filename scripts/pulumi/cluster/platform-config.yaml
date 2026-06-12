@@ -42976,6 +42976,9 @@ spec:
         - mountPath: /run/secrets/step-ca
           name: step-ca-secrets
           readOnly: true
+        - mountPath: /run/secrets/step-ca-root-ca
+          name: step-ca-root-ca
+          readOnly: true
       securityContext:
         fsGroup: 1000
         fsGroupChangePolicy: OnRootMismatch

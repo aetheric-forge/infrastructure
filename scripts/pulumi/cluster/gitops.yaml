@@ -40183,18 +40183,18 @@ metadata:
 stringData:
   root_ca.crt: |
     -----BEGIN CERTIFICATE-----
-    MIIBZzCCARmgAwIBAgIUc2erNPX8+DIQJt4BDs2VjSJnT08wBQYDK2VwMCExHzAd
-    BgNVBAMMFkFldGhlcmljIEZvcmdlIFJvb3QgQ0EwHhcNMjYwNjExMjE0NzA5WhcN
-    NDYwNjA2MjE0NzA5WjAhMR8wHQYDVQQDDBZBZXRoZXJpYyBGb3JnZSBSb290IENB
-    MCowBQYDK2VwAyEA/lY9lAqoX0NkvJ7GiAPB5SxuxeHcyl2zmm2aHvOAEgSjYzBh
-    MB0GA1UdDgQWBBQn2TBZ/kh50D5TJnaSLLIAXv6qYzAfBgNVHSMEGDAWgBQn2TBZ
-    /kh50D5TJnaSLLIAXv6qYzAPBgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB/wQEAwIB
-    BjAFBgMrZXADQQBSUiWaVNviHpluzlPPOSL4wsfITQWqXd+/z48OG4TR1yO0unKs
-    kHHbeQ6DtXk6o1KCj3q/KmZI9qdboel7FS0D
+    MIIBZzCCARmgAwIBAgIUb/c+A4M5qE82b3IZt/heoDaPo8EwBQYDK2VwMCExHzAd
+    BgNVBAMMFkFldGhlcmljIEZvcmdlIFJvb3QgQ0EwHhcNMjYwNjEyMTEyMDQ4WhcN
+    NDYwNjA3MTEyMDQ4WjAhMR8wHQYDVQQDDBZBZXRoZXJpYyBGb3JnZSBSb290IENB
+    MCowBQYDK2VwAyEAAenjkC1IWVBKL7yd9/bUBHBeQM8woRdKhZpAt0HR5MSjYzBh
+    MB0GA1UdDgQWBBTqsXPLYoA6ANp/LRTELsBrzhOleDAfBgNVHSMEGDAWgBTqsXPL
+    YoA6ANp/LRTELsBrzhOleDAPBgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB/wQEAwIB
+    BjAFBgMrZXADQQBrflbZZ1tZRQCAKVZ7tH6BEQY91VTrHGYKKRT5EF93CA8Nr3bG
+    TfGb0FC5oKDY5SeLDeR7jM+5MVfF9NmWQ6gI
     -----END CERTIFICATE-----
   root_ca.key: |
     -----BEGIN PRIVATE KEY-----
-    MC4CAQAwBQYDK2VwBCIEIKtmEwRSpf2pklfRZRZtUsZvHXws1Phe0RgSfllS24WH
+    MC4CAQAwBQYDK2VwBCIEIPziR0K5XyBIETHLUQRB3WHuZ0iuXYavkUziVxRZ8Qd9
     -----END PRIVATE KEY-----
 type: Opaque
 ---
@@ -42984,8 +42984,8 @@ spec:
             step ca init \
               --name "${STEP_CA_NAME}" \
               --dns "${STEP_CA_DNS}" \
-              --cert /run/secrets/step-ca-root-ca/root_ca.crt
-              --key /run/secrets/step-ca-root-ca/root_ca.key
+              --root /run/secrets/step-ca-root-ca/root_ca.crt \
+              --key /run/secrets/step-ca-root-ca/root_ca.key \
               --address ":9000" \
               --provisioner "${STEP_CA_PROVISIONER}" \
               --password-file /run/secrets/step-ca/password \
@@ -43022,6 +43022,9 @@ spec:
           name: step-ca-data
         - mountPath: /run/secrets/step-ca
           name: step-ca-secrets
+          readOnly: true
+        - mountPath: /run/secrets/step-ca-root-ca
+          name: step-ca-root-ca
           readOnly: true
       securityContext:
         fsGroup: 1000
