@@ -94,7 +94,10 @@ else
 
 	KEY_FILE=$ROOT_DIR/platform/step-ca/certs/dev/root_ca.key
 	if [[ ! -f $KEY_FILE ]]; then
-		openssl genpkey -algorithm ED25519 -out $KEY_FILE
+		openssl genpkey \
+			-algorithm EC \
+			-pkeyopt ec_paramgen_curve:P-256 \
+			-out $KEY_FILE
 	fi
 
 	CERT_FILE=$ROOT_DIR/platform/step-ca/certs/dev/root_ca.crt
