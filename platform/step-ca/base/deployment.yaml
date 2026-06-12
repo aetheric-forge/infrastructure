@@ -71,6 +71,9 @@ spec:
             - name: step-ca-secrets
               mountPath: /run/secrets/step-ca
               readOnly: true
+            - name: step-ca-root-ca
+              mountPath: /run/secrets/step-ca-root-ca
+              readOnly: true
       containers:
         - name: step-ca
           image: smallstep/step-ca:0.29.0

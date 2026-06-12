@@ -42937,7 +42937,7 @@ spec:
             step ca init \
               --name "${STEP_CA_NAME}" \
               --dns "${STEP_CA_DNS}" \
-              --cert /run/secrets/step-ca-root-ca/root_ca.crt \
+              --root /run/secrets/step-ca-root-ca/root_ca.crt \
               --key /run/secrets/step-ca-root-ca/root_ca.key \
               --address ":9000" \
               --provisioner "${STEP_CA_PROVISIONER}" \
