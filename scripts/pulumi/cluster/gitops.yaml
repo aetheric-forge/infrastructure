@@ -43445,6 +43445,26 @@ spec:
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
+  name: root-dev
+  namespace: argocd
+spec:
+  destination:
+    server: https://kubernetes.default.svc
+  project: default
+  source:
+    path: clusters/single/dev/gitops
+    repoURL: git@github.com:aetheric-forge/infrastructure.git
+    targetRevision: v0.8
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "2"
   name: hello-world
