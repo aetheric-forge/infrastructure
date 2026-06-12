@@ -4,4 +4,4 @@ kind: Kustomization
 resources:
   - example.yaml
 
-namespace: hello-world
+namespace: argocd
