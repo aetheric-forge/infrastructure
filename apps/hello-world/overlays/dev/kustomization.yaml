@@ -4,6 +4,7 @@ kind: Kustomization
 resources:
   - ../../base
   - ingress.yaml
-  - dev-hello-world-application.yaml
+  - ../../projects/dev
+  - ../../applications/dev.yaml
 
 namespace: hello-world
