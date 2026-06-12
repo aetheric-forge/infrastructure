@@ -7,4 +7,3 @@ resources:
   - ../../projects/dev
   - ../../applications
 
-namespace: hello-world
