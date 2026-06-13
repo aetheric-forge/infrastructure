@@ -79,6 +79,7 @@ helmCharts:
       configs:
         params:
           application.namespaces: "*"
+          applicationset.namespaces: "*"
         cm:
           kustomize.buildOptions: "--enable-helm --enable-alpha-plugins --enable-exec"
 
