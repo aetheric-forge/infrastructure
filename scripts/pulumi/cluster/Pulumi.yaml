@@ -1,4 +1,4 @@
-name: aetheric-forge-platform-cluster
+name: aetheric-platform-cluster
 description: Kubernetes cluster for the Aetheric Forge platform
 runtime:
   name: python
