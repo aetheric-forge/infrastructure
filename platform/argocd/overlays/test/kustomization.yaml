@@ -5,6 +5,7 @@ namespace: argocd
 
 resources:
   - ../../base
+  - ../../projects/test
   - ingress.yaml
 
 helmCharts:
