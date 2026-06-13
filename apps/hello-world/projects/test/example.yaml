@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: example
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  description: Example applications
+
+  sourceRepos:
+    - 'git@github.com:aetheric-forge/infrastructure.git'
+
+  sourceNamespaces:
+    - 'argocd'
+
+  destinations:
+    - namespace: hello-world
+      server: https://kubernetes.default.svc
+
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'

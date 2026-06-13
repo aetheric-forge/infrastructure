@@ -16,7 +16,7 @@ spec:
   tls:
     - hosts:
         - hello-test.aethericforge.ca
-      secretName: hello-test-aethericforge-ca
+      secretName: hello-test-aethericforge-ca-tls
   rules:
     - host: hello-test.aethericforge.ca
       http:
