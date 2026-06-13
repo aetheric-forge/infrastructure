@@ -12,7 +12,7 @@ spec:
     - 'git@github.com:aetheric-forge/infrastructure.git'
 
   sourceNamespaces:
-    - 'hello-world'
+    - '*'
 
   destinations:
     - namespace: hello-world
