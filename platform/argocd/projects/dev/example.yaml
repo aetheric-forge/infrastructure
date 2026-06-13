@@ -2,7 +2,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
   name: example
-  namespace: hello-world
+  namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 spec:
@@ -12,7 +12,7 @@ spec:
     - 'git@github.com:aetheric-forge/infrastructure.git'
 
   sourceNamespaces:
-    - '*'
+    - 'hello-world'
 
   destinations:
     - namespace: hello-world
