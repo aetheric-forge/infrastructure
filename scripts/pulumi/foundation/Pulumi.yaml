@@ -1,5 +1,5 @@
-name: aetheric-forge-platform-aws
-description: Aetheric Forge Platform AWS
+name: aetheric-platform-foundation
+description: Aetheric Forge Platform
 runtime:
   name: python
   options:
