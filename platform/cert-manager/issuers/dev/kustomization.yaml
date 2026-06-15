@@ -4,3 +4,4 @@ kind: Kustomization
 resources:
   - clusterissuer-step-ca-internal.yaml
   - le-staging-external.yaml
+  - le-prod-external.yaml
