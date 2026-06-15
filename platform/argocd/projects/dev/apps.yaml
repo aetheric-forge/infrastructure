@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: apps
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  description: Aetheric Forge Applications
+
+  sourceRepos:
+    - 'git@github.com:aetheric-forge/infrastructure.git'
+
+  sourceNamespaces:
+    - 'aetheric-forge'
+
+  destinations:
+    - namespace: aetheric-forge
+      server: https://kubernetes.default.svc
+
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
