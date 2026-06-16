@@ -3,5 +3,3 @@ kind: Kustomization
 
 namespace: external-dns
 
-resources:
-  - ../../base
