@@ -200,6 +200,9 @@ deploy_platform_bootstrap() {
 		--timeout=120s ||
 		fail "metallb controller failed"
 
+	# give cluster a second to settle
+	sleep 2
+
 	########################################
 	# Phase 2 — Configuration
 	########################################
