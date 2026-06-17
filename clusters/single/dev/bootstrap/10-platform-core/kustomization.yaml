@@ -7,3 +7,4 @@ resources:
   - ../../../../../platform/core/external-dns/base
   - ../../../../../platform/core/step-ca/base
   - ../../../../../platform/core/cert-manager/base
+  - ../../../../../platform/services/argocd/base
