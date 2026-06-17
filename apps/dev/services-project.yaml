@@ -12,6 +12,7 @@ spec:
     - 'https://github.com/aetheric-forge/infrastructure.git'
 
   sourceNamespaces:
+    - ''
     - 'argocd'
     - 'minio'
     - 'rabbitmq'
@@ -20,6 +21,8 @@ spec:
     - 'mongodb'
 
   destinations:
+    - namespace: ''
+      server: https://kubernetes.default.svc
     - namespace: argocd
       server: https://kubernetes.default.svc
     - namespace: minio
