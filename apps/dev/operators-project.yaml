@@ -12,9 +12,12 @@ spec:
     - 'git@github.com:aetheric-forge/infrastructure.git'
 
   sourceNamespaces:
+    - ''
     - 'minio-system'
 
   destinations:
+    - namespace: ''
+      server: https://kubernetes.default.svc
     - namespace: minio-system
       server: https://kubernetes.default.svc
 
