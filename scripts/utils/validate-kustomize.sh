@@ -51,7 +51,7 @@ if [[ -z "${SOPS_AGE_KEY_FILE:-}" && -z "${SOPS_AGE_KEY:-}" ]]; then
   cp -a . "${TEMP_VALIDATION_ROOT}/repo"
   VALIDATION_ROOT="${TEMP_VALIDATION_ROOT}/repo"
 
-  cat > "${VALIDATION_ROOT}/platform/step-ca/base/validation-secrets.yaml" <<'EOF'
+  cat > "${VALIDATION_ROOT}/platform/core/step-ca/base/validation-secrets.yaml" <<'EOF'
 apiVersion: v1
 kind: Secret
 metadata:
@@ -63,7 +63,7 @@ stringData:
   provisioner_password: validation-only-provisioner-password
 EOF
 
-  cat > "${VALIDATION_ROOT}/platform/step-ca/base/kustomization.yaml" <<'EOF'
+  cat > "${VALIDATION_ROOT}/platform/core/step-ca/base/kustomization.yaml" <<'EOF'
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
