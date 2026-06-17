@@ -9,7 +9,7 @@ spec:
   description: Aetheric Forge Platform Services
 
   sourceRepos:
-    - 'https://github.com/aetheric-forge/infrastructure.git'
+    - 'git@github.com:aetheric-forge/infrastructure.git'
 
   sourceNamespaces:
     - ''
