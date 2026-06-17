@@ -112,7 +112,7 @@ else
 	fi
 fi
 
-DIR=$ROOT_DIR/platform/step-ca/certs/$ENVIRONMENT
+DIR=$ROOT_DIR/platform/core/step-ca/certs/$ENVIRONMENT
 mkdir -p $DIR
 
 SECRETS_FILE="$DIR/step-ca-root-ca.yaml"
