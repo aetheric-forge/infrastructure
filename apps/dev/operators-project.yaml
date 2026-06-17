@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: operators
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  description: Aetheric Forge Platform Extensions
+
+  sourceRepos:
+    - 'git@github.com:aetheric-forge/infrastructure.git'
+
+  sourceNamespaces:
+    - 'minio-system'
+
+  destinations:
+    - namespace: minio-system
+      server: https://kubernetes.default.svc
+
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'

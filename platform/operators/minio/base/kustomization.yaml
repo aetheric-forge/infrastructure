@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespace.yaml
+
+helmCharts:
+  - name: operator
+    repo: https://operator.min.io
+    version: 7.1.1
+    releaseName: minio-operator
+    namespace: minio-system
+
+    valuesInline:
+      operator:
+        replicaCount: 1
+      console:
+        replicaCount: 1

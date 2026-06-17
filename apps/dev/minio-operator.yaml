@@ -1,0 +1,19 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: minio-operator-dev
+  namespace: argocd
+spec:
+  project: operators
+  source:
+    repoURL: git@github.com:aetheric-forge/infrastructure.git
+    targetRevision: v0.8
+    path: platform/operators/minio/base
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
