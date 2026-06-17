@@ -7,7 +7,6 @@ resources:
   - ../../../../../platform/external-dns/overlays/dev
   - ../../../../../platform/step-ca/overlays/dev
   - ../../../../../platform/cert-manager/overlays/dev
-  - ../../../../../platform/argocd/overlays/dev
 
 patches:
   - target:

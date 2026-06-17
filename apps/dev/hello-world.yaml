@@ -10,7 +10,7 @@ spec:
   source:
     repoURL: git@github.com:aetheric-forge/infrastructure.git
     targetRevision: v0.8
-    path: apps/hello-world/workloads/overlays/dev
+    path: apps/hello-world/overlays/dev
   destination:
     server: https://kubernetes.default.svc
     namespace: hello-world
