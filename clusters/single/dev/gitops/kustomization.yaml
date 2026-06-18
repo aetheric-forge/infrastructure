@@ -7,4 +7,5 @@ resources:
   - ../../../../platform/core/step-ca/overlays/dev
   - ../../../../platform/core/external-dns/overlays/dev
   - ../../../../platform/core/ingress-nginx/overlays/dev
+  - ../../../../platform/core/velero/overlays/dev
   - ../../../../apps/dev
