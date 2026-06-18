@@ -247,8 +247,7 @@ EOF
 		"$SECRET" \
 		"$out_file"
 
-	render_velero_bsl "$ROOT_DIR/platform/core/step-ca/certs/dev/root_ca.crt"
-
 fi
+render_velero_bsl "$ROOT_DIR/platform/core/step-ca/certs/dev/root_ca.crt"
 
 echo "[Forge] Done"
