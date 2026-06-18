@@ -8,3 +8,4 @@ resources:
   - ../../../../../platform/core/step-ca/base
   - ../../../../../platform/core/cert-manager/base
   - ../../../../../platform/services/argocd/base
+  - ../../../../../platform/operators/minio/base
