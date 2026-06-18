@@ -2,6 +2,7 @@ apiVersion: minio.min.io/v2
 kind: Tenant
 metadata:
   name: minio
+  namespace: minio
 spec:
   configuration:
     name: minio-env-configuration
