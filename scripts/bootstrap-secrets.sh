@@ -27,6 +27,38 @@ function create_sops_secret {
 	sops --encrypt --in-place "$out_file"
 }
 
+function render_velero_bsl {
+	local cert_file=$1
+
+	local ca_cert
+	ca_cert=$(base64 -w0 <"$cert_file")
+
+	cat <<EOF >"$ROOT_DIR/platform/core/velero/overlays/dev/backupstoragelocation.yaml"
+apiVersion: velero.io/v1
+kind: BackupStorageLocation
+metadata:
+  name: default
+  namespace: velero
+
+spec:
+  provider: aws
+
+  objectStorage:
+    bucket: velero
+
+  credential:
+    name: cloud-credentials
+    key: cloud
+
+  config:
+    region: minio
+    s3ForcePathStyle: "true"
+    s3Url: https://minio.minio.svc.cluster.local
+
+  caCert: $ca_cert
+EOF
+}
+
 : "${SOPS_AGE_KEY:?must be set}"
 : "${SSH_REPO_KEY:?must be set}"
 : "${GIT_REPO_URL:?must be set}"
