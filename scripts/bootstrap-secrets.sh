@@ -174,7 +174,7 @@ create_sops_secret "minio-env-configuration" \
 	"$out_file"
 
 DIR="$ROOT_DIR/platform/core/velero/secrets/$ENVIRONMENT"
-out_file="$DIR/velero-access-key.enc.yaml"
+out_file="$DIR/cloud-credentials.enc.yaml"
 
 access_key=$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | head -c 32)
 
