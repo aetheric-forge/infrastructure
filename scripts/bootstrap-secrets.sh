@@ -54,7 +54,7 @@ spec:
   config:
     region: minio
     s3ForcePathStyle: "true"
-    s3Url: https://minio.minio.svc.cluster.local
+    s3Url: https://s3-dev.int.aethericforge.ca
 
 EOF
 }
