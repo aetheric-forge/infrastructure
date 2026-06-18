@@ -4,7 +4,7 @@ metadata:
   name: minio-console
   namespace: minio
   annotations:
-    cert-manager.io/cluster-issuer: le-staging
+    cert-manager.io/cluster-issuer: step-ca-int-acme
     external-dns.alpha.kubernetes.io/hostname: console-dev.int.aethericforge.ca
 spec:
   ingressClassName: nginx-private
