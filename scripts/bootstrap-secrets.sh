@@ -176,7 +176,8 @@ create_sops_secret "minio-env-configuration" \
 DIR="$ROOT_DIR/platform/core/velero/secrets/$ENVIRONMENT"
 out_file="$DIR/cloud-credentials.enc.yaml"
 
-access_key=$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | head -c 32)
+access_key=$(openssl rand -base64 16 | tr -dc 'A-Za-z0-9' | head -c 16)
+secret_key=$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | head -c 32)
 
 SECRET=$(
 	cat <<EOF
@@ -189,8 +190,8 @@ type: Opaque
 stringData:
   cloud: |
     [default]
-    aws_access_key_id=velero
-    aws_secret_access_key=$access_key
+    aws_access_key_id=$access_key
+    aws_secret_access_key=$secret_key
 EOF
 )
 
