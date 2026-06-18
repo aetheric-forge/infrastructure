@@ -23,4 +23,4 @@ spec:
               service:
                 name: minio
                 port:
-                  number: 80
+                  number: 443

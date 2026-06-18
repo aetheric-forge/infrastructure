@@ -23,4 +23,4 @@ spec:
               service:
                 name: minio-console
                 port:
-                  number: 9090
+                  number: 9443
