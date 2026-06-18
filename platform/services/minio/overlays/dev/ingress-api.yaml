@@ -2,6 +2,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: minio-api
+  namespace: minio
   annotations:
     cert-manager.io/cluster-issuer: le-staging
     external-dns.alpha.kubernetes.io/hostname: s3-dev.int.aethericforge.ca
