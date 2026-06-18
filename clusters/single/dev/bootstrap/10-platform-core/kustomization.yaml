@@ -10,3 +10,4 @@ resources:
   - ../../../../../platform/services/argocd/base
   - ../../../../../platform/operators/minio/base
   - ../../../../../platform/services/minio/base
+  - ../../../../../platform/core/velero/base
