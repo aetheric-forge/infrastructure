@@ -136,7 +136,7 @@ cp $SECRETS_FILE $ENCRYPTED_FILE
 sops --encrypt --in-place "$ENCRYPTED_FILE"
 rm "$SECRETS_FILE"
 
-echo "[Forge] Creating secret minio-root-credentials"
+echo "[Forge] Creating secret minio-env-configuration"
 
 kubectl create ns minio --dry-run=client -o yaml | kubectl apply -f -
 
