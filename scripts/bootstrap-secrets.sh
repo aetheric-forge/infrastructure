@@ -134,7 +134,36 @@ EOF
 
 cp $SECRETS_FILE $ENCRYPTED_FILE
 sops --encrypt --in-place "$ENCRYPTED_FILE"
-
 rm "$SECRETS_FILE"
+
+echo "[Forge] Creating secret minio-root-credentials"
+
+kubectl create ns minio --dry-run=client -o yaml | kubectl apply -f -
+
+DIR=$ROOT_DIR/platform/services/minio/overlays/$ENVIRONMENT
+
+namespace="minio"
+secret_name="minio-env-configuration"
+out_file="$DIR/secrets/minio-env-configuration.enc.yaml"
+
+root_user="minio-root-$(openssl rand -hex 8)"
+root_password="$(openssl rand -base64 48 | tr -d '\n')"
+
+mkdir -p "$(dirname "$out_file")"
+
+cat >"$out_file" <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ${secret_name}
+  namespace: ${namespace}
+type: Opaque
+stringData:
+  config.env: |
+    export MINIO_ROOT_USER="${root_user}"
+    export MINIO_ROOT_PASSWORD"${root_password}"
+EOF
+
+sops --encrypt --in-place "$out_file"
 
 echo "[Forge] Done"

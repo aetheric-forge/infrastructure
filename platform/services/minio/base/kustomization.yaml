@@ -3,4 +3,5 @@ kind: Kustomization
 
 resources:
   - namespace.yaml
+  - secrets/minio-env-configuration.enc.yaml
   - tenant.yaml
