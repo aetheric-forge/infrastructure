@@ -232,4 +232,6 @@ create_sops_secret "cloud-credentials" \
 	"$SECRET" \
 	"$out_file"
 
+render_velero_bsl "$ROOT_DIR/platform/core/step-ca/certs/dev/root_ca.crt"
+
 echo "[Forge] Done"
