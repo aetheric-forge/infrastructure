@@ -6,14 +6,33 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/paths.sh"
 source "$ROOT_DIR/.env"
 source "$ROOT_DIR/.env.pulumi.generated"
 
-NAMESPACE="argocd"
+function create_sops_secret {
+	local secret_name=$1
+	local namespace=$2
+	local secret=$3
+	local out_file=$4
+
+	if [[ -z "$secret_name" || -z "$namespace" || -z "$out_file" ]]; then
+		echo "create_sops_secret: missing required arguments"
+		return 1
+	fi
+
+	echo "[Forge] creating secret ${namespace}/${secret_name}..."
+
+	kubectl create ns "$namespace" --dry-run=client -o yaml | kubectl apply -f -
+
+	mkdir -p "$(dirname "$out_file")"
+
+	printf '%s' "$secret" >"$out_file"
+	sops --encrypt --in-place "$out_file"
+}
 
 : "${SOPS_AGE_KEY:?must be set}"
 : "${SSH_REPO_KEY:?must be set}"
 : "${GIT_REPO_URL:?must be set}"
 
 echo "[Forge] Waiting for cluster..."
-for i in $(seq 1 60); do
+for _ in $(seq 1 60); do
 	if kubectl get nodes >/dev/null 2>&1; then
 		break
 	fi
@@ -25,12 +44,11 @@ kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
 
 echo "[Forge] Applying sops-age secret"
 kubectl create secret generic sops-age \
-	-n "$NAMESPACE" \
+	-n argocd \
 	--from-file=keys.txt="$SOPS_AGE_KEY" \
 	--dry-run=client -o yaml | kubectl apply -f -
 
 echo "[Forge] Applying repo-git-ssh secret"
-
 kubectl create secret generic repo-git-ssh \
 	-n argocd \
 	--from-file=sshPrivateKey="$SSH_REPO_KEY" \
@@ -52,7 +70,6 @@ kubectl patch secret repo-git-ssh -n argocd --type merge -p "
 "
 
 echo "[Forge] Creating secret cloudflare-api-token"
-
 kubectl create ns external-dns --dry-run=client -o yaml | kubectl apply -f -
 
 kubectl -n external-dns create secret generic cloudflare-api-token \
@@ -83,10 +100,6 @@ kubectl -n cert-manager create secret generic cert-manager-tsig \
 	--dry-run=client -o yaml |
 	kubectl apply -f -
 
-echo "[Forge] Creating secret root-ca-secret"
-
-kubectl create ns step-ca --dry-run=client -o yaml | kubectl apply -f -
-
 if [[ -n "$STEP_CA__CERT_FILE" ]]; then
 	CERT_FILE=$STEP_CA__CERT_FILE
 	KEY_FILE=$STEP_CA__KEY_FILE
@@ -113,12 +126,9 @@ else
 fi
 
 DIR=$ROOT_DIR/platform/core/step-ca/certs/$ENVIRONMENT
-mkdir -p $DIR
-
-SECRETS_FILE="$DIR/step-ca-root-ca.yaml"
 ENCRYPTED_FILE="$DIR/step-ca-root-ca.enc.yaml"
-
-cat >"$SECRETS_FILE" <<EOF
+SECRET=$(
+	cat <<EOF
 apiVersion: v1
 kind: Secret
 metadata:
@@ -131,39 +141,62 @@ $(sed 's/^/    /' "$CERT_FILE")
   root_ca.key: |
 $(sed 's/^/    /' "$KEY_FILE")
 EOF
+)
 
-cp $SECRETS_FILE $ENCRYPTED_FILE
-sops --encrypt --in-place "$ENCRYPTED_FILE"
-rm "$SECRETS_FILE"
-
-echo "[Forge] Creating secret minio-env-configuration"
-
-kubectl create ns minio --dry-run=client -o yaml | kubectl apply -f -
+create_sops_secret "step-ca-root-ca" \
+	"step-ca" \
+	"$SECRET" \
+	"$ENCRYPTED_FILE"
 
 DIR=$ROOT_DIR/platform/services/minio/secrets/$ENVIRONMENT
-
-namespace="minio"
-secret_name="minio-env-configuration"
 out_file="$DIR/minio-env-configuration.enc.yaml"
 
 root_user="minio-root-$(openssl rand -hex 8)"
 root_password="$(openssl rand -base64 48 | tr -d '\n')"
-
-mkdir -p "$(dirname "$out_file")"
-
-cat >"$out_file" <<EOF
+SECRET=$(
+	cat <<EOF
 apiVersion: v1
 kind: Secret
 metadata:
-  name: ${secret_name}
-  namespace: ${namespace}
+  name: minio-env-configuration  
+  namespace: minio
 type: Opaque
 stringData:
   config.env: |
     export MINIO_ACCESS_KEY="${root_user}"
     export MINIO_SECRET_KEY="${root_password}"
 EOF
+)
 
-sops --encrypt --in-place "$out_file"
+create_sops_secret "minio-env-configuration" \
+	"minio" \
+	"$SECRET" \
+	"$out_file"
+
+DIR="$ROOT_DIR/platform/core/velero/secrets/$ENVIRONMENT"
+out_file="$DIR/velero-access-key.enc.yaml"
+
+access_key=$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | head -c 32)
+
+SECRET=$(
+	cat <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cloud-credentials
+  namespace: velero
+type: Opaque
+stringData:
+  cloud: |
+    [default]
+    aws_access_key_id=velero
+    aws_secret_access_key=$access_key
+EOF
+)
+
+create_sops_secret "cloud-credentials" \
+	"velero" \
+	"$SECRET" \
+	"$out_file"
 
 echo "[Forge] Done"
