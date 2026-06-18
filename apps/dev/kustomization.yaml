@@ -7,4 +7,5 @@ resources:
   - apps-project.yaml
   - root.yaml
   - argocd.yaml
+  - minio.yaml
 #  - hello-world.yaml

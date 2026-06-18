@@ -1,0 +1,26 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: minio-console
+  annotations:
+    cert-manager.io/cluster-issuer: le-staging
+    external-dns.alpha.kubernetes.io/hostname: console-dev.int.aethericforge.ca
+spec:
+  ingressClassName: nginx-private
+
+  tls:
+    - hosts:
+        - console-dev.int.aethericforge.ca
+      secretName: minio-console-tls
+
+  rules:
+    - host: console-dev.int.aethericforge.ca
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: minio-console
+                port:
+                  number: 9090
