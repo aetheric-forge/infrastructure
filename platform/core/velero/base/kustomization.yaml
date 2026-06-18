@@ -23,9 +23,10 @@ helmCharts:
             volumeMounts:
               - mountPath: /target
                 name: plugins      
-            credentials:
-              useSecret: true
-              existingSecret: cloud-credentials
+
+      credentials:
+        useSecret: true
+        existingSecret: cloud-credentials
 
       configuration:
         backupStorageLocation: []
