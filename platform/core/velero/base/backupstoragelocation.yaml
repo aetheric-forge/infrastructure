@@ -5,6 +5,7 @@ metadata:
   namespace: velero
 
 spec:
+  default: true
   provider: aws
 
   objectStorage:

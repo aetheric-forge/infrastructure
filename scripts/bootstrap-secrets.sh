@@ -41,6 +41,7 @@ metadata:
   namespace: velero
 
 spec:
+  default: true
   provider: aws
 
   objectStorage:
@@ -57,6 +58,13 @@ spec:
     s3Url: https://s3-dev.int.aethericforge.ca
 
 EOF
+}
+
+function secret_exists() {
+	local name=$1
+	local namespace=$2
+
+	kubectl -n "$namespace" get secret "$name" >/dev/null 2>&1
 }
 
 : "${SOPS_AGE_KEY:?must be set}"
@@ -208,8 +216,12 @@ create_sops_secret "minio-env-configuration" \
 DIR="$ROOT_DIR/platform/core/velero/secrets/$ENVIRONMENT"
 out_file="$DIR/cloud-credentials.enc.yaml"
 
-access_key=$(openssl rand -base64 16 | tr -dc 'A-Za-z0-9' | head -c 16)
-secret_key=$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | head -c 32)
+if secret_exists "cloud-credentials" "velero"; then
+	echo "cloud-credentials already exists in velero; skipping regeneration"
+else
+	access_key=$(openssl rand -base64 16 | tr -dc 'A-Za-z0-9' | head -c 16)
+	secret_key=$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | head -c 32)
+fi
 
 SECRET=$(
 	cat <<EOF
