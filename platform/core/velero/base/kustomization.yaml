@@ -4,8 +4,6 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - serviceaccount.yaml
-  - backupstoragelocation.yaml
-  - volumesnapshotlocation.yaml
   - ../secrets/dev
 
 helmCharts:
