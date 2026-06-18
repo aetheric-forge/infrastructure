@@ -191,10 +191,13 @@ create_sops_secret "step-ca-root-ca" \
 DIR=$ROOT_DIR/platform/services/minio/secrets/$ENVIRONMENT
 out_file="$DIR/minio-env-configuration.enc.yaml"
 
-root_user="minio-root-$(openssl rand -hex 8)"
-root_password="$(openssl rand -base64 48 | tr -d '\n')"
-SECRET=$(
-	cat <<EOF
+if secret_exists "minio-env-configuration" "minio"; then
+	echo "minio-env-configuration already exists in minio; skipping credentials regeneration"
+else
+	root_user="minio-root-$(openssl rand -hex 8)"
+	root_password="$(openssl rand -base64 48 | tr -d '\n')"
+	SECRET=$(
+		cat <<EOF
 apiVersion: v1
 kind: Secret
 metadata:
@@ -206,12 +209,13 @@ stringData:
     export MINIO_ACCESS_KEY="${root_user}"
     export MINIO_SECRET_KEY="${root_password}"
 EOF
-)
+	)
 
-create_sops_secret "minio-env-configuration" \
-	"minio" \
-	"$SECRET" \
-	"$out_file"
+	create_sops_secret "minio-env-configuration" \
+		"minio" \
+		"$SECRET" \
+		"$out_file"
+fi
 
 DIR="$ROOT_DIR/platform/core/velero/secrets/$ENVIRONMENT"
 out_file="$DIR/cloud-credentials.enc.yaml"
@@ -221,10 +225,9 @@ if secret_exists "cloud-credentials" "velero"; then
 else
 	access_key=$(openssl rand -base64 16 | tr -dc 'A-Za-z0-9' | head -c 16)
 	secret_key=$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | head -c 32)
-fi
 
-SECRET=$(
-	cat <<EOF
+	SECRET=$(
+		cat <<EOF
 apiVersion: v1
 kind: Secret
 metadata:
@@ -237,13 +240,15 @@ stringData:
     aws_access_key_id=$access_key
     aws_secret_access_key=$secret_key
 EOF
-)
+	)
 
-create_sops_secret "cloud-credentials" \
-	"velero" \
-	"$SECRET" \
-	"$out_file"
+	create_sops_secret "cloud-credentials" \
+		"velero" \
+		"$SECRET" \
+		"$out_file"
 
-render_velero_bsl "$ROOT_DIR/platform/core/step-ca/certs/dev/root_ca.crt"
+	render_velero_bsl "$ROOT_DIR/platform/core/step-ca/certs/dev/root_ca.crt"
+
+fi
 
 echo "[Forge] Done"
