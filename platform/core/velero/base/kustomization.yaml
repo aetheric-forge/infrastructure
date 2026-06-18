@@ -16,9 +16,16 @@ helmCharts:
     includeCRDs: true
 
     valuesInline:
-      credentials:
-        useSecret: true
-        existingSecret: cloud-credentials
+      initContainers:
+          - name: velero-plugin-for-aws
+            image: velero/velero-plugin-for-aws:v1.10.1
+            imagePullPolicy: IfNotPresent
+            volumeMounts:
+              - mountPath: /target
+                name: plugins      
+            credentials:
+              useSecret: true
+              existingSecret: cloud-credentials
 
       configuration:
         backupStorageLocation: []
