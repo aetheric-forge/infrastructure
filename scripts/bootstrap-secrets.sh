@@ -140,11 +140,11 @@ echo "[Forge] Creating secret minio-env-configuration"
 
 kubectl create ns minio --dry-run=client -o yaml | kubectl apply -f -
 
-DIR=$ROOT_DIR/platform/services/minio/overlays/$ENVIRONMENT
+DIR=$ROOT_DIR/platform/services/minio/secrets/$ENVIRONMENT
 
 namespace="minio"
 secret_name="minio-env-configuration"
-out_file="$DIR/secrets/minio-env-configuration.enc.yaml"
+out_file="$DIR/minio-env-configuration.enc.yaml"
 
 root_user="minio-root-$(openssl rand -hex 8)"
 root_password="$(openssl rand -base64 48 | tr -d '\n')"
