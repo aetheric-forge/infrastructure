@@ -72,7 +72,7 @@ apply_rendered() {
 	local label="$2"
 
 	log "Applying $label..."
-	kubectl apply -f "$rendered" || fail "$label apply failed"
+	kubectl apply --server-side -f "$rendered" || fail "$label apply failed"
 }
 
 wait_for_namespace() {
