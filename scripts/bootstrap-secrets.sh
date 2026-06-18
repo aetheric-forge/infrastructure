@@ -160,8 +160,8 @@ metadata:
 type: Opaque
 stringData:
   config.env: |
-    export MINIO_ROOT_USER="${root_user}"
-    export MINIO_ROOT_PASSWORD="${root_password}"
+    export MINIO_ACCESS_KEY="${root_user}"
+    export MINIO_SECRET_KEY="${root_password}"
 EOF
 
 sops --encrypt --in-place "$out_file"
