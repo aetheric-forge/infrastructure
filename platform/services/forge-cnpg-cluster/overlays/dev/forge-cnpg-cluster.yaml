@@ -21,3 +21,10 @@ spec:
                 external-dns.alpha.kubernetes.io/hostname: cnpg.int.aethericforge.ca
             spec:
               type: LoadBalancer
+
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      enabled: true
+      isWALArchiver: true
+      parameters:
+        barmanObjectStore: forge-cnpg-store
