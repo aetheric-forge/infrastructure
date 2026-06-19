@@ -7,8 +7,12 @@ resources:
   - namespace.yaml
 
 helmCharts:
+  - name: mariadb-operator-crds
+    repo: https://helm.mariadb.com/mariadb-operator
+    version: 26.3.0
+    releaseName: mariadb-operator-crds
+
   - name: mariadb-operator
     repo: https://helm.mariadb.com/mariadb-operator
-    version: 25.6.2
+    version: 26.3.0
     releaseName: mariadb-operator
-    namespace: mariadb-system

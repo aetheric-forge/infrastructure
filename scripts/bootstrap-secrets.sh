@@ -186,14 +186,6 @@ create_sops_secret "step-ca-root-ca" \
 	"$SECRET" \
 	"$ENCRYPTED_FILE"
 
-DIR="$ROOT_DIR/platform/services/forge-cnpg-cluster/secrets/dev"
-ENCRYPTED_FILE="$DIR/step-ca-root-ca.enc.yaml"
-
-create_sops_secret "step-ca-root-ca" \
-	"aetheric-forge" \
-	"$SECRET" \
-	"$ENCRYPTED_FILE"
-
 DIR=$ROOT_DIR/platform/services/minio/secrets/$ENVIRONMENT
 out_file="$DIR/minio-env-configuration.enc.yaml"
 
