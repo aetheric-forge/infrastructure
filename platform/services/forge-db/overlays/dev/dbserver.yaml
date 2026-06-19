@@ -23,12 +23,13 @@ spec:
   orchestrator:
     enabled: true
     size: 1
+    image: perconalab/percona-server-mysql-operator:1.1.0-orchestrator
 
   proxy:
     haproxy:
       enabled: true
       size: 1
-      image: percona/haproxy:2.8.18-1
+      image: perconalab/percona-server-mysql-operator:1.1.0-haproxy
     router:
       enabled: false
 
