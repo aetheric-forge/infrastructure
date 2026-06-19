@@ -9,13 +9,13 @@ spec:
     destinationPath: s3://forge-cnpg/
     endpointURL: https://s3-dev.int.aethericforge.ca
 
-  s3Credentials:
-    accessKeyId:
-      name: forge-cnpg-s3-creds
-      key: ACCESS_KEY_ID
+    s3Credentials:
+      accessKeyId:
+        name: forge-cnpg-s3-creds
+        key: ACCESS_KEY_ID
 
-    secretAccessKey:
-      name: forge-cnpg-s3-creds
-      key: ACCESS_SECRET_KEY
+      secretAccessKey:
+        name: forge-cnpg-s3-creds
+        key: ACCESS_SECRET_KEY
 
   retentionPolicy: 30d
