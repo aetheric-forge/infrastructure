@@ -167,8 +167,12 @@ fi
 
 DIR=$ROOT_DIR/platform/core/step-ca/certs/$ENVIRONMENT
 ENCRYPTED_FILE="$DIR/step-ca-root-ca.enc.yaml"
-SECRET=$(
-	cat <<EOF
+
+if secret_exists "step-ca-root-ca" "step-ca"; then
+	echo "step-ca-root-ca already exists in step-ca; skipping generation"
+else
+	SECRET=$(
+		cat <<EOF
 apiVersion: v1
 kind: Secret
 metadata:
@@ -181,33 +185,13 @@ $(sed 's/^/    /' "$CERT_FILE")
   root_ca.key: |
 $(sed 's/^/    /' "$KEY_FILE")
 EOF
-)
+	)
 
-create_sops_secret "step-ca-root-ca" \
-	"step-ca" \
-	"$SECRET" \
-	"$ENCRYPTED_FILE"
-
-DIR=$ROOT_DIR/platform/services/forge-db/secrets/$ENVIRONMENT
-ENCRYPTED_FILE="$DIR/step-ca-root-ca.enc.yaml"
-SECRET=$(
-	cat <<EOF
-apiVersion: v1
-kind: Secret
-metadata:
-  name: step-ca-root-ca
-  namespace: aetheric-forge
-type: Opaque
-stringData:
-  ca.crt: |
-$(sed 's/^/    /' "$CERT_FILE")
-EOF
-)
-
-create_sops_secret "step-ca-root-ca" \
-	"aetheric-forge" \
-	"$SECRET" \
-	"$ENCRYPTED_FILE"
+	create_sops_secret "step-ca-root-ca" \
+		"step-ca" \
+		"$SECRET" \
+		"$ENCRYPTED_FILE"
+fi
 
 DIR=$ROOT_DIR/platform/services/minio/secrets/$ENVIRONMENT
 out_file="$DIR/minio-env-configuration.enc.yaml"
@@ -271,61 +255,5 @@ EOF
 fi
 
 render_velero_bsl "$ROOT_DIR/platform/core/step-ca/certs/dev/root_ca.crt"
-
-DIR="$ROOT_DIR/platform/services/forge-db/secrets/$ENVIRONMENT"
-out_file="$DIR/forge-db-root.enc.yaml"
-
-if secret_exists "forge-db-root" "aetheric-forge"; then
-	echo "forge-db-root already exists in aetheric-forge; skipping regeneration"
-else
-
-	password=$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | head -c 32)
-	SECRET=$(
-		cat <<EOF
-apiVersion: v1
-kind: Secret
-metadata:
-  name: forge-db-root
-  namespace: aetheric-forge
-type: Opaque
-stringData:
-  password: $password
-EOF
-	)
-
-	create_sops_secret "forge-db-root" \
-		"aetheric-forge" \
-		"$SECRET" \
-		"$out_file"
-
-fi
-
-out_file="$DIR/forge-db-backup-s3-creds.enc.yaml"
-
-if secret_exists "forge-db-backup-s3-creds" "aetheric-forge"; then
-	echo "forge-db-s3-creds already exists in aetheric-forge; skipping regeneration"
-else
-	access_key=$(openssl rand -base64 16 | tr -dc 'A-Za-z0-9' | head -c 16)
-	secret_key=$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | head -c 32)
-
-	SECRET=$(
-		cat <<EOF
-apiVersion: v1
-kind: Secret
-metadata:
-  name: forge-db-backup-s3-creds
-  namespace: aetheric-forge
-type: Opaque
-stringData:
-  access-key-id: $access_key
-  secret-access-key: $secret_key
-EOF
-	)
-
-	create_sops_secret "forge-db-backup-s3-creds" \
-		"aetheric-forge" \
-		"$SECRET" \
-		"$out_file"
-fi
 
 echo "[Forge] Done"
