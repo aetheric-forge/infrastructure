@@ -176,10 +176,8 @@ metadata:
   namespace: aetheric-forge
 type: Opaque
 stringData:
-  root_ca.crt: |
+  ca.crt: |
 $(sed 's/^/    /' "$CERT_FILE")
-  root_ca.key: |
-$(sed 's/^/    /' "$KEY_FILE")
 EOF
 )
 
