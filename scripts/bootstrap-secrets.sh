@@ -21,7 +21,7 @@ function create_sops_secret {
 
 	kubectl create ns "$namespace" --dry-run=client -o yaml | kubectl apply -f -
 
-	mkdir -p "$(dirname "$out_file")"
+	mkdir -p "$(dirname "$out_file")" >/dev/null 2>&1
 
 	printf '%s' "$secret" >"$out_file"
 	sops --encrypt --in-place "$out_file"
@@ -248,6 +248,37 @@ EOF
 		"$out_file"
 
 fi
+
 render_velero_bsl "$ROOT_DIR/platform/core/step-ca/certs/dev/root_ca.crt"
+
+DIR="$ROOT_DIR/platform/services/forge-cnpg-cluster/secrets/$ENVIRONMENT"
+out_file="$DIR/forge-cnpg-s3-creds.enc.yaml"
+
+if secret_exists "forge-cnpg-s3-creds" "aetheric-forge"; then
+	echo "forge-cnpg-s3-creds already exists in aetheric forge; skipping regeneration"
+else
+	access_key=$(openssl rand -base64 16 | tr -dc 'A-Za-z0-9' | head -c 16)
+	secret_key=$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | head -c 32)
+
+	SECRET=$(
+		cat <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: forge-cnpg-s3-creds
+  namespace: aetheric-forge
+type: Opaque
+stringData:
+  ACCESS_KEY_ID: $access_key
+  ACCESS_SECRET_KEY: $secret_key
+EOF
+	)
+
+	create_sops_secret "forge-cnpg-s3-creds" \
+		"aetheric-forge" \
+		"$SECRET" \
+		"$out_file"
+
+fi
 
 echo "[Forge] Done"
