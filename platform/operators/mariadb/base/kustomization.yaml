@@ -25,6 +25,3 @@ helmCharts:
         cert:
           certManager:
             enabled: true
-            issuerRef:
-              kind: ClusterIssuer
-              name: step-ca-int-acme
