@@ -92,8 +92,8 @@ spec:
           name: step-ca-root-ca
           key: ca.crt
 
-          compression: gzip
-          archiveInterval: 10m
-          archiveTimeout: 1h
-          maxRetention: 720h
-          strictMode: false
+      compression: gzip
+      archiveInterval: 10m
+      archiveTimeout: 1h
+      maxRetention: 720h
+      strictMode: false

@@ -13,6 +13,7 @@ spec:
       annotations:
         metallb.io/address-pool: private-pool
         external-dns.alpha.kubernetes.io/hostname: forge-db-dev.int.aethericforge.ca
+
   rootPasswordSecretKeyRef:
     name: forge-db-root
     key: password
