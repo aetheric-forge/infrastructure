@@ -35,6 +35,7 @@ spec:
 
   backup:
     enabled: false
+    image: percona/percona-xtrabackup:8.4.0-5.1
 
   unsafeFlags:
     mysqlSize: true
