@@ -25,6 +25,7 @@ spec:
         key: secret-access-key
 
       tls:
+        enabled: true
         caSecretKeyRef:
           name: step-ca-root-ca
           key: ca.crt
