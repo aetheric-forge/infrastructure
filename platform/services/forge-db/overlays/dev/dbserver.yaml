@@ -27,4 +27,9 @@ spec:
   backup:
     enabled: false
 
+  unsafeFlags:
+    mysqlSize: true
+    orchestrator: true
+    proxy: true
+
   secretsName: ps-cluster1-secrets
