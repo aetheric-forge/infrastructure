@@ -9,11 +9,6 @@ spec:
   storage:
     size: 20Gi
 
-  bootstrap:
-    initdb:
-      database: forge
-      owner: forge
-
   enableSuperuserAccess: true
 
   managed:
