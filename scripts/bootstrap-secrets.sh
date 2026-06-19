@@ -263,7 +263,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: forge-db-root
-  namespace: forge-db
+  namespace: aetheric-forge
 type: Opaque
 stringData:
   password: $password
