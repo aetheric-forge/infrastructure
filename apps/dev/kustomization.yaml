@@ -8,5 +8,4 @@ resources:
   - root.yaml
   - argocd.yaml
   - minio.yaml
-  - forge-db.yaml
 #  - hello-world.yaml
