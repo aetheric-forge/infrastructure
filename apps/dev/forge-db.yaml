@@ -1,14 +1,14 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: forge-cnpg-cluster
+  name: forge-db-dev
   namespace: argocd
 spec:
   project: services
   source:
     repoURL: git@github.com:aetheric-forge/infrastructure.git
     targetRevision: v0.8
-    path: platform/services/forge-cnpg-cluster/overlays/dev
+    path: platform/services/forge-db/overlays/dev
   destination:
     server: https://kubernetes.default.svc
   syncPolicy:
@@ -17,4 +17,4 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-
+---
