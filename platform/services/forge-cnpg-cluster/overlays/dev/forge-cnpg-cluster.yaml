@@ -9,8 +9,6 @@ spec:
   storage:
     size: 20Gi
 
-  enableSuperuserAccess: true
-
   managed:
     services:
       additional:
