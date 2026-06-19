@@ -193,6 +193,32 @@ EOF
 		"$ENCRYPTED_FILE"
 fi
 
+DIR=$ROOT_DIR/platform/services/percona-mysql/secrets/$ENVIRONMENT
+ENCRYPTED_FILE="$DIR/step-ca-root-ca.enc.yaml"
+
+if secret_exists "step-ca-root-ca" "percona-mysql"; then
+	echo "step-ca-root-ca already exists in percona-mysql; skipping generation"
+else
+	SECRET=$(
+		cat <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: step-ca-root-ca
+  namespace: step-ca
+type: Opaque
+stringData:
+  ca.crt: |
+$(sed 's/^/    /' "$CERT_FILE")
+EOF
+	)
+
+	create_sops_secret "step-ca-root-ca" \
+		"percona-mysql" \
+		"$SECRET" \
+		"$ENCRYPTED_FILE"
+fi
+
 DIR=$ROOT_DIR/platform/services/minio/secrets/$ENVIRONMENT
 out_file="$DIR/minio-env-configuration.enc.yaml"
 
