@@ -9,8 +9,12 @@ spec:
   storage:
     size: 20Gi
 
-  superUserSecret:
-    name: forge-cluster-superuser
+  bootstrap:
+    initdb:
+      database: forge
+      owner: forge
+
+  enableSuperuserAccess: true
 
   managed:
     services:
