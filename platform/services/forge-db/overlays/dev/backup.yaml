@@ -14,7 +14,7 @@ spec:
     s3:
       bucket: forge-db-dev
 
-      endpoint: https://s3-dev.int.aethericforge.ca
+      endpoint: s3-dev.int.aethericforge.ca
 
       accessKeyIdSecretKeyRef:
         name: forge-db-backup-s3-creds
