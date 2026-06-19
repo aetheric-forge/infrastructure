@@ -249,4 +249,32 @@ fi
 
 render_velero_bsl "$ROOT_DIR/platform/core/step-ca/certs/dev/root_ca.crt"
 
+DIR="$ROOT_DIR/platform/services/forge-db/secrets/$ENVIRONMENT"
+out_file="$DIR/forge-db-root.enc.yaml"
+
+if secret_exists "forge-db-root" "aetheric-forge"; then
+	echo "forge-db-root already exists in aetheric-forge; skipping regeneration"
+else
+
+	password=$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | head -c 32)
+	SECRET=$(
+		cat <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: forge-db-root
+  namespace: forge-db
+type: Opaque
+stringData:
+  password: $password
+EOF
+	)
+
+	create_sops_secret "forge-db-root" \
+		"aetheric-forge" \
+		"$SECRET" \
+		"$out_file"
+
+fi
+
 echo "[Forge] Done"
