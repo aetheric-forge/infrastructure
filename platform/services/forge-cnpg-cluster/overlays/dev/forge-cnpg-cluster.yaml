@@ -27,7 +27,7 @@ spec:
       enabled: true
       isWALArchiver: true
       parameters:
-        barmanObjectStore: forge-cnpg-store
+        barmanObjectName: forge-cnpg-store
 
   method: plugin
   pluginConfiguration:
