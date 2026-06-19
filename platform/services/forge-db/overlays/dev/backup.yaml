@@ -1,0 +1,30 @@
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Backup
+metadata:
+  name: forge-db-backup
+  namespace: aetheric-forge
+spec:
+  mariaDbRef:
+    name: forge-db
+
+  schedule:
+    cron: "0 */6 * * *"
+
+  storage:
+    s3:
+      bucket: forge-db-dev
+
+      endpoint: https://s3-dev.int.aethericforge.ca
+
+      accessKeyIdSecretKeyRef:
+        name: forge-db-backup-s3-creds
+        key: access-key-id
+
+      secretAccessKeySecretKeyRef:
+        name: forge-db-backup-s3-creds
+        key: secret-access-key
+
+      tls:
+        caSecretKeyRef:
+          name: step-ca-root-ca
+          key: ca.crt

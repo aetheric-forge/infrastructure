@@ -300,4 +300,32 @@ EOF
 
 fi
 
+out_file="$DIR/forge-db-backup-s3-creds.enc.yaml"
+
+if secret_exists "forge-db-backup-s3-creds" "aetheric-forge"; then
+	echo "forge-db-s3-creds already exists in aetheric-forge; skipping regeneration"
+else
+	access_key=$(openssl rand -base64 16 | tr -dc 'A-Za-z0-9' | head -c 16)
+	secret_key=$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | head -c 32)
+
+	SECRET=$(
+		cat <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: forge-db-backup-s3-creds
+  namespace: aetheric-forge
+type: Opaque
+stringData:
+  access-key-id: $access_key
+  secret-access-key: $secret_key
+EOF
+	)
+
+	create_sops_secret "forge-db-backup-s3-creds" \
+		"aetheric-forge" \
+		"$SECRET" \
+		"$out_file"
+fi
+
 echo "[Forge] Done"

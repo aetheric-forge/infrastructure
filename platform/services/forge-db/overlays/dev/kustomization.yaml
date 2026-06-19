@@ -5,3 +5,4 @@ resources:
   - namespace.yaml
   - ../../secrets/dev
   - mariadb.yaml
+  - backup.yaml
