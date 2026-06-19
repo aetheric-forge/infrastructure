@@ -316,4 +316,32 @@ EOF
 
 fi
 
+DIR="$ROOT_DIR/platform/services/forge-db/secrets/$ENVIRONMENT"
+out_file="$DIR/forge-db-root.enc.yaml"
+
+if secret_exists "forge-db-root" "aetheric-forge"; then
+	echo "forge-db-root already exists in aetheric-forge; skipping regeneration"
+else
+	root_pw=$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | head -c 32)
+
+	SECRET=$(
+		cat <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: forge-db-root
+  namespace: aetheric-forge
+type: Opaque
+stringData:
+  password: $root_pw
+EOF
+	)
+
+	create_sops_secret "forge-db-root" \
+		"aetheric-forge" \
+		"$SECRET" \
+		"$out_file"
+
+fi
+
 echo "[Forge] Done"
