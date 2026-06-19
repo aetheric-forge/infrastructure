@@ -7,11 +7,13 @@ spec:
   crVersion: "1.1.0"
   secretsName: ps-cluster1-secrets
 
+  initContainer:
+    image: perconalab/percona-server-mysql-operator:1.1.0
+
   mysql:
     clusterType: async
     size: 1
     image: percona/percona-server:8.0.45-36.1
-    initImage: perconalab/percona-server-mysql-operator:1.1.0
     volumeSpec:
       persistentVolumeClaim:
         resources:
@@ -21,7 +23,6 @@ spec:
   orchestrator:
     enabled: true
     size: 1
-    image: perconalab/percona-server-mysql-operator:1.1.0-orchestrator
 
   proxy:
     haproxy:
