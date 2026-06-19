@@ -4,6 +4,9 @@ metadata:
   name: forge-db
   namespace: aetheric-forge
 spec:
+  replicas: 2
+  replication:
+    enabled: true
   service:
     type: LoadBalancer
     metadata:

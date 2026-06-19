@@ -29,3 +29,37 @@ spec:
         caSecretKeyRef:
           name: step-ca-root-ca
           key: ca.crt
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: PhysicalBackup
+metadata:
+  name: forge-db-physical-backup
+  namespace: aetheric-forge
+  spec:
+    mariaDbRef:
+      name: forge-db
+
+      schedule:
+        cron: "0 0 * * *"
+        suspend: false
+
+        maxRetention: 720h
+
+        storage:
+          s3:
+            bucket: forge-db-dev
+            endpoint: s3-dev.int.aethericforge.ca
+
+            accessKeyIdSecretKeyRef:
+              name: forge-db-backup-s3-creds
+              key: access-key-id
+
+              secretAccessKeySecretKeyRef:
+                name: forge-db-backup-s3-creds
+                key: secret-access-key
+
+                tls:
+                  enabled: true
+                  caSecretKeyRef:
+                    name: step-ca-root-ca
+                    key: ca.crt
