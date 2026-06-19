@@ -4,3 +4,4 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - forge-cnpg-cluster.yaml
+  - ../../secrets/dev
