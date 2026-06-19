@@ -11,3 +11,5 @@ helmCharts:
     releaseName: percona-mysql-operator
     namespace: percona-mysql
     includeCRDs: true
+    valuesInline:
+      watchNamespace: aetheric-forge,argocd
