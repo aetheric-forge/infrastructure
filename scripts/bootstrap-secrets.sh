@@ -287,4 +287,31 @@ EOF
 
 fi
 
+out_file="$DIR/forge-cluster-superuser.enc.yaml"
+
+if secret_exists "forge-cluster-superuser" "aetheric-forge"; then
+	echo "forge-cluster-superuser already exists in aetheric-forge; skipping regeneration"
+else
+	password=$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | head -c 32)
+
+	SECRET=$(
+		cat <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: forge-cluster-superuser
+  namespace: aetheric-forge
+type: Opaque
+stringData:
+  username: forge 
+  password: $password
+EOF
+	)
+
+	create_sops_secret "forge-cluster-superuser" \
+		"aetheric-forge" \
+		"$SECRET" \
+		"$out_file"
+fi
+
 echo "[Forge] Done"
