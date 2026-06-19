@@ -63,3 +63,37 @@ spec:
         caSecretKeyRef:
           name: step-ca-root-ca
           key: ca.crt
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: PointInTimeRecovery
+metadata:
+  name: forge-db-pitr
+  namespace: aetheric-forge
+spec:
+  physicalBackupRef:
+    name: forge-db-physical-backup
+
+  storage:
+    s3:
+      bucket: forge-db-dev-binlogs
+      endpoint: s3-dev.int.aethericforge.ca
+
+      accessKeyIdSecretKeyRef:
+        name: forge-db-backup-s3-creds
+        key: access-key-id
+
+      secretAccessKeySecretKeyRef:
+        name: forge-db-backup-s3-creds
+        key: secret-access-key
+
+      tls:
+        enabled: true
+        caSecretKeyRef:
+          name: step-ca-root-ca
+          key: ca.crt
+
+          compression: gzip
+          archiveInterval: 10m
+          archiveTimeout: 1h
+          maxRetention: 720h
+          strictMode: false
