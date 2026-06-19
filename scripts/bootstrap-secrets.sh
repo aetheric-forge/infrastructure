@@ -172,7 +172,8 @@ SECRET=$(
 apiVersion: v1
 kind: Secret
 metadata:
-  name: step-ca-root
+  name: step-ca-root-ca
+  namespace: step-ca
 type: Opaque
 stringData:
   root_ca.crt: |
