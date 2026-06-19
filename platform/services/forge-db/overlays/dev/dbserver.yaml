@@ -19,10 +19,11 @@ spec:
             storage: 10Gi
 
   proxy:
-    enabled: false
+    router:
+      enabled: false
 
   orchestrator:
-    enabled: false
+    enabled: true
 
   backup:
     enabled: false
