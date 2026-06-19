@@ -173,7 +173,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: step-ca-root-ca
-  namespace: step-ca
+  namespace: aetheric-forge
 type: Opaque
 stringData:
   root_ca.crt: |
