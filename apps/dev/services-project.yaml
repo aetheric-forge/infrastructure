@@ -19,6 +19,7 @@ spec:
     - 'cnpg'
     - 'redis'
     - 'mongodb'
+    - 'aetheric-forge'
 
   destinations:
     - namespace: ''
@@ -34,6 +35,8 @@ spec:
     - namespace: redis
       server: https://kubernetes.default.svc
     - namespace: mongodb
+      server: https://kubernetes.default.svc
+    - namespace: aetheric-forge
       server: https://kubernetes.default.svc
 
   clusterResourceWhitelist:
