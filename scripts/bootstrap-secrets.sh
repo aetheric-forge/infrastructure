@@ -193,10 +193,10 @@ EOF
 		"$ENCRYPTED_FILE"
 fi
 
-DIR=$ROOT_DIR/platform/services/percona-mysql/secrets/$ENVIRONMENT
+DIR=$ROOT_DIR/platform/services/forge-db/secrets/$ENVIRONMENT
 ENCRYPTED_FILE="$DIR/step-ca-root-ca.enc.yaml"
 
-if secret_exists "step-ca-root-ca" "percona-mysql"; then
+if secret_exists "step-ca-root-ca" "aetheric-forge"; then
 	echo "step-ca-root-ca already exists in percona-mysql; skipping generation"
 else
 	SECRET=$(
@@ -205,7 +205,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: step-ca-root-ca
-  namespace: step-ca
+  namespace: aetheric-forge
 type: Opaque
 stringData:
   ca.crt: |
@@ -214,7 +214,7 @@ EOF
 	)
 
 	create_sops_secret "step-ca-root-ca" \
-		"percona-mysql" \
+		"aetheric-forge" \
 		"$SECRET" \
 		"$ENCRYPTED_FILE"
 fi
