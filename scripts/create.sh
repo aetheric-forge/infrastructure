@@ -210,9 +210,6 @@ deploy_platform_bootstrap() {
 	render_overlay \
 		"$ROOT_DIR/clusters/single/$ENVIRONMENT/bootstrap/20-platform-config" \
 		"platform-config"
-
-	wait_for_namespace step-ca 180
-	wait_for_deployment step-ca step-ca 300
 }
 ########################################
 # Stage 4 — Step CA trust
