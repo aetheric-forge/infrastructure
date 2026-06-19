@@ -93,7 +93,7 @@ spec:
           key: ca.crt
 
       compression: gzip
-      archiveInterval: 10m
+      archiveInterval: 1m
       archiveTimeout: 1h
       maxRetention: 720h
       strictMode: false
