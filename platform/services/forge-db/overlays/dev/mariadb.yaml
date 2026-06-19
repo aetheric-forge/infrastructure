@@ -17,5 +17,8 @@ spec:
     name: forge-db-root
     key: password
 
+  pointInTimeRecoveryRef:
+    name: "forge-db-pitr"
+
   storage:
     size: 10Gi
