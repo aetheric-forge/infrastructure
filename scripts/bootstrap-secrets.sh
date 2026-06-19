@@ -296,7 +296,7 @@ else
 
 	SECRET=$(
 		cat <<EOF
-apiVersion: v1
+apiVersion: v2
 kind: Secret
 metadata:
   name: forge-cluster-app
