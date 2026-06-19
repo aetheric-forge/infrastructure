@@ -28,3 +28,7 @@ spec:
       isWALArchiver: true
       parameters:
         barmanObjectStore: forge-cnpg-store
+
+  method: plugin
+  pluginConfiguration:
+    name: barman-cloud.cloudnative-pg.io
