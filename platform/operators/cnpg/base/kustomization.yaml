@@ -1,5 +1,17 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-resources:
-  - https://raw.githubusercontent.com/cloudnative-pg/cloudnative-pg/release-1.27/releases/cnpg-1.27.0.yaml
+helmCharts:
+  - name: cloudnative-pg
+    repo: https://cloudnative-pg.github.io/charts
+    version: "0.28.2"
+    releaseName: cnpg
+    namespace: cnpg-system
+    includeCRDs: true
+
+  - name: plugin-barman-cloud
+    repo: https://cloudnative-pg.github.io/charts
+    version: "0.6.0"
+    releaseName: plugin-barman-cloud
+    namespace: cnpg-system
+    includeCRDs: true
