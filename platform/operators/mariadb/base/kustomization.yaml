@@ -16,3 +16,10 @@ helmCharts:
     repo: https://helm.mariadb.com/mariadb-operator
     version: 26.3.0
     releaseName: mariadb-operator
+    valuesInline:
+      cert:
+        certManager:
+          enabled: true
+          issuerRef:
+            kind: ClusterIssuer
+            name: step-ca-int-acme
