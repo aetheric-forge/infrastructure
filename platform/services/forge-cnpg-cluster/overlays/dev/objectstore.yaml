@@ -1,21 +1,21 @@
 apiVersion: barmancloud.cnpg.io/v1
 kind: ObjectStore
 metadata:
-name: forge-cnpg-store
-namespace: aetheric-forge
+  name: forge-cnpg-store
+  namespace: aetheric-forge
 
 spec:
-configuration:
-destinationPath: s3://forge-cnpg/
-endpointURL: https://s3-dev.int.aethericforge.ca
+  configuration:
+    destinationPath: s3://forge-cnpg/
+    endpointURL: https://s3-dev.int.aethericforge.ca
 
-s3Credentials:
-  accessKeyId:
-    name: forge-cnpg-s3-creds
-    key: ACCESS_KEY_ID
+  s3Credentials:
+    accessKeyId:
+      name: forge-cnpg-s3-creds
+      key: ACCESS_KEY_ID
 
-  secretAccessKey:
-    name: forge-cnpg-s3-creds
-    key: ACCESS_SECRET_KEY
+    secretAccessKey:
+      name: forge-cnpg-s3-creds
+      key: ACCESS_SECRET_KEY
 
-retentionPolicy: 30d
+  retentionPolicy: 30d
