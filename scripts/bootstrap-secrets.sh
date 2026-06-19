@@ -197,7 +197,7 @@ DIR=$ROOT_DIR/platform/services/forge-db/secrets/$ENVIRONMENT
 ENCRYPTED_FILE="$DIR/step-ca-root-ca.enc.yaml"
 
 if secret_exists "step-ca-root-ca" "aetheric-forge"; then
-	echo "step-ca-root-ca already exists in percona-mysql; skipping generation"
+	echo "step-ca-root-ca already exists in aetheric-forge; skipping generation"
 else
 	SECRET=$(
 		cat <<EOF
@@ -282,11 +282,11 @@ fi
 
 render_velero_bsl "$ROOT_DIR/platform/core/step-ca/certs/dev/root_ca.crt"
 
-DIR="$ROOT_DIR/platform/services/percona-mysql/secrets/$ENVIRONMENT"
+DIR="$ROOT_DIR/platform/services/forge-db/secrets/$ENVIRONMENT"
 out_file="$DIR/ps-cluster1-secrets.enc.yaml"
 
-if secret_exists "ps-cluster1-secrets" "percona-mysql"; then
-	echo "ps-cluster1-secrets already exists in percona-mysql; skipping regeneration"
+if secret_exists "ps-cluster1-secrets" "aetheric-forge"; then
+	echo "ps-cluster1-secrets already exists in aetheric-forge; skipping regeneration"
 else
 	root_pw=$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | head -c 32)
 	orchestrator_pw=$(openssl rand -base64 16 | tr -dc 'A-Za-z0-9' | head -c 16)
@@ -299,7 +299,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: ps-cluster1-secrets
-  namespace: percona-mysql
+  namespace: aetheric-forge
 type: Opaque
 stringData:
   root: $root_pw
@@ -310,7 +310,7 @@ EOF
 	)
 
 	create_sops_secret "ps-cluster1-secrets" \
-		"percona-mysql" \
+		"aetheric-forge" \
 		"$SECRET" \
 		"$out_file"
 
