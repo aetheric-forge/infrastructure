@@ -18,5 +18,6 @@ spec:
               name: forge-cluster-rw-lb
               annotations:
                 metallb.io/address-pool: private-pool
+                external-dns.alpha.kubernetes.io/hostname: cnpg.int.aethericforge.ca
             spec:
               type: LoadBalancer
