@@ -9,6 +9,10 @@ spec:
     destinationPath: s3://forge-cnpg/
     endpointURL: https://s3-dev.int.aethericforge.ca
 
+    endpointCA:
+      name: step-ca-root-ca
+      key: ca.crt
+
     s3Credentials:
       accessKeyId:
         name: forge-cnpg-s3-creds
