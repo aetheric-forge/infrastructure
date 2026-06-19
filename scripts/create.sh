@@ -313,8 +313,8 @@ main() {
 	setup_wireguard
 	deploy_cluster
 	deploy_platform_bootstrap
-	bootstrap_step_ca_trust
 	deploy_gitops_apps
+	bootstrap_step_ca_trust
 	verify
 
 	log "Forge is online 🔥"
