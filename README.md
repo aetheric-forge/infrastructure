@@ -4,6 +4,12 @@ Aetheric Forge GitOps Bootstrap provides a deterministic foundation for building
 
 The project establishes the minimum control-plane services required to bootstrap and manage a cluster through Argo CD while maintaining clear ownership boundaries between infrastructure provisioning, bootstrap operations, and GitOps-managed workloads.
 
+## Rationale
+
+Building and operating Kubernetes platforms often requires assembling multiple foundational services before GitOps workflows can be established. This project provides a curated bootstrap layer that enables reproducible cluster deployment while preserving clear separation between infrastructure provisioning, platform bootstrap, and ongoing GitOps-managed operations.
+
+The goal is to reduce the complexity of establishing a production-ready control plane while maintaining deterministic rebuilds, operational transparency, and recoverability.
+
 ## Core Capabilities
 
 - Kubernetes infrastructure provisioning with Pulumi
@@ -22,6 +28,19 @@ The project establishes the minimum control-plane services required to bootstrap
 - Reproducible environments
 - GitOps-first operations
 - Clean teardown and recovery
+
+## Project Status
+
+Current Release: **v0.8.0**
+
+The platform currently provides a functional GitOps bootstrap layer including infrastructure provisioning, DNS, PKI, networking, ingress, WireGuard administration access, and Argo CD-based reconciliation.
+
+Current development efforts are focused on expanding platform identity integration and completing the application services layer.
+
+Upcoming milestones include:
+
+- v0.8.1 — Keycloak integration and platform identity completion
+- v0.9.0 — Application services and reference platform workloads
 
 ## Architecture
 
