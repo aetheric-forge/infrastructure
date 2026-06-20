@@ -349,8 +349,8 @@ SECRET=$(
 apiVersion: v1
 kind: Secret
 metadata:
-name: keycloak-db
-namespace: aetheric-forge
+  name: keycloak-db
+  namespace: aetheric-forge
 type: kubernetes.io/basic-auth
 stringData:
   username: keycloak
@@ -383,8 +383,8 @@ SECRET=$(
 apiVersion: v1
 kind: Secret
 metadata:
-name: keycloak-admin
-namespace: keycloak
+  name: keycloak-admin
+  namespace: keycloak
 type: kubernetes.io/basic-auth
 stringData:
   username: admin
