@@ -16,10 +16,10 @@ spec:
     - 'argocd'
     - 'minio'
     - 'rabbitmq'
-    - 'cnpg'
     - 'redis'
     - 'mongodb'
     - 'aetheric-forge'
+    - 'keycloak'
 
   destinations:
     - namespace: ''
@@ -30,14 +30,14 @@ spec:
       server: https://kubernetes.default.svc
     - namespace: rabbitmq
       server: https://kubernetes.default.svc
-    - namespace: cnpg
-      server: https://kubernetes.default.svc
     - namespace: redis
       server: https://kubernetes.default.svc
     - namespace: mongodb
       server: https://kubernetes.default.svc
     - namespace: aetheric-forge
       server: https://kubernetes.default.svc
+    - namespace: keycloak
+      server: https://kuvernetes.default.svc
 
   clusterResourceWhitelist:
     - group: '*'
