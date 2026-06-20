@@ -13,3 +13,11 @@ spec:
 
   superuserSecret:
     name: forge-cnpg-superuser
+
+  serviceTemplate:
+      metadata:
+        annotations:
+          metallb.universe.tf/address-pool: private-pool
+          external-dns.alpha.kubernetes.io/hostname: forge-db-dev.int.aethericforge.ca
+      spec:
+        type: LoadBalancer
