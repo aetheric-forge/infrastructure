@@ -32,7 +32,7 @@ spec:
     retentionPolicy: "7d"
     barmanObjectStore:
       destinationPath: s3://forge-db-dev/forge-db
-      endpointURL: https://<minio-hostname>
+      endpointURL: https://s3-dev.int.aethericforge.ca
 
       endpointCA:
         name: step-ca-root-ca
