@@ -3,6 +3,7 @@ kind: Kustomization
 
 resources:
   - namespace.yaml
+  - ../../base
   - ../../secrets/dev
   - cnpg-cluster.yaml
   - keycloak-bootstrap-job.yaml
