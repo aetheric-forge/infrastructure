@@ -10,13 +10,4 @@ resources:
   - https://raw.githubusercontent.com/keycloak/keycloak-k8s-resources/26.6.3/kubernetes/kubernetes.yml
 
 patches:
-  - target:
-      kind: Deployment
-      name: keycloak-operator
-    patch: |-
-      - op: replace
-        path: /spec/template/spec/containers/0/env/2/value
-        value: keycloak-system,keycloak
-      - op: replace
-        path: /spec/template/spec/containers/0/env/3/value
-        value: keycloak-system,keycloak
+  - path: watch-namespace-patch.yaml

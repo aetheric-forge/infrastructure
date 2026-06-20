@@ -4,5 +4,4 @@ kind: Kustomization
 resources:
   - ../../secrets/dev
   - keycloak.yaml
-  - watch-namespace-patch.yaml
   - ingress-private.yaml
