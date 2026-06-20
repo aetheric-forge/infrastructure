@@ -5,17 +5,17 @@ metadata:
   namespace: keycloak
   annotations:
     cert-manager.io/cluster-issuer: step-ca-int-acme
-    external-dns.alpha.kubernetes.io/hostname: sso.int.aethericforge.ca
+    external-dns.alpha.kubernetes.io/hostname: sso-dev.int.aethericforge.ca
 spec:
   ingressClassName: nginx-private
 
   tls:
     - hosts:
-        - sso.int.aethericforge.ca
+        - sso-dev.int.aethericforge.ca
       secretName: keycloak-tls
 
   rules:
-    - host: sso.int.aethericforge.ca
+    - host: sso-dev.int.aethericforge.ca
       http:
         paths:
           - path: /
