@@ -301,7 +301,7 @@ metadata:
 type: Opaque
 stringData:
   access-key-id: $access_key
-  secret-key-id: $secret_key
+  secret-access-key: $secret_key
 EOF
 	)
 
