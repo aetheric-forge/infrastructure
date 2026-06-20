@@ -33,7 +33,7 @@ function render_velero_bsl {
 	local ca_cert
 	ca_cert=$(base64 -w0 <"$cert_file")
 
-	cat <<EOF >"$ROOT_DIR/platform/core/velero/overlays/dev/backupstoragelocation.yaml"
+	cat <<EOF >"$ROOT_DIR/platform/core/velero/base/backupstoragelocation.yaml"
 apiVersion: velero.io/v1
 kind: BackupStorageLocation
 metadata:

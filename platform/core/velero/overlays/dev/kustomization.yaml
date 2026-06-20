@@ -3,3 +3,4 @@ kind: Kustomization
 
 resources:
   - backupstoragelocation.yaml
+  - volumestoragelocation.yaml
