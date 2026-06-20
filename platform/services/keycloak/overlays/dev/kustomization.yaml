@@ -1,0 +1,48 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: aetheric-forge
+
+resources:
+  - ../../secrets/dev
+
+helmCharts:
+  - name: keycloak
+    repo: https://charts.bitnami.com/bitnami
+    version: 24.7.4
+    releaseName: keycloak
+    namespace: aetheric-forge
+
+    valuesInline:
+      production: true
+
+      replicaCount: 1
+
+      auth:
+        existingSecret: keycloak-admin
+        passwordSecretKey: password
+
+      postgresql:
+        enabled: false
+
+      externalDatabase:
+        host: forge-db-rw
+        port: 5432
+        database: keycloak
+
+        existingSecret: keycloak-db
+        existingSecretUserKey: username
+        existingSecretPasswordKey: password
+
+      ingress:
+        enabled: true
+        ingressClassName: nginx-private
+
+        hostname: keycloak-dev.int.aethericforge.ca
+
+        tls: true
+
+        annotations:
+          cert-manager.io/cluster-issuer: step-ca-cluster-issuer
+          external-dns.alpha.kubernetes.io/hostname: keycloak-dev.int.aethericforge.ca
+

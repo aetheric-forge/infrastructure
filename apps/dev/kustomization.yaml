@@ -9,4 +9,4 @@ resources:
   - argocd.yaml
   - minio.yaml
   - forge-db.yaml
-#  - hello-world.yaml
+  - keycloak.yaml
