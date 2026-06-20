@@ -196,7 +196,8 @@ fi
 DIR=$ROOT_DIR/platform/services/forge-db/secrets/$ENVIRONMENT
 ENCRYPTED_FILE="$DIR/step-ca-root-ca.enc.yaml"
 
-if secret_exists "step-ca-root-ca" "aetheric-forge"; then
+if secret_exists "step-ca-root-ca" "aetheric-forge" &&
+	[[ -f "$ENCRYPTED_FILE" ]]; then
 	echo "step-ca-root-ca already exists in aetheric-forge; skipping generation"
 else
 	SECRET=$(
@@ -222,7 +223,8 @@ fi
 DIR=$ROOT_DIR/platform/services/minio/secrets/$ENVIRONMENT
 out_file="$DIR/minio-env-configuration.enc.yaml"
 
-if secret_exists "minio-env-configuration" "minio"; then
+if secret_exists "minio-env-configuration" "minio" &&
+	[[ -f "$out_file" ]]; then
 	echo "minio-env-configuration already exists in minio; skipping credentials regeneration"
 else
 	root_user="minio-root-$(openssl rand -hex 8)"
@@ -251,7 +253,8 @@ fi
 DIR="$ROOT_DIR/platform/core/velero/secrets/$ENVIRONMENT"
 out_file="$DIR/cloud-credentials.enc.yaml"
 
-if secret_exists "cloud-credentials" "velero"; then
+if secret_exists "cloud-credentials" "velero" &&
+	[[ -f "$out_file" ]]; then
 	echo "cloud-credentials already exists in velero; skipping regeneration"
 else
 	access_key=$(openssl rand -base64 16 | tr -dc 'A-Za-z0-9' | head -c 16)
@@ -285,7 +288,8 @@ render_velero_bsl "$ROOT_DIR/platform/core/step-ca/certs/dev/root_ca.crt"
 DIR="$ROOT_DIR/platform/services/forge-db/secrets/$ENVIRONMENT"
 out_file="$DIR/forge-db-backup-s3.enc.yaml"
 
-if secret_exists "forge-db-backup-s3" "aetheric-forge"; then
+if secret_exists "forge-db-backup-s3" "aetheric-forge" &&
+	[[ -f "$out_file" ]]; then
 	echo "forge-db-backup-s3 already exists in aetheric-forge; skipping regeneration"
 else
 	access_key=$(openssl rand -base64 16 | tr -dc 'A-Za-z0-9' | head -c 16)
@@ -331,7 +335,8 @@ stringData:
 EOF
 )
 
-if secret_exists "forge-cnpg-superuser" "aetheric-forge"; then
+if secret_exists "forge-cnpg-superuser" "aetheric-forge" &&
+	[[ -f "$out_file" ]]; then
 	echo "forge-db-root already exists in aetheric-forge; skipping regeneration"
 else
 	create_sops_secret "forge-cnpg-superuser" \
@@ -358,7 +363,8 @@ stringData:
 EOF
 )
 
-if secret_exists "keycloak-db" "aetheric-forge"; then
+if secret_exists "keycloak-db" "aetheric-forge" &&
+	[[ -f "$DIR/keycloak-db.enc.yaml" ]]; then
 	echo "Skipping secret creation as keycloak-db already exists in aetheric-forge"
 else
 	create_sops_secret "keycloak-db" \
@@ -367,10 +373,11 @@ else
 		"$DIR/keycloak-db.enc.yaml"
 fi
 
-if secret_exists "keycloak-db" "keycloak"; then
+if secret_exists "keycloak-db" "keycloak" &&
+	[[ -f "$ROOT_DIR/platform/services/keycloak/secrets/$ENVIRONMENT/keycloak-db.enc.yaml" ]]; then
 	echo "Skipping secret creation as keycloak-db already exists in aetheric-forge"
 else
-	SECRET="$(echo "$SECRET" | sed -e 's/namespace: aetheric-forge/namespace: keycloak/')"
+	SECRET="${SECRET//'namespace: aetheric-forge'/'namespace: keycloak'}"
 
 	create_sops_secret "keycloak-db" \
 		"keycloak" \
@@ -394,7 +401,8 @@ stringData:
 EOF
 )
 
-if secret_exists "keycloak-admin" "keycloak"; then
+if secret_exists "keycloak-admin" "keycloak" &&
+	[[ -f "$ROOT_DIR/platform/services/keycloak/secrets/$ENVIRONMENT/keycloak-admin.enc.yaml" ]]; then
 	echo "Skipping secret creation as keycloak-admin already exists in keycloak"
 else
 	create_sops_secret "keycloak-admin" \
