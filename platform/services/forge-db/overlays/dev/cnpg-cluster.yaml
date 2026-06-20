@@ -26,3 +26,30 @@ spec:
                 external-dns.alpha.kubernetes.io/hostname: forge-db-dev.int.aethericforge.ca
             spec:
               type: LoadBalancer
+
+  backup:
+    target: primary
+    retentionPolicy: "7d"
+    barmanObjectStore:
+      destinationPath: s3://forge-db-dev/forge-db
+      endpointURL: https://<minio-hostname>
+
+      endpointCA:
+        name: step-ca-root-ca
+        key: ca.crt
+
+      s3Credentials:
+        accessKeyId:
+          name: forge-db-backup-s3
+          key: access-key-id
+        secretAccessKey:
+          name: forge-db-backup-s3
+          key: secret-access-key
+
+      wal:
+        compression: gzip
+        maxParallel: 4
+
+      data:
+        compression: gzip
+        jobs: 2
