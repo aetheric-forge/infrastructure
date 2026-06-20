@@ -78,10 +78,28 @@ helmCharts:
           application.namespaces: "*"
           applicationset.namespaces: "*"
         cm:
+          url: https://argocd-dev.int.aethericforge.ca
+
+          oidc.config: |
+            name: Keycloak
+            issuer: https://sso-dev.int.aethericforge.ca/realms/int.aethericforge.ca
+            clientID: argocd
+            clientSecret: $oidc.keycloak.clientSecret
+
+            requestedScopes:
+              - openid
+              - profile
+              - email
+              - groups
+
+            requestedIDTokenClaims:
+              groups:
+                essential: true
+
           kustomize.buildOptions: "--enable-helm --enable-alpha-plugins --enable-exec"
 
-      rbac:
-        create: true
+        rbac:
+          create: true
 
         controller:
           clusterRole:
