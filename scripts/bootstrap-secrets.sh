@@ -314,15 +314,11 @@ fi
 
 DIR="$ROOT_DIR/platform/services/forge-db/secrets/$ENVIRONMENT"
 out_file="$DIR/forge-cnpg-superuser.enc.yaml"
-PGPASS=""
 
-if secret_exists "forge-cnpg-superuser" "aetheric-forge"; then
-	echo "forge-db-root already exists in aetheric-forge; skipping regeneration"
-else
-	root_pw=$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | head -c 32)
+root_pw=$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | head -c 32)
 
-	SECRET=$(
-		cat <<EOF
+SECRET=$(
+	cat <<EOF
 apiVersion: v1
 kind: Secret
 metadata:
@@ -333,42 +329,76 @@ stringData:
   username: postgres
   password: $root_pw
 EOF
-	)
+)
 
+if secret_exists "forge-cnpg-superuser" "aetheric-forge"; then
+	echo "forge-db-root already exists in aetheric-forge; skipping regeneration"
+else
 	create_sops_secret "forge-cnpg-superuser" \
 		"aetheric-forge" \
 		"$SECRET" \
 		"$out_file"
-
 fi
 
 DIR="$ROOT_DIR/platform/services/forge-db/secrets/$ENVIRONMENT"
-out_file="$DIR/keycloak-db.enc.yaml"
 
-if secret_exists "keycloak-db" "aetheric-forge"; then
-	echo "keycloak-db already exists in aetheric-forge; skipping regeneration"
-else
-	pw=$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | head -c 32)
+pw=$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | head -c 32)
 
-	SECRET=$(
-		cat <<EOF
+SECRET=$(
+	cat <<EOF
 apiVersion: v1
 kind: Secret
 metadata:
-  name: keycloak-db
-  namespace: aetheric-forge
+name: keycloak-db
+namespace: aetheric-forge
 type: kubernetes.io/basic-auth
 stringData:
   username: keycloak
   password: $pw
 EOF
-	)
+)
 
+if secret_exists "keycloak-db" "aetheric-forge"; then
+	echo "Skipping secret creation as keycloak-db already exists in aetheric-forge"
+else
 	create_sops_secret "keycloak-db" \
 		"aetheric-forge" \
 		"$SECRET" \
-		"$out_file"
+		"$DIR/keycloak-db.enc.yaml"
+fi
 
+if secret_exists "keycloak-db" "keycloak"; then
+	echo "Skipping secret creation as keycloak-db already exists in aetheric-forge"
+else
+	create_sops_secret "keycloak-db" \
+		"keycloak" \
+		"$SECRET" \
+		"$ROOT_DIR/platform/services/keycloak/secrets/$ENVIRONMENT/keycloak-db.enc.yaml"
+fi
+
+admin_pw=$(openssl rand -base64 16 | tr -dc 'A-Za-z0-9' | head -c 16)
+
+SECRET=$(
+	cat <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+name: keycloak-admin
+namespace: keycloak
+type: kubernetes.io/basic-auth
+stringData:
+  username: admin
+  password: $admin_pw
+EOF
+)
+
+if secret_exists "keycloak-admin" "keycloak"; then
+	echo "Skipping secret creation as keycloak-admin already exists in keycloak"
+else
+	create_sops_secret "keycloak-admin" \
+		"keycloak" \
+		"$SECRET" \
+		"$ROOT_DIR/platform/services/keycloak/secrets/$ENVIRONMENT/keycloak-admin.enc.yaml"
 fi
 
 echo "[Forge] Done"
