@@ -5,4 +5,4 @@ namespace: argocd
 
 resources:
   - ingress.yaml
-  ../../secrets/dev
+  - ../../secrets/dev
