@@ -5,8 +5,6 @@ resources:
   - namespace.yaml
   - serviceaccount.yaml
   - ../secrets/dev
-  - backupstoragelocation.yaml
-  - volumesnapshotlocation.yaml
   - platform-nightly-backup.yaml
 
 helmCharts:
