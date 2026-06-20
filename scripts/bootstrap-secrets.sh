@@ -370,6 +370,8 @@ fi
 if secret_exists "keycloak-db" "keycloak"; then
 	echo "Skipping secret creation as keycloak-db already exists in aetheric-forge"
 else
+	SECRET="$(echo "$SECRET" | sed -e 's/namespace: aetheric-forge/namespace: keycloak/')"
+
 	create_sops_secret "keycloak-db" \
 		"keycloak" \
 		"$SECRET" \
