@@ -12,3 +12,4 @@ resources:
   - ../../../../../platform/services/minio/base
   - ../../../../../platform/core/velero/base
   - ../../../../../platform/operators/cnpg/base
+  - ../../../../../platform/operators/keycloak/base
