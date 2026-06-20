@@ -77,3 +77,8 @@ venv/
 backups/
 
 .vscode/
+
+root_ca.*
+scripts/pulumi/cluster/gitops.yaml
+scripts/pulumi/cluster/platform-config.yaml
+scripts/pulumi/cluster/platform-core.yaml

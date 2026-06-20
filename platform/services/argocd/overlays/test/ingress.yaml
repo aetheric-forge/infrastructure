@@ -1,0 +1,31 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-server
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "20"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: step-ca-int-acme
+    external-dns.alpha.kubernetes.io/hostname: argocd-test.int.aethericforge.ca
+    external-dns.alpha.kubernetes.io/ttl: "60"
+    external-dns.alpha.kubernetes.io/target: "192.168.1.242"
+    metallb.io/address-pool: "private-pool"
+spec:
+  ingressClassName: nginx-private
+  tls:
+    - hosts:
+        - argocd-test.int.aethericforge.ca
+      secretName: argocd-test-int-aethericforge-ca-tls
+  rules:
+    - host: argocd-test.int.aethericforge.ca
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: argocd-server
+                port:
+                  number: 443

@@ -8,7 +8,7 @@ DEPLOYMENT="${DEPLOYMENT:-step-ca}"
 ROOT_CERT_PATH="${ROOT_CERT_PATH:-/home/step/certs/root_ca.crt}"
 
 TARGET_FILES=(
-  "$ROOT_DIR/platform/cert-manager/issuers/dev/clusterissuer-step-ca-internal.yaml"
+  "$ROOT_DIR/platform/core/cert-manager/issuers/dev/clusterissuer-step-ca-internal.yaml"
 )
 
 if ! command -v kubectl >/dev/null 2>&1; then

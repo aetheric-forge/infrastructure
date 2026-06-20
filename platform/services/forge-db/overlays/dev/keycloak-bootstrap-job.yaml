@@ -1,0 +1,96 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: keycloak-db-bootstrap
+  namespace: aetheric-forge
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: Never
+
+      containers:
+        - name: bootstrap
+          image: postgres:17
+
+          env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: forge-cnpg-superuser
+                  key: password
+
+            - name: KEYCLOAK_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-db
+                  key: password
+
+          command:
+            - /bin/bash
+            - -ec
+            - |
+              echo "Waiting for PostgreSQL..."
+
+              until pg_isready \
+                -h forge-db-rw \
+                -U postgres
+              do
+                sleep 2
+              done
+
+              echo "Ensuring keycloak role exists..."
+
+              psql \
+                -h forge-db-rw \
+                -U postgres \
+                -d postgres <<SQL
+
+              DO
+              \$\$
+              BEGIN
+                IF NOT EXISTS (
+                  SELECT 1
+                  FROM pg_roles
+                  WHERE rolname = 'keycloak'
+                ) THEN
+                  CREATE ROLE keycloak
+                    LOGIN
+                    PASSWORD '${KEYCLOAK_DB_PASSWORD}';
+                END IF;
+              END
+              \$\$;
+
+              SQL
+
+              echo "Ensuring keycloak database exists..."
+
+              DB_EXISTS=$(
+                psql \
+                  -h forge-db-rw \
+                  -U postgres \
+                  -d postgres \
+                  -tAc \
+                  "SELECT 1 FROM pg_database WHERE datname='keycloak'"
+              )
+
+              if [ "${DB_EXISTS}" != "1" ]; then
+                psql \
+                  -h forge-db-rw \
+                  -U postgres \
+                  -d postgres \
+                  -c "CREATE DATABASE keycloak OWNER keycloak"
+              fi
+
+              echo "Ensuring ownership..."
+
+              psql \
+                -h forge-db-rw \
+                -U postgres \
+                -d postgres \
+                -c "ALTER DATABASE keycloak OWNER TO keycloak"
+
+              echo "Bootstrap complete."

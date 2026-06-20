@@ -1,0 +1,55 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: forge-db
+  namespace: aetheric-forge
+spec:
+  instances: 1
+
+  storage:
+    size: 10Gi
+
+  enableSuperuserAccess: true
+
+  superuserSecret:
+    name: forge-cnpg-superuser
+
+  managed:
+    services:
+      additional:
+        - selectorType: rw
+          serviceTemplate:
+            metadata:
+              name: forge-db-dev-lb
+              annotations:
+                metallb.universe.tf/address-pool: private-pool
+                external-dns.alpha.kubernetes.io/hostname: forge-db-dev.int.aethericforge.ca
+            spec:
+              type: LoadBalancer
+
+  backup:
+    target: primary
+    retentionPolicy: "7d"
+    barmanObjectStore:
+      destinationPath: s3://forge-db-dev/forge-db
+      endpointURL: https://s3-dev.int.aethericforge.ca
+
+      endpointCA:
+        name: step-ca-root-ca
+        key: ca.crt
+
+      s3Credentials:
+        accessKeyId:
+          name: forge-db-backup-s3
+          key: access-key-id
+        secretAccessKey:
+          name: forge-db-backup-s3
+          key: secret-access-key
+
+      wal:
+        compression: gzip
+        maxParallel: 4
+
+      data:
+        compression: gzip
+        jobs: 2

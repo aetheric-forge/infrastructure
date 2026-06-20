@@ -1,0 +1,27 @@
+provider:
+  name: cloudflare
+
+env:
+  - name: CF_API_TOKEN
+    valueFrom:
+      secretKeyRef:
+        name: cloudflare-api-token
+        key: apiToken
+
+sources:
+  - service
+  - ingress
+
+domainFilters:
+  - aethericforge.ca
+
+registry: txt
+txtOwnerId: external
+policy: sync
+
+extraArgs:
+  - --exclude-domains=int.aethericforge.ca
+
+serviceAccount:
+  create: true
+  name: external-dns-external

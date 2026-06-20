@@ -13,12 +13,6 @@ source "$SCRIPTS_DIR/lib/paths.sh"
 
 source "$ROOT_DIR/.env"
 
-NS_CM="cert-manager"
-NS_CA="step-ca"
-
-BOOTSTRAP_DIR="$ROOT_DIR/clusters/single/dev/bootstrap"
-APPS_DIR="$ROOT_DIR/apps"
-
 ########################################
 # Helpers
 ########################################
@@ -54,37 +48,13 @@ kustomize_build() {
 		"$@"
 }
 
-make_platform_bootstrap_overlay() {
-	local tmpdir="$1"
-
-	cp -a "$ROOT_DIR/." "$tmpdir/"
-
-	python3 - "$tmpdir/clusters/single/dev/bootstrap/kustomization.yaml" <<'PY'
-import sys
-from pathlib import Path
-
-path = Path(sys.argv[1])
-lines = path.read_text().splitlines()
-
-out = [
-    line for line in lines
-    if line.strip() not in {
-        "- ../../../../apps",
-        "- ../../../../apps/",
-    }
-]
-
-path.write_text("\n".join(out) + "\n")
-PY
-}
-
 render_checked() {
 	local overlay="$1"
 	local output="$2"
 	local label="$3"
 
 	log "Rendering $label..."
-	kustomize_build "$overlay" > "$output"
+	kustomize_build "$overlay" >"$output"
 
 	test -s "$output" || fail "$label rendered empty"
 
@@ -102,7 +72,7 @@ apply_rendered() {
 	local label="$2"
 
 	log "Applying $label..."
-	kubectl apply -f "$rendered" || fail "$label apply failed"
+	kubectl apply --server-side -f "$rendered" || fail "$label apply failed"
 }
 
 wait_for_namespace() {
@@ -110,8 +80,8 @@ wait_for_namespace() {
 	local timeout="${2:-180}"
 
 	log "Waiting for namespace/$ns..."
-	kubectl wait --for=jsonpath='{.metadata.name}'="$ns" "namespace/$ns" --timeout="${timeout}s" \
-		|| fail "namespace/$ns did not appear"
+	kubectl wait --for=jsonpath='{.metadata.name}'="$ns" "namespace/$ns" --timeout="${timeout}s" ||
+		fail "namespace/$ns did not appear"
 }
 
 wait_for_deployment() {
@@ -124,8 +94,8 @@ wait_for_deployment() {
 		sleep 2
 	done
 
-	kubectl rollout status "deploy/$deploy" -n "$ns" --timeout="${timeout}s" \
-		|| fail "deployment/$deploy did not become ready"
+	kubectl rollout status "deploy/$deploy" -n "$ns" --timeout="${timeout}s" ||
+		fail "deployment/$deploy did not become ready"
 }
 
 ########################################
@@ -170,7 +140,7 @@ setup_wireguard() {
 		"Enable the local DNS AWS forwarder now, then press Enter to continue..."
 }
 
-apply_bootstrap_phase() {
+render_overlay() {
 	local overlay="$1"
 	local label="$2"
 
@@ -205,8 +175,8 @@ deploy_platform_bootstrap() {
 	# Phase 1 — Controllers / CRDs
 	########################################
 
-	apply_bootstrap_phase \
-		"$ROOT_DIR/clusters/single/dev/bootstrap/10-platform-core" \
+	render_overlay \
+		"$ROOT_DIR/clusters/single/$ENVIRONMENT/bootstrap/10-platform-core" \
 		"platform-core"
 
 	log "Waiting for metallb CRDs..."
@@ -220,26 +190,26 @@ deploy_platform_bootstrap() {
 		--for=condition=Established \
 		crd/ipaddresspools.metallb.io \
 		crd/l2advertisements.metallb.io \
-		--timeout=120s \
-		|| fail "metallb CRDs failed"
+		--timeout=120s ||
+		fail "metallb CRDs failed"
 
 	log "Waiting for metallb controller..."
 	kubectl rollout status \
 		deployment/metallb-controller \
 		-n metallb-system \
-		--timeout=120s \
-		|| fail "metallb controller failed"
+		--timeout=120s ||
+		fail "metallb controller failed"
+
+	# give cluster a second to settle
+	sleep 2
 
 	########################################
 	# Phase 2 — Configuration
 	########################################
 
-	apply_bootstrap_phase \
-		"$ROOT_DIR/clusters/single/dev/bootstrap/20-platform-config" \
+	render_overlay \
+		"$ROOT_DIR/clusters/single/$ENVIRONMENT/bootstrap/20-platform-config" \
 		"platform-config"
-
-	wait_for_namespace step-ca 180
-	wait_for_deployment step-ca step-ca 300
 }
 ########################################
 # Stage 4 — Step CA trust
@@ -269,7 +239,7 @@ bootstrap_step_ca_trust() {
 
 	kubectl exec -n step-ca "$pod" -- \
 		cat /home/step/certs/root_ca.crt \
-		> /tmp/root_ca.crt || fail "Failed to extract root CA"
+		>/tmp/root_ca.crt || fail "Failed to extract root CA"
 
 	test -s /tmp/root_ca.crt || fail "root_ca.crt is empty"
 
@@ -279,7 +249,7 @@ bootstrap_step_ca_trust() {
 		--dry-run=client -o yaml | kubectl apply -f -
 
 	local ca_bundle
-	ca_bundle="$(base64 < /tmp/root_ca.crt | tr -d '\n')"
+	ca_bundle="$(base64 </tmp/root_ca.crt | tr -d '\n')"
 
 	kubectl patch clusterissuer step-ca-int-acme \
 		--type merge \
@@ -301,13 +271,9 @@ bootstrap_step_ca_trust() {
 deploy_gitops_apps() {
 	log "Handing control to GitOps app declarations"
 
-	if [[ -f "$APPS_DIR/kustomization.yaml" ]]; then
-		kustomize_build "$APPS_DIR" | kubectl apply -f - \
-			|| fail "GitOps app declarations failed"
-	else
-		kubectl apply -f "$ROOT_DIR/apps/dev-root-application.yaml" \
-			|| fail "GitOps root app failed"
-	fi
+	render_overlay \
+		"$ROOT_DIR/clusters/single/$ENVIRONMENT/gitops" \
+		"gitops"
 }
 
 ########################################
@@ -347,8 +313,8 @@ main() {
 	setup_wireguard
 	deploy_cluster
 	deploy_platform_bootstrap
-	bootstrap_step_ca_trust
 	deploy_gitops_apps
+	bootstrap_step_ca_trust
 	verify
 
 	log "Forge is online 🔥"

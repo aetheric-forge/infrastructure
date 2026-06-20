@@ -1,0 +1,24 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: step-ca-int-acme
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  acme:
+    email: pki@blackcircuit.ca
+    privateKeySecretRef:
+      name: step-ca-int-acme-account-key
+    server: "https://step-ca.step-ca.svc.cluster.local/acme/acme/directory"
+    solvers:
+      - selector:
+          dnsZones:
+            - int.aethericforge.ca
+        dns01:
+          rfc2136:
+            nameserver: 192.168.1.1:5335
+            tsigKeyName: cert-manager-dev-key
+            tsigAlgorithm: HMACSHA256
+            tsigSecretSecretRef:
+              name: cert-manager-tsig
+              key: tsig-secret

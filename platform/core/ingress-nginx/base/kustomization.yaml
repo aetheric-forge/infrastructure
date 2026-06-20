@@ -1,0 +1,53 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespace.yaml
+
+helmCharts:
+  - name: ingress-nginx
+    repo: https://kubernetes.github.io/ingress-nginx
+    version: 4.13.3
+    releaseName: ingress-nginx-private
+    namespace: ingress-nginx
+    valuesInline:
+      controller:
+        admissionWebhooks:
+          enabled: true
+          patch:
+            enabled: true
+        electionID: ingress-nginx-private-leader
+        ingressClass: nginx-private
+        ingressClassResource:
+          enabled: true
+          name: nginx-private
+          controllerValue: k8s.io/ingress-nginx-private
+          default: false
+        watchIngressWithoutClass: false
+        service:
+          type: LoadBalancer
+          annotations:
+            metallb.io/address-pool: private-pool
+  - name: ingress-nginx
+    repo: https://kubernetes.github.io/ingress-nginx
+    version: 4.13.3
+    releaseName: ingress-nginx-public
+    namespace: ingress-nginx
+    valuesInline:
+      controller:
+        admissionWebhooks:
+          enabled: true
+          patch:
+            enabled: true
+        electionID: ingress-nginx-public-leader
+        ingressClass: nginx-public
+        ingressClassResource:
+          enabled: true
+          name: nginx-public
+          controllerValue: k8s.io/ingress-nginx-public
+          default: false
+        watchIngressWithoutClass: false
+        service:
+          type: LoadBalancer
+          annotations:
+            metallb.io/address-pool: public-pool

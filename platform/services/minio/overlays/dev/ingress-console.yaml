@@ -1,0 +1,28 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: minio-console
+  namespace: minio
+  annotations:
+    cert-manager.io/cluster-issuer: step-ca-int-acme
+    external-dns.alpha.kubernetes.io/hostname: console-dev.int.aethericforge.ca
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+spec:
+  ingressClassName: nginx-private
+
+  tls:
+    - hosts:
+        - console-dev.int.aethericforge.ca
+      secretName: minio-console-tls
+
+  rules:
+    - host: console-dev.int.aethericforge.ca
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: minio-console
+                port:
+                  number: 9443

@@ -1,0 +1,30 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: hello-world
+  namespace: hello-world
+  annotations:
+    cert-manager.io/cluster-issuer: le-prod
+    metallb.io/address-pool: "public-pool"
+    external-dns.alpha.kubernetes.io/controller: dns-controller
+    kubernetes.io/ingress.class: nginx-public
+    external-dns.alpha.kubernetes.io/hostname: hello-test.aethericforge.ca
+    external-dns.alpha.kubernetes.io/ttl: "300"
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: "false"
+spec:
+  ingressClassName: nginx-public
+  tls:
+    - hosts:
+        - hello-test.aethericforge.ca
+      secretName: hello-test-aethericforge-ca-tls
+  rules:
+    - host: hello-test.aethericforge.ca
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: hello-world
+                port:
+                  number: 80

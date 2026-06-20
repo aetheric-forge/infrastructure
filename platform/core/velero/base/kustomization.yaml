@@ -1,0 +1,36 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespace.yaml
+  - serviceaccount.yaml
+  - ../secrets/dev
+
+helmCharts:
+  - name: velero
+    repo: https://vmware-tanzu.github.io/helm-charts
+    version: 11.1.1
+    releaseName: velero
+    namespace: velero
+
+    includeCRDs: true
+
+    valuesInline:
+      initContainers:
+          - name: velero-plugin-for-aws
+            image: velero/velero-plugin-for-aws:v1.10.1
+            imagePullPolicy: IfNotPresent
+            volumeMounts:
+              - mountPath: /target
+                name: plugins      
+
+      credentials:
+        useSecret: true
+        existingSecret: cloud-credentials
+
+      configuration:
+        backupStorageLocation: []
+
+      schedules: {}
+
+      snapshotsEnabled: false

@@ -19,8 +19,8 @@ for var in "${required_vars[@]}"; do
 	fi
 done
 
-DNS_DIR="$ROOT_DIR/platform/external-dns/base/generated"
-CM_DIR="$ROOT_DIR/platform/cert-manager/base/generated"
+DNS_DIR="$ROOT_DIR/platform/core/external-dns/base/generated"
+CM_DIR="$ROOT_DIR/platform/core/cert-manager/base/generated"
 mkdir -p "$DNS_DIR"
 mkdir -p "$CM_DIR"
 
@@ -47,7 +47,7 @@ extraArgs:
   - --rfc2136-port=5335
   - --rfc2136-zone=${INTERNAL_DOMAIN}
   - --rfc2136-tsig-secret-alg=hmac-sha256
-  - --rfc2136-tsig-keyname=external-dns-key
+  - --rfc2136-tsig-keyname=external-dns-${ENVIRONMENT}-key
 
 env:
   - name: EXTERNAL_DNS_RFC2136_TSIG_SECRET
@@ -83,6 +83,9 @@ domainFilters:
 registry: txt
 txtOwnerId: external
 policy: sync
+
+extraArgs:
+  - --exclude-domains=int.aethericforge.ca
 
 serviceAccount:
   create: true
