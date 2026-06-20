@@ -25,7 +25,7 @@ spec:
     tlsSecret: keycloak-tls
 
   hostname:
-    hostname: sso-dev.int.blackcircuit.ca
+    hostname: sso-dev.int.aethericforge.ca
 
   ingress:
     enabled: false
