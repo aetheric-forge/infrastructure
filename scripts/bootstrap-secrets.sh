@@ -329,6 +329,7 @@ metadata:
   namespace: aetheric-forge
 type: Opaque
 stringData:
+  username: postgres
   password: $root_pw
 EOF
 	)
