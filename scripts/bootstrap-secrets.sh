@@ -327,7 +327,7 @@ kind: Secret
 metadata:
   name: forge-cnpg-superuser
   namespace: aetheric-forge
-type: Opaque
+type: kubernetes.io/basic-auth
 stringData:
   username: postgres
   password: $root_pw
