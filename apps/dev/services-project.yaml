@@ -37,7 +37,7 @@ spec:
     - namespace: aetheric-forge
       server: https://kubernetes.default.svc
     - namespace: keycloak
-      server: https://kuvernetes.default.svc
+      server: https://kubernetes.default.svc
 
   clusterResourceWhitelist:
     - group: '*'
