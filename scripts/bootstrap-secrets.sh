@@ -314,6 +314,7 @@ fi
 
 DIR="$ROOT_DIR/platform/services/forge-db/secrets/$ENVIRONMENT"
 out_file="$DIR/forge-cnpg-superuser.enc.yaml"
+PGPASS=""
 
 if secret_exists "forge-cnpg-superuser" "aetheric-forge"; then
 	echo "forge-db-root already exists in aetheric-forge; skipping regeneration"
@@ -335,6 +336,35 @@ EOF
 	)
 
 	create_sops_secret "forge-cnpg-superuser" \
+		"aetheric-forge" \
+		"$SECRET" \
+		"$out_file"
+
+fi
+
+DIR="$ROOT_DIR/platform/services/forge-db/secrets/$ENVIRONMENT"
+out_file="$DIR/keycloak-db.enc.yaml"
+
+if secret_exists "keycloak-db" "aetheric-forge"; then
+	echo "keycloak-db already exists in aetheric-forge; skipping regeneration"
+else
+	pw=$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | head -c 32)
+
+	SECRET=$(
+		cat <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: keycloak-db
+  namespace: aetheric-forge
+type: kubernetes.io/basic-auth
+stringData:
+  username: keycloak
+  password: $pw
+EOF
+	)
+
+	create_sops_secret "keycloak-db" \
 		"aetheric-forge" \
 		"$SECRET" \
 		"$out_file"
