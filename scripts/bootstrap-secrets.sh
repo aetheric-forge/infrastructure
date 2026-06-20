@@ -283,33 +283,29 @@ fi
 render_velero_bsl "$ROOT_DIR/platform/core/step-ca/certs/dev/root_ca.crt"
 
 DIR="$ROOT_DIR/platform/services/forge-db/secrets/$ENVIRONMENT"
-out_file="$DIR/ps-cluster1-secrets.enc.yaml"
+out_file="$DIR/forge-db-backup-s3.enc.yaml"
 
-if secret_exists "ps-cluster1-secrets" "aetheric-forge"; then
-	echo "ps-cluster1-secrets already exists in aetheric-forge; skipping regeneration"
+if secret_exists "forge-db-backup-s3" "aetheric-forge"; then
+	echo "forge-db-backup-s3 already exists in aetheric-forge; skipping regeneration"
 else
-	root_pw=$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | head -c 32)
-	orchestrator_pw=$(openssl rand -base64 16 | tr -dc 'A-Za-z0-9' | head -c 16)
-	xtrabackup_pw=$(openssl rand -base64 16 | tr -dc 'A-Za-z0-9' | head -c 16)
-	clustercheck_pw=$(openssl rand -base64 16 | tr -dc 'A-Za-z0-9' | head -c 16)
+	access_key=$(openssl rand -base64 16 | tr -dc 'A-Za-z0-9' | head -c 16)
+	secret_key=$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | head -c 32)
 
 	SECRET=$(
 		cat <<EOF
 apiVersion: v1
 kind: Secret
 metadata:
-  name: ps-cluster1-secrets
+  name: forge-db-backup-s3
   namespace: aetheric-forge
 type: Opaque
 stringData:
-  root: $root_pw
-  orchestrator: $orchestrator_pw
-  xtrabackup: $xtrabackup_pw
-  clustercheck: $clustercheck_pw
+  access-key-id: $access_key
+  secret-key-id: $secret_key
 EOF
 	)
 
-	create_sops_secret "ps-cluster1-secrets" \
+	create_sops_secret "forge-db-backup-s3" \
 		"aetheric-forge" \
 		"$SECRET" \
 		"$out_file"
@@ -317,9 +313,9 @@ EOF
 fi
 
 DIR="$ROOT_DIR/platform/services/forge-db/secrets/$ENVIRONMENT"
-out_file="$DIR/forge-db-root.enc.yaml"
+out_file="$DIR/forge-cnpg-superuser.enc.yaml"
 
-if secret_exists "forge-db-root" "aetheric-forge"; then
+if secret_exists "forge-cnpg-superuser" "aetheric-forge"; then
 	echo "forge-db-root already exists in aetheric-forge; skipping regeneration"
 else
 	root_pw=$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | head -c 32)
@@ -329,7 +325,7 @@ else
 apiVersion: v1
 kind: Secret
 metadata:
-  name: forge-db-root
+  name: forge-cnpg-superuser
   namespace: aetheric-forge
 type: Opaque
 stringData:
@@ -337,7 +333,7 @@ stringData:
 EOF
 	)
 
-	create_sops_secret "forge-db-root" \
+	create_sops_secret "forge-cnpg-superuser" \
 		"aetheric-forge" \
 		"$SECRET" \
 		"$out_file"

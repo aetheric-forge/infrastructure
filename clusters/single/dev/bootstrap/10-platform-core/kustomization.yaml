@@ -11,4 +11,4 @@ resources:
   - ../../../../../platform/operators/minio/base
   - ../../../../../platform/services/minio/base
   - ../../../../../platform/core/velero/base
-  - ../../../../../platform/operators/percona-mysql/base
+  - ../../../../../platform/operators/cnpg/base
