@@ -1,0 +1,15 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: forge-db
+  namespace: aetheric-forge
+spec:
+  instances: 1
+
+  storage:
+    size: 10Gi
+
+  enableSuperuserAccess: true
+
+  superuserSecret:
+    name: forge-cnpg-superuser
