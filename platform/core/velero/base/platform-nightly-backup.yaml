@@ -1,0 +1,22 @@
+#
+# Nightly Velero backup for platform-owned operational state.
+#
+# Application-owned backups should be defined with the applications
+# they protect. This schedule is intended to protect platform governance
+# and recovery resources.
+#
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: platform-nightly-backup
+  namespace: velero
+
+spec:
+  schedule: "0 4 * * *"
+  template:
+    includedNamespaces:
+      - argocd
+      - velero
+      - keycloak
+      - minio
+    ttl: 720h0m0s

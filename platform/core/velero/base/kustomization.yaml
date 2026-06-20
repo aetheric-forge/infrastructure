@@ -7,6 +7,7 @@ resources:
   - ../secrets/dev
   - backupstoragelocation.yaml
   - volumesnapshotlocation.yaml
+  - platform-nightly-backup.yaml
 
 helmCharts:
   - name: velero
