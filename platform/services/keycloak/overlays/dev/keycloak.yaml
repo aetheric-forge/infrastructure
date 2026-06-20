@@ -26,3 +26,6 @@ spec:
 
   hostname:
     hostname: sso-dev.int.blackcircuit.ca
+
+  ingress:
+    enabled: false
