@@ -25,4 +25,4 @@ spec:
     tlsSecret: keycloak-tls
 
   hostname:
-    hostname: sso.int.blackcircuit.ca
+    hostname: sso-dev.int.blackcircuit.ca
