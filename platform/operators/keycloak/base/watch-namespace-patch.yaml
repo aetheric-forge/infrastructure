@@ -9,6 +9,6 @@ spec:
         - name: keycloak-operator
           env:
             - name: QUARKUS_OPERATOR_SDK_CONTROLLERS_KEYCLOAKCONTROLLER_NAMESPACES
-              value: keycloak
+              value: JOSDK_WATCH_ALL_NAMESPACES
             - name: QUARKUS_OPERATOR_SDK_CONTROLLERS_KEYCLOAKREALMIMPORTCONTROLLER_NAMESPACES
-              value: keycloak
+              value: JOSDK_WATCH_ALL_NAMESPACES

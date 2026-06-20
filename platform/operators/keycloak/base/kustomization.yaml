@@ -11,3 +11,6 @@ resources:
 
 patches:
   - path: watch-namespace-patch.yaml
+    target:
+      kind: Deployment
+      name: keycloak-operator
