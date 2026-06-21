@@ -44,6 +44,9 @@ helmCharts:
           - name: sops-age
             mountPath: /home/argocd/.config/sops/age
             readOnly: true
+          - name: step-ca-root-ca
+            mountPath: /app/config/tls/argocd-dev.int.aethericforge.ca
+            readOnly: true
         initContainers:
           - name: install-ksops
             image: alpine:3.20

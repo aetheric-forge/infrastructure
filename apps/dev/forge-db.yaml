@@ -11,6 +11,7 @@ spec:
     path: platform/services/forge-db/overlays/dev
   destination:
     server: https://kubernetes.default.svc
+    namespace: forge-db
   syncPolicy:
     automated:
       prune: true
