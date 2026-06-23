@@ -251,12 +251,12 @@ function step_ca_secrets() {
 apiVersion: v1
 kind: Secret
 metadata:
-  name: step-ca-root-ca
+  name: step-ca-secrets
   namespace: $namespace
 type: Opaque
 stringData:
   provisioner_password: "$provisioner_pwd"
-  password: "$password"
+  password: "$pwd"
 EOF
 }
 
@@ -412,7 +412,6 @@ wait_for_cluster
 bootstrap_argocd_access
 bootstrap_dns_secrets
 ensure_step_ca_files
-bootstrap_step_ca_secrets
 distribute_step_ca_certificates
 create_gitops_artifacts
 
