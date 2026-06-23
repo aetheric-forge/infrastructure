@@ -123,6 +123,8 @@ spec:
         - name: step-ca-secrets
           secret:
             secretName: step-ca-secrets
+            namespace: step-ca
         - name: step-ca-root-ca
           secret:
             secretName: step-ca-root-ca
+            namespace: step-ca

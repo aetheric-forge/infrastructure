@@ -241,11 +241,34 @@ $crt
 EOF
 }
 
+function step_ca_secrets() {
+	local namespace="step-ca"
+
+	local provisioner_pwd="$(rand_alnum 48)"
+	local pwd="$(rand_alnum 32)"
+
+	cat <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: step-ca-root-ca
+  namespace: $namespace
+type: Opaque
+stringData:
+  provisioner_password: "$provisioner_pwd"
+  password: "$password"
+EOF
+}
+
 function distribute_step_ca_certificates() {
 	local root_dir="$ROOT_DIR/platform/core/step-ca/certs/$ENVIRONMENT"
 	create_sops_secret "$STEP_CA_NAMESPACE" "step-ca-root-ca" \
 		"$root_dir/step-ca-root-ca.enc.yaml" \
 		"$(root_ca_secret)"
+
+	create_sops_secret "$STEP_CA_NAMESPACE" "step-ca-secrets" \
+		"$root_dir/step-ca-secrets.enc.yaml" \
+		"$(step_ca_secrets)"
 
 	local targets=(
 		"argocd:$ROOT_DIR/platform/services/argocd/secrets/$ENVIRONMENT/step-ca-root-ca.enc.yaml"
@@ -302,12 +325,13 @@ EOF
 function create_minio_secret() {
 	local config
 
-	config=$(cat <<EOF
+	config=$(
+		cat <<EOF
   config.env: |
     export MINIO_ACCESS_KEY="minio-root-$(openssl rand -hex 8)"
     export MINIO_SECRET_KEY="$(openssl rand -base64 48 | tr -d '\n')"
 EOF
-)
+	)
 
 	create_sops_secret "$MINIO_NAMESPACE" "minio-env-configuration" \
 		"$ROOT_DIR/platform/services/minio/secrets/$ENVIRONMENT/minio-env-configuration.enc.yaml" \
@@ -317,13 +341,14 @@ EOF
 function create_velero_secret() {
 	local credentials
 
-	credentials=$(cat <<EOF
+	credentials=$(
+		cat <<EOF
   cloud: |
     [default]
     aws_access_key_id=$(rand_alnum 16)
     aws_secret_access_key=$(rand_alnum 32)
 EOF
-)
+	)
 
 	create_sops_secret "$VELERO_NAMESPACE" "cloud-credentials" \
 		"$ROOT_DIR/platform/core/velero/secrets/$ENVIRONMENT/cloud-credentials.enc.yaml" \
@@ -336,11 +361,12 @@ function create_forge_db_secrets() {
 	local backup_s3
 	local keycloak_password
 
-	backup_s3=$(cat <<EOF
+	backup_s3=$(
+		cat <<EOF
   access-key-id: $(rand_alnum 16)
   secret-access-key: $(rand_alnum 32)
 EOF
-)
+	)
 
 	create_sops_secret "$FORGE_DB_NAMESPACE" "forge-db-backup-s3" \
 		"$forge_db_secret_dir/forge-db-backup-s3.enc.yaml" \
@@ -386,6 +412,7 @@ wait_for_cluster
 bootstrap_argocd_access
 bootstrap_dns_secrets
 ensure_step_ca_files
+bootstrap_step_ca_secrets
 distribute_step_ca_certificates
 create_gitops_artifacts
 
