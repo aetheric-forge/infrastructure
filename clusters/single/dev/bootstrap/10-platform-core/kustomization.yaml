@@ -11,6 +11,7 @@ resources:
   - ../../../../../platform/core/velero/base
   - ../../../../../platform/operators/cnpg/base
   - ../../../../../platform/operators/keycloak/base
+  - ../../../../../platform/operators/rabbitmq/base
 
 patches:
   - target:
@@ -20,5 +21,5 @@ patches:
     patch: |-
       - op: replace
         path: /spec/containers/0/image
-        value: docker.io/bitnami/kubectl:1.36
+        value: docker.io/bitnami/kubectl:1.34.5
 
