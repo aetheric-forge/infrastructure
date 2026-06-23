@@ -31,6 +31,10 @@ helmCharts:
             secret:
               secretName: sops-age
               optional: true
+          - name: step-ca-root-ca
+            secret:
+              secretName: step-ca-root-ca
+              optional: false
         volumeMounts:
           - name: custom-tools
             mountPath: /usr/local/bin/ksops
@@ -45,7 +49,7 @@ helmCharts:
             mountPath: /home/argocd/.config/sops/age
             readOnly: true
           - name: step-ca-root-ca
-            mountPath: /app/config/tls/argocd-dev.int.aethericforge.ca
+            mountPath: /app/config/tls/step-ca-root-ca
             readOnly: true
         initContainers:
           - name: install-ksops
