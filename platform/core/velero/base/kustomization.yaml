@@ -24,7 +24,6 @@ helmCharts:
             volumeMounts:
               - mountPath: /target
                 name: plugins      
-
       credentials:
         useSecret: true
         existingSecret: cloud-credentials
@@ -35,3 +34,5 @@ helmCharts:
       schedules: {}
 
       snapshotsEnabled: false
+
+

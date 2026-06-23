@@ -75,47 +75,47 @@ spec:
               mountPath: /run/secrets/step-ca-root-ca
               readOnly: true
       containers:
-        - name: step-ca
-          image: smallstep/step-ca:0.29.0
-          imagePullPolicy: IfNotPresent
-          securityContext:
-            runAsUser: 1000
-            runAsGroup: 1000
-          env:
-            - name: STEPPATH
-              value: /home/step
-          command:
-            - step-ca
-          args:
-            - /home/step/config/ca.json
-            - --resolver=192.168.1.1:5335
-            - --password-file
-            - /run/secrets/step-ca/password
-          ports:
-            - containerPort: 9000
-              name: https
-          readinessProbe:
-            httpGet:
-              path: /health
-              port: 9000
-              scheme: HTTPS
-            initialDelaySeconds: 10
-            periodSeconds: 10
-          livenessProbe:
-            httpGet:
-              path: /health
-              port: 9000
-              scheme: HTTPS
-            initialDelaySeconds: 30
-            periodSeconds: 10
-          volumeMounts:
-            - name: step-ca-data
-              mountPath: /home/step
-            - name: step-ca-secrets
-              mountPath: /run/secrets/step-ca
-              readOnly: true
-            - name: step-ca-root-ca
-              mountPath: /run/secrets/step-ca-root-ca
+      - name: step-ca
+        image: smallstep/step-ca:0.29.0
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 1000
+          runAsGroup: 1000
+        env:
+          - name: STEPPATH
+            value: /home/step
+        command:
+          - step-ca
+        args:
+          - /home/step/config/ca.json
+          - --resolver=192.168.1.1:5335
+          - --password-file
+          - /run/secrets/step-ca/password
+        ports:
+          - containerPort: 9000
+            name: https
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 9000
+            scheme: HTTPS
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 9000
+            scheme: HTTPS
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        volumeMounts:
+          - name: step-ca-data
+            mountPath: /home/step
+          - name: step-ca-secrets
+            mountPath: /run/secrets/step-ca
+            readOnly: true
+          - name: step-ca-root-ca
+            mountPath: /run/secrets/step-ca-root-ca
       volumes:
         - name: step-ca-data
           persistentVolumeClaim:
