@@ -6,6 +6,8 @@ metadata:
 spec:
   configuration:
     name: minio-env-configuration
+  externalCaCertSecret:
+    name: step-ca-root-ca  
   pools:
     - name: pool-0 
       servers: 1
