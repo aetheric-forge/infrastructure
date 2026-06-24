@@ -135,24 +135,22 @@ helmCharts:
           kustomize.buildOptions: "--enable-helm --enable-alpha-plugins --enable-exec"
 
         rbac:
-          create: true
           policy.default: role:readonly
           policy.csv: |
             g, argocd-admins, role:admin
-              controller:
-                clusterRole:
-                  create: true
-                  rules:
-                    - apiGroups: ["*"]
-                      resources: ["*"]
-                      verbs: ["*"]
-
-                clusterRoleBinding:
-                  create: true
-                  clusterRoleRef:
-                    name: cluster-admin
-                    kind: ClusterRole
-                    apiGroup: rbac.authorization.k8s.io
+          controller:
+            clusterRole:
+              create: true
+              rules:
+                - apiGroups: ["*"]
+                  resources: ["*"]
+                  verbs: ["*"]
+          clusterRoleBinding:
+            create: true
+            clusterRoleRef:
+              name: cluster-admin
+              kind: ClusterRole
+              apiGroup: rbac.authorization.k8s.io
 
 patches:
   - path: rbac.yaml
