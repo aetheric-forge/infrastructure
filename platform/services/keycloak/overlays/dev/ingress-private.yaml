@@ -23,6 +23,6 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: keycloak-service
+                name: forge-keycloak-service
                 port:
                   name: https
