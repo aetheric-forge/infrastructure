@@ -418,7 +418,7 @@ EOF
 
 	create_sops_secret "$ARGOCD_NAMESPACE" "argocd-keycloak-oidc" \
 		"$ROOT_DIR/platform/services/argocd/secrets/$ENVIRONMENT/argocd-keycloak-oidc.enc.yaml" \
-		"$secret"
+		"${secret}"
 }
 
 function create_gitops_artifacts() {
