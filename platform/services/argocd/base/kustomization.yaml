@@ -44,10 +44,10 @@ helmCharts:
                 cp -a /etc/ssl/certs/. /work-certs/
             volumeMounts:
               - name: step-ca-root-ca
-                  mountPath: /step-ca
-                  readOnly: true
+                mountPath: /step-ca
+                readOnly: true
               - name: ssl-certs
-                  mountPath: /work-certs
+                mountPath: /work-certs
         volumeMounts:
           - name: ssl-certs
             mountPath: /etc/ssl/certs        
