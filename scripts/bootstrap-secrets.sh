@@ -7,7 +7,7 @@ source "$ROOT_DIR/.env"
 source "$ROOT_DIR/.env.pulumi.generated"
 
 FORGE_DB_NAMESPACE="forge-db"
-KEYCLOAK_NAMESPACE="keycloak"
+KEYCLOAK_NAMESPACE="keycloak-system"
 MINIO_NAMESPACE="minio"
 VELERO_NAMESPACE="velero"
 ARGOCD_NAMESPACE="argocd"
