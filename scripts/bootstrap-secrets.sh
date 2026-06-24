@@ -398,20 +398,13 @@ function create_keycloak_secrets() {
 function create_argocd_secrets() {
 	local secret=$(
 		cat <<EOF
-apiVersion: v1
-kind: Secret
-metadata:
-  name: argocd-keycloak-oidc
-  namespace: $ARGOCD_NAMESPACE
-type: Opaque
-stringData:
   clientSecret: "$(rand_alnum 32)"
 EOF
 	)
 
 	create_sops_secret "$ARGOCD_NAMESPACE" "argocd-keycloak-oidc" \
 		"$ROOT_DIR/platform/services/argocd/secrets/$ENVIRONMENT/argocd-keycloak-oidc.enc.yaml" \
-		"$(opaque_secret "$ARGOCD_NAMESPACE" "clientSecret" "$secret")"
+		"$(opaque_secret "$ARGOCD_NAMESPACE" "argocd-keycloak-oidc" "$secret")"
 }
 
 function create_gitops_artifacts() {
