@@ -395,12 +395,19 @@ function create_keycloak_secrets() {
 		"$(basic_auth_secret "$KEYCLOAK_NAMESPACE" "keycloak-admin" "admin" "$(rand_alnum 16)")"
 }
 
+function create_argocd_secrets() {
+	create_sops_secret "$ARGOCD_NAMESPACE" "argocd-keycloak-oidc" \
+		"$ROOT_DIR/platform/services/argocd/secrets/$ENVIRONMENT/argocd-keycloak-oidc.enc.yaml" \
+		"$(opaque_secret "$ARGOCD_NAMESPACE" "clientSecret" "$(rand_alnum 32)")"
+}
+
 function create_gitops_artifacts() {
 	create_minio_secret
 	create_velero_secret
 	render_velero_bsl "$CERT_FILE"
 	create_forge_db_secrets
 	create_keycloak_secrets
+	create_argocd_secrets
 }
 
 require_env \
