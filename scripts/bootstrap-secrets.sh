@@ -68,6 +68,10 @@ function create_sops_secret() {
 
 	echo "[Forge] creating SOPS secret ${namespace}/${secret_name}..."
 	ensure_namespace "$namespace"
+	if [[ -f "$out_file" ]]; then
+		# we assume that the current secret is populated with the contents of the existing file. delete if not true.
+		return
+	fi
 	encrypt_file "$out_file" "$content"
 }
 
