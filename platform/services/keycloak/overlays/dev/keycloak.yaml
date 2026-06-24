@@ -22,7 +22,7 @@ spec:
       key: password
 
   http:
-    tlsSecret: keycloak-tls
+    tlsSecret: forge-keycloak-tls
 
   hostname:
     hostname: sso-dev.int.aethericforge.ca
