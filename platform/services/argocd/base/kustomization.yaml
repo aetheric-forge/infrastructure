@@ -22,11 +22,35 @@ helmCharts:
           - name: step-ca-root-ca
             secret:
               secretName: step-ca-root-ca
-              optional: true
+          - name: ssl-certs
+            emptyDir: {}
+        initContainers:
+          - name: update-ca-trust
+            image: quay.io/argoproj/argocd:v3.4.4
+            command:
+              - /bin/bash
+              - -c
+            args:
+              - |
+                set -euo pipefail
+
+                mkdir -p /usr/local/share/ca-certificates
+
+                cp /step-ca/ca.crt \
+                   /usr/local/share/ca-certificates/step-ca.crt
+
+                update-ca-certificates
+
+                cp -a /etc/ssl/certs/. /work-certs/
+            volumeMounts:
+              - name: step-ca-root-ca
+                  mountPath: /step-ca
+                  readOnly: true
+              - name: ssl-certs
+                  mountPath: /work-certs
         volumeMounts:
-          - name: step-ca-root-ca
-            mountPath: /etc/step-ca
-            readOnly: true
+          - name: ssl-certs
+            mountPath: /etc/ssl/certs        
       repoServer:
         env:
           - name: XDG_CONFIG_HOME
