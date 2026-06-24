@@ -35,6 +35,10 @@ helmCharts:
             secret:
               secretName: step-ca-root-ca
               optional: false
+          - name: step-ca-secrets
+            secret:
+              secretName: step-ca-secrets
+              optional: false
         volumeMounts:
           - name: custom-tools
             mountPath: /usr/local/bin/ksops

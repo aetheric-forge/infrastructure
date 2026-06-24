@@ -8,7 +8,7 @@ resources:
   - ../../../../../platform/core/step-ca/base
   - ../../../../../platform/core/cert-manager/base
   - ../../../../../platform/operators/minio/base
-  - ../../../../../platform/services/argocd/base
+  - ../../../../../platform/services/argocd/overlays/dev
   - ../../../../../platform/core/velero/base
   - ../../../../../platform/operators/cnpg/base
   - ../../../../../platform/operators/keycloak/base
