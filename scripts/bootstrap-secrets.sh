@@ -264,6 +264,11 @@ stringData:
 EOF
 }
 
+function argocd_oidc_secret() {
+	local namespace="argocd"
+	local
+}
+
 function distribute_step_ca_certificates() {
 	local root_dir="$ROOT_DIR/platform/core/step-ca/certs/$ENVIRONMENT"
 	create_sops_secret "$STEP_CA_NAMESPACE" "step-ca-root-ca" \
@@ -398,13 +403,22 @@ function create_keycloak_secrets() {
 function create_argocd_secrets() {
 	local secret=$(
 		cat <<EOF
-  clientSecret: "$(rand_alnum 32)"
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-keycloak-oidc
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: argocd
+type: Opaque
+stringData:
+  clientSecret: $(rand_alnum 32)
 EOF
 	)
 
-	create_sops_secret "$ARGOCD_NAMESPACE" "argocd-secret" \
-		"$ROOT_DIR/platform/services/argocd/secrets/$ENVIRONMENT/argocd-secret.enc.yaml" \
-		"$(opaque_secret "$ARGOCD_NAMESPACE" "argocd-secret" "$secret")"
+	create_sops_secret "$ARGOCD_NAMESPACE" "argocd-keycloak-oidc" \
+		"$ROOT_DIR/platform/services/argocd/secrets/$ENVIRONMENT/argocd-keycloak-oidc.enc.yaml" \
+		"$secret"
 }
 
 function create_gitops_artifacts() {
