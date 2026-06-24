@@ -228,6 +228,7 @@ EOF
 
 function ca_bundle_secret() {
 	local namespace=$1
+	local filename="${2:-ca.crt}"
 	local crt
 
 	crt=$(indent_file "$CERT_FILE")
@@ -240,7 +241,7 @@ metadata:
   namespace: $namespace
 type: Opaque
 stringData:
-  ca.crt: |
+  $filename: |
 $crt
 EOF
 }
@@ -262,11 +263,6 @@ stringData:
   provisioner_password: "$provisioner_pwd"
   password: "$pwd"
 EOF
-}
-
-function argocd_oidc_secret() {
-	local namespace="argocd"
-	local
 }
 
 function distribute_step_ca_certificates() {
@@ -292,9 +288,14 @@ function distribute_step_ca_certificates() {
 		local namespace=${target%%:*}
 		local out_file=${target#*:}
 
+		local filename="ca.crt"
+		if [ "$namespace" == "minio" ]; then
+			filename="public.crt"
+		fi
+
 		create_sops_secret "$namespace" "step-ca-root-ca" \
 			"$out_file" \
-			"$(ca_bundle_secret "$namespace")"
+			"$(ca_bundle_secret "$namespace" "$filename")"
 	done
 }
 
