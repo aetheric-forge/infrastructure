@@ -13,7 +13,7 @@ spec:
   tls:
     - hosts:
         - sso-dev.int.aethericforge.ca
-      secretName: keycloak-tls
+      secretName: forge-keycloak-tls
 
   rules:
     - host: sso-dev.int.aethericforge.ca

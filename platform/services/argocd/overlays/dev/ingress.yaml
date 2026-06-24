@@ -17,7 +17,7 @@ spec:
   tls:
     - hosts:
         - argocd-dev.int.aethericforge.ca
-      secretName: argocd-dev-int-aethericforge-ca-tls
+      secretName: argocd-tls
   rules:
     - host: argocd-dev.int.aethericforge.ca
       http:
