@@ -1,8 +1,8 @@
 apiVersion: k8s.keycloak.org/v2alpha1
 kind: Keycloak
 metadata:
-  name: keycloak
-  namespace: keycloak
+  name: forge-keycloak
+  namespace: keycloak-system
 spec:
   instances: 2
 
