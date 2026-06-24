@@ -120,7 +120,7 @@ helmCharts:
             name: Keycloak
             issuer: https://sso-dev.int.aethericforge.ca/realms/int.aethericforge.ca
             clientID: argocd
-            clientSecret: $argocd-keycloak-oidc:clientSecret
+            clientSecret: $oidc.keycloak.clientSecret
 
             requestedScopes:
               - openid

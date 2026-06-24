@@ -402,9 +402,9 @@ function create_argocd_secrets() {
 EOF
 	)
 
-	create_sops_secret "$ARGOCD_NAMESPACE" "argocd-keycloak-oidc" \
-		"$ROOT_DIR/platform/services/argocd/secrets/$ENVIRONMENT/argocd-keycloak-oidc.enc.yaml" \
-		"$(opaque_secret "$ARGOCD_NAMESPACE" "argocd-keycloak-oidc" "$secret")"
+	create_sops_secret "$ARGOCD_NAMESPACE" "argocd-secret" \
+		"$ROOT_DIR/platform/services/argocd/secrets/$ENVIRONMENT/argocd-secret.enc.yaml" \
+		"$(opaque_secret "$ARGOCD_NAMESPACE" "argocd-secret" "$secret")"
 }
 
 function create_gitops_artifacts() {
