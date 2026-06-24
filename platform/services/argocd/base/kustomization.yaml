@@ -18,6 +18,15 @@ helmCharts:
       server:
         ingress:
           enabled: false
+        volumes:
+          - name: step-ca-root-ca
+            secret:
+              secretName: step-ca-root-ca
+              optional: true
+        volumeMounts:
+          - name: step-ca-root-ca
+            mountPath: /etc/step-ca
+            readOnly: true
       repoServer:
         env:
           - name: XDG_CONFIG_HOME
@@ -31,14 +40,6 @@ helmCharts:
             secret:
               secretName: sops-age
               optional: true
-          - name: step-ca-root-ca
-            secret:
-              secretName: step-ca-root-ca
-              optional: false
-          - name: step-ca-secrets
-            secret:
-              secretName: step-ca-secrets
-              optional: false
         volumeMounts:
           - name: custom-tools
             mountPath: /usr/local/bin/ksops
@@ -51,9 +52,6 @@ helmCharts:
             subPath: plugin
           - name: sops-age
             mountPath: /home/argocd/.config/sops/age
-            readOnly: true
-          - name: step-ca-root-ca
-            mountPath: /app/config/tls/step-ca-root-ca
             readOnly: true
         initContainers:
           - name: install-ksops
