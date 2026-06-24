@@ -15,7 +15,7 @@ spec:
     - 'argocd'
     - 'forge-db'
     - 'minio'
-    - 'keycloak'
+    - 'keycloak-system'
     - 'rabbitmq'
 
   destinations:
@@ -25,7 +25,7 @@ spec:
       server: https://kubernetes.default.svc
     - namespace: minio
       server: https://kubernetes.default.svc
-    - namespace: keycloak
+    - namespace: keycloak-system
       server: https://kubernetes.default.svc
     - namespace: rabbitmq
       server: https://kubernetes.default.svc
