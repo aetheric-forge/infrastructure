@@ -26,6 +26,7 @@ spec:
                 external-dns.alpha.kubernetes.io/hostname: forge-db-dev.int.aethericforge.ca
             spec:
               type: LoadBalancer
+              loadBalancerIP: 192.168.1.242
 
   backup:
     target: primary
