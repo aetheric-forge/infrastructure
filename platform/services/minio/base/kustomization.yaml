@@ -5,4 +5,5 @@ resources:
   - namespace.yaml
   - ../secrets/dev
   - tenant.yaml
-  - bootstrap-admin-policy.yaml
+  - admin-policy-configmap.yaml
+  - bootstrap-admin-policy-job.yaml
