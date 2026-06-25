@@ -4,18 +4,25 @@ metadata:
   name: minio-policies
 data:
   minio-admins.json: |
-    {
-      "Version": "2012-10-17",
-      "Statement": [
-        {
-          "Effect": "Allow",
-          "Action": [
-            "admin:*",
-            "s3:*"
-          ],
-          "Resource": [
-            "arn:aws:s3:::*"
-          ]
-        }
-      ]
-    }
+  {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Action": [
+          "admin:*"
+        ],
+        "Effect": "Allow",
+        "Sid": ""
+      },
+      {
+        "Action": [
+          "s3:*"
+        ],
+        "Effect": "Allow",
+        "Resource": [
+          "arn:aws:s3:::*"
+        ],
+        "Sid": ""
+      }
+    ]
+  }
