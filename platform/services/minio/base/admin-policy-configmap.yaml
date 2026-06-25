@@ -13,8 +13,10 @@ data:
             "admin:*",
             "s3:*"
           ],
-      "Resource": [
-        "arn:aws:s3:::*"
+          "Resource": [
+            "arn:aws:s3:::*"
+            ]
+          }
         ]
       }
     ]
