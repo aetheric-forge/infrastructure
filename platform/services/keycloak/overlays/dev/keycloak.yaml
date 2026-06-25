@@ -8,17 +8,17 @@ spec:
 
   bootstrapAdmin:
     user:
-      secret: keycloak-admin
+      secret: forge-keycloak-admin
 
   db:
     vendor: postgres
     host: forge-db-dev.int.aethericforge.ca
     database: keycloak
     usernameSecret:
-      name: keycloak-db
+      name: forge-keycloak-db
       key: username
     passwordSecret:
-      name: keycloak-db
+      name: forge-keycloak-db
       key: password
 
   http:

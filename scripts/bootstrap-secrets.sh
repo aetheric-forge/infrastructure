@@ -395,15 +395,15 @@ EOF
 	create_sops_secret "$FORGE_DB_NAMESPACE" "keycloak-db" \
 		"$forge_db_secret_dir/keycloak-db.enc.yaml" \
 		"$(basic_auth_secret "$FORGE_DB_NAMESPACE" "keycloak-db" "keycloak" "$keycloak_password")"
-	create_sops_secret "$KEYCLOAK_NAMESPACE" "keycloak-db" \
-		"$keycloak_secret_dir/keycloak-db.enc.yaml" \
-		"$(basic_auth_secret "$KEYCLOAK_NAMESPACE" "keycloak-db" "keycloak" "$keycloak_password")"
+	create_sops_secret "$KEYCLOAK_NAMESPACE" "forge-keycloak-db" \
+		"$keycloak_secret_dir/forge-keycloak-db.enc.yaml" \
+		"$(basic_auth_secret "$KEYCLOAK_NAMESPACE" "forge-keycloak-db" "keycloak" "$keycloak_password")"
 }
 
 function create_keycloak_secrets() {
-	create_sops_secret "$KEYCLOAK_NAMESPACE" "keycloak-admin" \
-		"$ROOT_DIR/platform/services/keycloak/secrets/$ENVIRONMENT/keycloak-admin.enc.yaml" \
-		"$(basic_auth_secret "$KEYCLOAK_NAMESPACE" "keycloak-admin" "admin" "$(rand_alnum 16)")"
+	create_sops_secret "$KEYCLOAK_NAMESPACE" "forge-keycloak-admin" \
+		"$ROOT_DIR/platform/services/keycloak/secrets/$ENVIRONMENT/forge-keycloak-admin.enc.yaml" \
+		"$(basic_auth_secret "$KEYCLOAK_NAMESPACE" "forge-keycloak-admin" "admin" "$(rand_alnum 16)")"
 }
 
 function create_argocd_secrets() {
