@@ -347,6 +347,7 @@ function create_minio_secret() {
     export MINIO_IDENTITY_OPENID_CLIENT_SECRET="$(rand_alnum 32)"
     export MINIO_IDENTITY_OPENID_DISPLAY_NAME="MinIO"
     export MINIO_IDENTITY_OPENID_SCOPES="openid profile email groups"
+    export MINIO_IDENTITY_OPENID_CLAIM_NAME="groups"
 EOF
 	)
 
