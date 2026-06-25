@@ -338,13 +338,13 @@ function create_minio_secret() {
 	config=$(
 		cat <<EOF
   config.env: |
-    export MINIO_ACCESS_KEY="minio-root-$(openssl rand -hex 8)"
-    export MINIO_SECRET_KEY="$(openssl rand -base64 48 | tr -d '\n')"
+    export MINIO_ACCESS_KEY="minio-root-$(rand_alnum 8)"
+    export MINIO_SECRET_KEY="$(rand_alnum 32)"
     export MINIO_IDENTITY_OPENID_CONFIG_URL="https://sso-dev.int.aethericforge.ca/realms/int.aethericforge.ca/.well-known/openid-configuration"
     export MINIO_BROWSER_REDIRECT_URL="https://console-dev.int.aethericforge.ca"
     export MINIO_SERVER_URL="https://s3-dev.int.aethericforge.ca"
     export MINIO_IDENTITY_OPENID_CLIENT_ID="minio"
-    export MINIO_IDENTITY_OPENID_CLIENT_SECRET="$(openssl rand -base64 48 | tr -d '\n')"
+    export MINIO_IDENTITY_OPENID_CLIENT_SECRET="$(rand_alnum 32)"
     export MINIO_IDENTITY_OPENID_DISPLAY_NAME="MinIO"
     export MINIO_IDENTITY_OPENID_SCOPES="openid profile email groups"
 EOF
