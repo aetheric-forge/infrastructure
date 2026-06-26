@@ -12,7 +12,7 @@ metadata:
 spec:
   type: LoadBalancer
   selector:
-    app.kubernetes.io/instance: forge-mongo
+    app: forge-mongo-svc
   ports:
     - name: mongodb
       port: 27017
