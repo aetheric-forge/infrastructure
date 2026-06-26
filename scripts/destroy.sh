@@ -114,6 +114,10 @@ destroy_platform_bootstrap() {
 main() {
 	log "Starting destroy sequence"
 
+	log "Removing ArgoCD apps"
+
+	delete_phase "$ROOT_DIR/apps/dev" "apps"
+
 	# Step 1 — unwind GitOps while cluster still exists
 	destroy_platform_bootstrap
 
