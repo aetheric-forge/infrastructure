@@ -4,6 +4,7 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - serviceaccount.yaml
+  - configmap.yaml
   - ../secrets/dev
   - statefulset.yaml
   - hl-service.yaml
