@@ -13,15 +13,6 @@ spec:
       modes:
         - SCRAM
 
-  externalAccess:
-    externalDomain: int.aethericforge.ca
-    externalService:
-      annotations:
-        metallb.io/address-pool: private-pool
-        external-dns.alpha.kubernetes.io/hostname: forge-mongo-dev.int.aethericforge.ca
-      spec:
-        type: LoadBalancer
-
   users:
     - name: forge-mongo-admin
       db: admin
