@@ -23,7 +23,7 @@ spec:
   tls:
     secretName: rabbitmq-server-tls
     caSecretName: step-ca-root-ca
-    disableNonTLSListeners: true
+    disableNonTLSListeners: false
 
   service:
     type: LoadBalancer
