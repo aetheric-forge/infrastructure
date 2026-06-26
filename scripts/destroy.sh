@@ -120,17 +120,21 @@ main() {
 	delete_phase "$ROOT_DIR/apps/dev" "apps"
 
 	# wait for all CRs to be removed prior to continuing with teardown
-	kubectl wait \
-		--for=delete rabbitmqcluster --all -A \
-		--timeout=300s || true
+	while kubectl get rabbitmqcluster -A --no-headers 2>/dev/null | grep -q .; do
+		sleep 1
+	done
 
-	kubectl wait \
-		--for=delete mongodbcommunity --all -A \
-		--timeout=300s || true
+	while kubectl get tenant -A --no-headers 2>/dev/null | grep -q .; do
+		sleep 1
+	done
 
-	kubectl wait \
-		--for=delete tenant --all -A \
-		--timeout=300s || true
+	while kubectl get mongodbcommunity -A --no-headers 2>/dev/null | grep -q .; do
+		sleep 1
+	done
+
+	while kubectl get cluster -A --no-headers 2>/dev/null | grep -q .; do
+		sleep 1
+	done
 
 	# Step 1 — unwind GitOps while cluster still exists
 	destroy_platform_bootstrap
