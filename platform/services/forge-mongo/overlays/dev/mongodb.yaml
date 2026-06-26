@@ -20,8 +20,17 @@ spec:
         external-dns.alpha.kubernetes.io/hostname: forge-mongo-dev.int.aethericforge.ca
       spec:
         type: LoadBalancer
+
   users:
-    # later...
+    - name: forge-mongo-admin
+      db: admin
+      passwordSecretRef:
+        name: forge-mongo-admin
+        key: password
+      roles:
+        - name: root
+          db: admin
+      scramCredentialsSecretName: forge-mongo-admin-scram
 
   statefulSet:
     spec:

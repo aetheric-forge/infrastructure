@@ -13,7 +13,7 @@ VELERO_NAMESPACE="velero"
 ARGOCD_NAMESPACE="argocd"
 STEP_CA_NAMESPACE="step-ca"
 RABBITMQ_NAMESPACE="rabbitmq"
-MONGODB_NAMESPACE="forge-mongo"
+FORGE_MONGO_NAMESPACE="forge-mongo"
 
 function require_env() {
 	for name in "$@"; do
@@ -284,7 +284,7 @@ function distribute_step_ca_certificates() {
 		"$MINIO_NAMESPACE:$ROOT_DIR/platform/services/minio/secrets/$ENVIRONMENT/step-ca-root-ca.enc.yaml"
 		"$VELERO_NAMESPACE:$ROOT_DIR/platform/core/velero/secrets/$ENVIRONMENT/step-ca-root-ca.enc.yaml"
 		"$RABBITMQ_NAMESPACE:$ROOT_DIR/platform/services/rabbitmq/secrets/$ENVIRONMENT/step-ca-root-ca.enc.yaml"
-		"$MONGODB_NAMESPACE:$ROOT_DIR/platform/services/forge-mongo/secrets/$ENVIRONMENT/step-ca-root-ca.enc.yaml"
+		"$FORGE_MONGO_NAMESPACE:$ROOT_DIR/platform/services/forge-mongo/secrets/$ENVIRONMENT/step-ca-root-ca.enc.yaml"
 	)
 
 	local target
@@ -434,6 +434,24 @@ EOF
 		"${secret}"
 }
 
+function create_monogo_secrets() {
+	local admin=$(
+		cat <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: forge-mongo-admin
+type: Opaque
+stringData:
+  password: "$(rand_alnum 16)"
+EOF
+	)
+
+	create_sops_secret "$FORGE_MONGO_NAMESPACE" "forge-mongo-admin" \
+		"$ROOT_DIR/platform/services/forge-mongo/secrets/$ENVIRONMENT/forge-mongo-admin.enc.yaml" \
+		"${admin}"
+}
+
 function create_gitops_artifacts() {
 	create_minio_secret
 	create_velero_secret
@@ -441,6 +459,7 @@ function create_gitops_artifacts() {
 	create_forge_db_secrets
 	create_keycloak_secrets
 	create_argocd_secrets
+	create_mongo_secrets
 }
 
 require_env \
