@@ -20,9 +20,6 @@ spec:
       cpu: "2"
       memory: 2Gi
 
-  service:
-    type: LoadBalancer
-
   tls:
     secretName: rabbitmq-server-tls
     disableNonTLSListeners: true
