@@ -13,6 +13,7 @@ VELERO_NAMESPACE="velero"
 ARGOCD_NAMESPACE="argocd"
 STEP_CA_NAMESPACE="step-ca"
 RABBITMQ_NAMESPACE="rabbitmq"
+MONGODB_NAMESPACE="mongodb"
 
 function require_env() {
 	for name in "$@"; do
@@ -283,6 +284,7 @@ function distribute_step_ca_certificates() {
 		"$MINIO_NAMESPACE:$ROOT_DIR/platform/services/minio/secrets/$ENVIRONMENT/step-ca-root-ca.enc.yaml"
 		"$VELERO_NAMESPACE:$ROOT_DIR/platform/core/velero/secrets/$ENVIRONMENT/step-ca-root-ca.enc.yaml"
 		"$RABBITMQ_NAMESPACE:$ROOT_DIR/platform/services/rabbitmq/secrets/$ENVIRONMENT/step-ca-root-ca.enc.yaml"
+		"$MONGODB_NAMESPACE:$ROOT_DIR/platform/services/mongodb/secrets/$ENVIRONMENT/step-ca-root-ca.enc.yaml"
 	)
 
 	local target
