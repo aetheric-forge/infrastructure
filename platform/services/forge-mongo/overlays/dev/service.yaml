@@ -9,7 +9,7 @@ metadata:
   spec:
     type: LoadBalancer
     selector:
-    app: forge-mongo-svc
+      app: forge-mongo-svc
     ports:
       - name: mongodb
         port: 27017
