@@ -282,7 +282,7 @@ function distribute_step_ca_certificates() {
 		"$KEYCLOAK_NAMESPACE:$ROOT_DIR/platform/services/keycloak/secrets/$ENVIRONMENT/step-ca-root-ca.enc.yaml"
 		"$MINIO_NAMESPACE:$ROOT_DIR/platform/services/minio/secrets/$ENVIRONMENT/step-ca-root-ca.enc.yaml"
 		"$VELERO_NAMESPACE:$ROOT_DIR/platform/core/velero/secrets/$ENVIRONMENT/step-ca-root-ca.enc.yaml"
-		"$RABBITMQ_NAMESPACE:$ROOT_DIR/platform/services/rabbitmq/$ENVIRONMENT/step-ca-root-ca.enc.yaml"
+		"$RABBITMQ_NAMESPACE:$ROOT_DIR/platform/services/rabbitmq/secrets/$ENVIRONMENT/step-ca-root-ca.enc.yaml"
 	)
 
 	local target
