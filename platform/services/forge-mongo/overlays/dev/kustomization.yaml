@@ -7,3 +7,4 @@ resources:
   - ../../secrets/dev
   - ../../base
   - mongodb.yaml
+  - service.yaml
