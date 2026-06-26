@@ -4,7 +4,7 @@ metadata:
   name: forge-keycloak
   namespace: keycloak-system
 spec:
-  instances: 2
+  instances: 1
 
   bootstrapAdmin:
     user:
