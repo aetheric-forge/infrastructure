@@ -27,7 +27,6 @@ spec:
 
   service:
     type: LoadBalancer
-    loadBalancerIP: 192.168.1.243
     annotations:
       metallb.io/address-pool: private-pool
       external-dns.alpha.kubernetes.io/hostname: amqp-dev.int.aethericforge.ca
