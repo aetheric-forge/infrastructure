@@ -22,6 +22,7 @@ spec:
 
   tls:
     secretName: rabbitmq-server-tls
+    caSecretName: step-ca-root-ca
     disableNonTLSListeners: true
 
   service:
