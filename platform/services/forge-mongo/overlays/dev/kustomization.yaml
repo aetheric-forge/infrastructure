@@ -5,6 +5,7 @@ namespace: forge-mongo
 
 resources:
   - ../../secrets/dev
+  - ../../base
   - mongodb.yaml
 
 commonLabels:
