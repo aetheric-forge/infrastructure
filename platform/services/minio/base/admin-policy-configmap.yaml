@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: minio-policies
+data:
+  minio-admins.json: |
+    {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Action": [
+            "admin:*"
+          ],
+          "Effect": "Allow",
+          "Sid": ""
+        }
+      ]
+    }

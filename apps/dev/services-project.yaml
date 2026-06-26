@@ -12,31 +12,22 @@ spec:
     - 'git@github.com:aetheric-forge/infrastructure.git'
 
   sourceNamespaces:
-    - ''
     - 'argocd'
+    - 'forge-db'
     - 'minio'
+    - 'keycloak-system'
     - 'rabbitmq'
-    - 'redis'
-    - 'mongodb'
-    - 'aetheric-forge'
-    - 'keycloak'
 
   destinations:
-    - namespace: ''
-      server: https://kubernetes.default.svc
     - namespace: argocd
+      server: https://kubernetes.default.svc
+    - namespace: forge-db
       server: https://kubernetes.default.svc
     - namespace: minio
       server: https://kubernetes.default.svc
+    - namespace: keycloak-system
+      server: https://kubernetes.default.svc
     - namespace: rabbitmq
-      server: https://kubernetes.default.svc
-    - namespace: redis
-      server: https://kubernetes.default.svc
-    - namespace: mongodb
-      server: https://kubernetes.default.svc
-    - namespace: aetheric-forge
-      server: https://kubernetes.default.svc
-    - namespace: keycloak
       server: https://kubernetes.default.svc
 
   clusterResourceWhitelist:

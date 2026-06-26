@@ -7,9 +7,20 @@ resources:
   - ../../../../../platform/core/external-dns/base
   - ../../../../../platform/core/step-ca/base
   - ../../../../../platform/core/cert-manager/base
-  - ../../../../../platform/services/argocd/base
   - ../../../../../platform/operators/minio/base
-  - ../../../../../platform/services/minio/base
+  - ../../../../../platform/services/argocd/overlays/dev
   - ../../../../../platform/core/velero/base
   - ../../../../../platform/operators/cnpg/base
   - ../../../../../platform/operators/keycloak/base
+  - ../../../../../platform/operators/rabbitmq/base
+
+patches:
+  - target:
+      kind: Pod
+      name: velero-upgrade-crds*
+      namespace: velero
+    patch: |-
+      - op: replace
+        path: /spec/containers/0/image
+        value: docker.io/bitnami/kubectl:1.34.5
+

@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq-lb
+  namespace: rabbitmq
+  annotations:
+    metallb.universe.tf/address-pool: private-pool
+    external-dns.alpha.kubernetes.io/hostname: rabbitmq-dev.int.aethericforge.ca
+spec:
+  selector:
+    app: rabbitmq-dev
+  ports:
+    - port: 5672
+      targetPort: 5672
+  type: LoadBalancer
+  loadBalancerIP: 192.168.1.243

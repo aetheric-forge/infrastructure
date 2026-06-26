@@ -1,0 +1,56 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: minio-bootstrap
+spec:
+  backoffLimit: 5
+  template:
+    spec:
+      restartPolicy: OnFailure
+
+      containers:
+        - name: bootstrap
+          image: quay.io/minio/mc:latest
+
+          env:
+            - name: MINIO_CONFIG_ENV_FILE
+              value: /config/config.env
+
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              . "$MINIO_CONFIG_ENV_FILE"
+
+              until mc alias set minio \
+                https://minio.minio.svc.cluster.local \
+                "$MINIO_ROOT_USER" \
+                "$MINIO_ROOT_PASSWORD" \
+                --insecure
+              do
+                echo "Waiting for MinIO..."
+                sleep 5
+              done
+
+              mc admin policy create \
+                minio \
+                minio-admins \
+                /policies/minio-admins.json || true
+
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+
+            - name: policies
+              mountPath: /policies
+              readOnly: true
+
+      volumes:
+        - name: config
+          secret:
+            secretName: minio-env-configuration
+
+        - name: policies
+          configMap:
+            name: minio-policies

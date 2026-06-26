@@ -11,6 +11,7 @@ spec:
     path: platform/services/argocd/overlays/dev
   destination:
     server: https://kubernetes.default.svc
+    namespace: argocd
   syncPolicy:
     automated:
       prune: true

@@ -4,5 +4,6 @@ kind: Kustomization
 namespace: argocd
 
 resources:
+  - ../../secrets/dev
+  - ../../base
   - ingress.yaml
-

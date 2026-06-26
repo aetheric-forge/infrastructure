@@ -10,12 +10,18 @@ spec:
 
   sourceRepos:
     - 'https://github.com/aetheric-forge/aetheric-web.git'
+    - 'git@github.com:aetheric-forge/infrastructure.git'
 
   sourceNamespaces:
     - 'aetheric-forge'
+    - 'hello-world'
 
   destinations:
     - namespace: aetheric-forge
+      server: https://kubernetes.default.svc
+    - namespace: hello-world
+      server: https://kubernetes.default.svc
+    - namespace: velero
       server: https://kubernetes.default.svc
 
   clusterResourceWhitelist:
