@@ -1,7 +1,52 @@
 apiVersion: rabbitmq.com/v1beta1
 kind: RabbitmqCluster
 metadata:
- name: rabbitmq-dev
- namespace: rabbitmq
+  name: rabbitmq
+  namespace: rabbitmq
 spec:
   replicas: 3
+
+  image: rabbitmq:4.1-management
+
+  persistence:
+    storageClassName: local-path
+    storage: 10Gi
+
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+
+  service:
+    type: LoadBalancer
+
+  tls:
+    secretName: rabbitmq-server-tls
+    disableNonTLSListeners: true
+
+  service:
+    type: LoadBalancer
+    loadBalancerIP: 192.168.1.243
+    annotations:
+      metallb.io/address-pool: private-pool
+      external-dns.alpha.kubernetes.io/hostname: amqp-dev.int.aethericforge.ca
+
+  rabbitmq:
+    additionalPlugins:
+      - rabbitmq_management
+      - rabbitmq_prometheus
+
+    additionalConfig: |
+      cluster_partition_handling = pause_minority
+
+      ## 1 GiB free disk before alarms
+      disk_free_limit.absolute = 1GB
+
+      ## Statistics every 10 seconds
+      collect_statistics_interval = 10000
+
+      ## Optional: 30 minute consumer timeout
+      consumer_timeout = 1800000
