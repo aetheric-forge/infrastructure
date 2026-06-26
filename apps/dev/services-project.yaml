@@ -18,6 +18,7 @@ spec:
     - 'keycloak-system'
     - 'rabbitmq'
     - 'forge-mongo'
+    - 'redis'
 
   destinations:
     - namespace: argocd
@@ -31,6 +32,8 @@ spec:
     - namespace: rabbitmq
       server: https://kubernetes.default.svc
     - namespace: forge-mongo
+      server: https://kubernetes.default.svc
+    - namespace: redis
       server: https://kubernetes.default.svc
 
   clusterResourceWhitelist:

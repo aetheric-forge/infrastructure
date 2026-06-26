@@ -11,3 +11,4 @@ resources:
   - forge-mongo.yaml
   - forge-keycloak.yaml
   - rabbitmq.yaml
+  - redis.yaml
