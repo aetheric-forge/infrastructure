@@ -13,4 +13,3 @@ resources:
   - ../../../../../platform/operators/cnpg/base
   - ../../../../../platform/operators/keycloak/base
   - ../../../../../platform/operators/rabbitmq/base
-  - ../../../../../platform/operators/mongodb/base
