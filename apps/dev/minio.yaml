@@ -7,7 +7,7 @@ spec:
   project: services
   source:
     repoURL: git@github.com:aetheric-forge/infrastructure.git
-    targetRevision: v0.8
+    targetRevision: v0.9
     path: platform/services/minio/overlays/dev
   destination:
     server: https://kubernetes.default.svc

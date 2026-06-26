@@ -9,3 +9,4 @@ resources:
   - minio.yaml
   - forge-db.yaml
   - keycloak.yaml
+  - rabbitmq.yaml
