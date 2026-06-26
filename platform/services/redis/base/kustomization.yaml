@@ -3,6 +3,6 @@ kind: Kustomization
 
 resources:
   - namespace.yaml
-  - ../../secrets/dev
+  - ../secrets/dev
   - statefulset.yaml
   - hl-service.yaml
