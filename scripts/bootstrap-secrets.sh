@@ -434,7 +434,7 @@ EOF
 		"${secret}"
 }
 
-function create_monogo_secrets() {
+function create_mongo_secrets() {
 	local admin=$(
 		cat <<EOF
 apiVersion: v1
