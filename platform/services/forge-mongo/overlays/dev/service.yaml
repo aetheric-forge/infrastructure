@@ -6,12 +6,12 @@ metadata:
   annotations:
     metallb.io/address-pool: private-pool
     external-dns.alpha.kubernetes.io/hostname: forge-mongo-dev.int.aethericforge.ca
-  spec:
-    type: LoadBalancer
-    selector:
-      app: forge-mongo-svc
-    ports:
-      - name: mongodb
-        port: 27017
-        targetPort: 27017
-        protocol: TCP
+spec:
+  type: LoadBalancer
+  selector:
+    app: forge-mongo-svc
+  ports:
+    - name: mongodb
+      port: 27017
+      targetPort: 27017
+      protocol: TCP
