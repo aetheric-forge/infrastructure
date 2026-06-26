@@ -116,7 +116,21 @@ main() {
 
 	log "Removing ArgoCD apps"
 
+	# remove ArgoCD apps and all associated CRs
 	delete_phase "$ROOT_DIR/apps/dev" "apps"
+
+	# wait for all CRs to be removed prior to continuing with teardown
+	kubectl wait \
+		--for=delete rabbitmqcluster --all -A \
+		--timeout=300s || true
+
+	kubectl wait \
+		--for=delete mongodbcommunity --all -A \
+		--timeout=300s || true
+
+	kubectl wait \
+		--for=delete tenant --all -A \
+		--timeout=300s || true
 
 	# Step 1 — unwind GitOps while cluster still exists
 	destroy_platform_bootstrap
