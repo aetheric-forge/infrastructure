@@ -9,5 +9,5 @@ resources:
   - minio.yaml
   - forge-db.yaml
   - forge-mongo.yaml
-  - keycloak.yaml
+  - forge-keycloak.yaml
   - rabbitmq.yaml
