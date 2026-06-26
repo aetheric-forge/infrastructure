@@ -13,7 +13,7 @@ VELERO_NAMESPACE="velero"
 ARGOCD_NAMESPACE="argocd"
 STEP_CA_NAMESPACE="step-ca"
 RABBITMQ_NAMESPACE="rabbitmq"
-MONGODB_NAMESPACE="mongodb"
+MONGODB_NAMESPACE="forge-mongo"
 
 function require_env() {
 	for name in "$@"; do
@@ -280,11 +280,11 @@ function distribute_step_ca_certificates() {
 	local targets=(
 		"argocd:$ROOT_DIR/platform/services/argocd/secrets/$ENVIRONMENT/step-ca-root-ca.enc.yaml"
 		"$FORGE_DB_NAMESPACE:$ROOT_DIR/platform/services/forge-db/secrets/$ENVIRONMENT/step-ca-root-ca.enc.yaml"
-		"$KEYCLOAK_NAMESPACE:$ROOT_DIR/platform/services/keycloak/secrets/$ENVIRONMENT/step-ca-root-ca.enc.yaml"
+		"$KEYCLOAK_NAMESPACE:$ROOT_DIR/platform/services/forge-keycloak/secrets/$ENVIRONMENT/step-ca-root-ca.enc.yaml"
 		"$MINIO_NAMESPACE:$ROOT_DIR/platform/services/minio/secrets/$ENVIRONMENT/step-ca-root-ca.enc.yaml"
 		"$VELERO_NAMESPACE:$ROOT_DIR/platform/core/velero/secrets/$ENVIRONMENT/step-ca-root-ca.enc.yaml"
 		"$RABBITMQ_NAMESPACE:$ROOT_DIR/platform/services/rabbitmq/secrets/$ENVIRONMENT/step-ca-root-ca.enc.yaml"
-		"$MONGODB_NAMESPACE:$ROOT_DIR/platform/services/mongodb/secrets/$ENVIRONMENT/step-ca-root-ca.enc.yaml"
+		"$MONGODB_NAMESPACE:$ROOT_DIR/platform/services/forge-mongo/secrets/$ENVIRONMENT/step-ca-root-ca.enc.yaml"
 	)
 
 	local target
@@ -379,7 +379,7 @@ EOF
 
 function create_forge_db_secrets() {
 	local forge_db_secret_dir="$ROOT_DIR/platform/services/forge-db/secrets/$ENVIRONMENT"
-	local keycloak_secret_dir="$ROOT_DIR/platform/services/keycloak/secrets/$ENVIRONMENT"
+	local keycloak_secret_dir="$ROOT_DIR/platform/services/forge-keycloak/secrets/$ENVIRONMENT"
 	local backup_s3
 	local keycloak_password
 

@@ -8,5 +8,6 @@ resources:
   - argocd.yaml
   - minio.yaml
   - forge-db.yaml
+  - forge-mongo.yaml
   - keycloak.yaml
   - rabbitmq.yaml

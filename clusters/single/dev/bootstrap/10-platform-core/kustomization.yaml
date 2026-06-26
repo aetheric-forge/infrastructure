@@ -13,14 +13,4 @@ resources:
   - ../../../../../platform/operators/cnpg/base
   - ../../../../../platform/operators/keycloak/base
   - ../../../../../platform/operators/rabbitmq/base
-
-patches:
-  - target:
-      kind: Pod
-      name: velero-upgrade-crds*
-      namespace: velero
-    patch: |-
-      - op: replace
-        path: /spec/containers/0/image
-        value: docker.io/bitnami/kubectl:1.34.5
-
+  - ../../../../../platform/operators/mongodb/base
