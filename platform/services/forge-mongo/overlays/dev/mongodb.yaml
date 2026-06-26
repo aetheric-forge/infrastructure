@@ -1,0 +1,36 @@
+apiVersion: mongodbcommunity.mongodb.com/v1
+kind: MongoDBCommunity
+metadata:
+  name: forge-mongo
+  namespace: forge-mongo
+spec:
+  members: 1
+  type: ReplicaSet
+  version: "8.0.13"
+
+  security:
+    authentication:
+      modes:
+        - SCRAM
+
+  externalAccess:
+    externalService:
+      annotations:
+        metallb.io/address-pool: private-pool
+        external-dns.alpha.kubernetes.io/hostname: forge-mongo-dev.int.aethericforge.ca
+      spec:
+        type: LoadBalancer
+  users:
+    # later...
+
+  statefulSet:
+    spec:
+      volumeClaimTemplates:
+      - metadata:
+          name: data-volume
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 10Gi
