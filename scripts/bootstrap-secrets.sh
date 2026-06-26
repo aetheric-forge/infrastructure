@@ -409,7 +409,7 @@ EOF
 
 function create_keycloak_secrets() {
 	create_sops_secret "$KEYCLOAK_NAMESPACE" "forge-keycloak-admin" \
-		"$ROOT_DIR/platform/services/keycloak/secrets/$ENVIRONMENT/forge-keycloak-admin.enc.yaml" \
+		"$ROOT_DIR/platform/services/forge-keycloak/secrets/$ENVIRONMENT/forge-keycloak-admin.enc.yaml" \
 		"$(basic_auth_secret "$KEYCLOAK_NAMESPACE" "forge-keycloak-admin" "admin" "$(rand_alnum 16)")"
 }
 
