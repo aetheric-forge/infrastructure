@@ -14,6 +14,7 @@ spec:
         - SCRAM
 
   externalAccess:
+    externalDomain: int.aethericforge.ca
     externalService:
       annotations:
         metallb.io/address-pool: private-pool
