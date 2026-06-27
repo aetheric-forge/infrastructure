@@ -106,11 +106,11 @@ destroy_platform_bootstrap() {
 		"platform-operators"
 
 	delete_phase \
-		"$ROOT_DIR/clusters/single/dev/bootstrap/20-platform-config" \
+		"$ROOT_DIR/clusters/single/dev/20-platform-config" \
 		"platform-config"
 
 	delete_phase \
-		"$ROOT_DIR/clusters/single/dev/bootstrap/10-platform-core" \
+		"$ROOT_DIR/clusters/single/dev/10-platform-core" \
 		"platform-core"
 }
 
