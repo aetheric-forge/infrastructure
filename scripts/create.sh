@@ -154,10 +154,6 @@ render_overlay() {
 	apply_rendered "$rendered" "$label"
 }
 
-########################################
-# Stage 3 — Bootstrap platform resources
-########################################
-
 deploy_platform_bootstrap() {
 	log "Deploying platform bootstrap substrate"
 
@@ -176,7 +172,7 @@ deploy_platform_bootstrap() {
 	########################################
 
 	render_overlay \
-		"$ROOT_DIR/clusters/single/$ENVIRONMENT/bootstrap/10-platform-core" \
+		"$ROOT_DIR/clusters/single/$ENVIRONMENT/10-platform-core" \
 		"platform-core"
 
 	log "Waiting for metallb CRDs..."
@@ -208,12 +204,48 @@ deploy_platform_bootstrap() {
 	########################################
 
 	render_overlay \
-		"$ROOT_DIR/clusters/single/$ENVIRONMENT/bootstrap/20-platform-config" \
+		"$ROOT_DIR/clusters/single/$ENVIRONMENT/20-platform-config" \
 		"platform-config"
+
+	########################################
+	# Phase 3 - Operators/CRDs
+	########################################
+
+	render_overlay \
+		"$ROOT_DIR/clusters/single/$ENVIRONMENT/30-platform-operators" \
+		"platform-operators"
+
+	log "Waiting for operator CRDs..."
+
+	for crd in \
+		keycloaks.k8s.keycloak.org \
+		rabbitmqclusters.rabbitmq.com \
+		mongodbcommunity.mongodb.com \
+		clusters.postgresql.cnpg.io \
+		tenants.min.io; do
+		until kubectl get crd "$crd" >/dev/null 2>&1; do
+			sleep 2
+		done
+	done
+
+	kubectl wait \
+		--for=condition=Established \
+		crd/keycloaks.k8s.keycloak.org \
+		crd/rabbitmqclusters.rabbitmq.com \
+		crd/mongodbcommunity.mongodb.com \
+		crd/clusters.postgresql.cnpg.io \
+		crd/tenants.min.io \
+		--timeout=120s ||
+		fail "Operator CRDs failed"
+
+	########################################
+	# Phase 4 - Platform services
+	########################################
+
+	render_overlay \
+		"$ROOT_DIR/clusters/single/$ENVIRONMENT/40-platform-services" \
+		"platform-services"
 }
-########################################
-# Stage 4 — Step CA trust
-########################################
 
 bootstrap_step_ca_trust() {
 	log "[Forge] Bootstrapping Step CA trust"
@@ -313,7 +345,7 @@ main() {
 	setup_wireguard
 	deploy_cluster
 	deploy_platform_bootstrap
-	deploy_gitops_apps
+	#deploy_gitops_apps
 	bootstrap_step_ca_trust
 	verify
 

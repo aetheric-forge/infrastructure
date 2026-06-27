@@ -98,6 +98,14 @@ destroy_platform_bootstrap() {
 	log "Destroying platform bootstrap substrate"
 
 	delete_phase \
+		"$ROOT_DIR/clusters/single/dev/40-platform-services" \
+		"platform-services"
+
+	delete_phase \
+		"$ROOT_DIR/clusters/single/dev/30-platform-operators" \
+		"platform-operators"
+
+	delete_phase \
 		"$ROOT_DIR/clusters/single/dev/bootstrap/20-platform-config" \
 		"platform-config"
 
@@ -120,20 +128,6 @@ wait_until_empty() {
 main() {
 	log "Starting destroy sequence"
 
-	log "Removing ArgoCD apps"
-	kubectl patch application root-dev -n argocd --type=merge -p '{
-	  "spec": {
-	    "source": {
-	      "path": "clusters/single/dev/gitops/destroy"
-	    }
-	  }
-	}'
-
-	kubectl delete application -n argocd --field-selector metadata.name!=root-dev --wait=false
-
-	for kind in tenant keycloak rabbitmqcluster mongodbcommunity cluster; do
-		wait_until_empty "$kind"
-	done
 	# Step 1 — unwind GitOps while cluster still exists
 	destroy_platform_bootstrap
 
