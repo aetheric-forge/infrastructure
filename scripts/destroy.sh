@@ -123,13 +123,11 @@ main() {
 
 	log "Removing ArgoCD apps"
 
-	kubectl -n argocd delete app root-app --force 2>/dev/null || true
-
 	# remove ArgoCD apps and all associated CRs
 	kustomize build --enable-helm --enable-alpha-plugins --enable-exec "$ROOT_DIR/apps/dev" | kubectl delete -f - 2>/dev/null || true
 
 	# wait for all CRs to be removed prior to continuing with teardown
-	for kind in tenant cluster rabbitmqcluster mongodbcommunity; do
+	for kind in tenant cluster rabbitmqcluster mongodbcommunity keycloak; do
 		log "Waiting for all ${kind}s to be removed..."
 		wait_until_empty "$kind"
 	done
