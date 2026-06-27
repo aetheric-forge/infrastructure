@@ -2,9 +2,9 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-  - ../../../../../platform/core/metallb/base
-  - ../../../../../platform/core/ingress-nginx/base
-  - ../../../../../platform/core/external-dns/base
-  - ../../../../../platform/core/step-ca/base
-  - ../../../../../platform/core/cert-manager/base
-  - ../../../../../platform/core/velero/base
+  - ../../../../platform/core/metallb/base
+  - ../../../../platform/core/ingress-nginx/base
+  - ../../../../platform/core/external-dns/base
+  - ../../../../platform/core/step-ca/base
+  - ../../../../platform/core/cert-manager/base
+  - ../../../../platform/core/velero/base

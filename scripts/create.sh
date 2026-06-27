@@ -217,24 +217,13 @@ deploy_platform_bootstrap() {
 
 	log "Waiting for operator CRDs..."
 
-	for crd in \
-		keycloaks.k8s.keycloak.org \
-		rabbitmqclusters.rabbitmq.com \
-		mongodbcommunity.mongodb.com \
-		clusters.postgresql.cnpg.io \
-		tenants.min.io; do
-		until kubectl get crd "$crd" >/dev/null 2>&1; do
-			sleep 2
-		done
-	done
-
 	kubectl wait \
 		--for=condition=Established \
 		crd/keycloaks.k8s.keycloak.org \
 		crd/rabbitmqclusters.rabbitmq.com \
-		crd/mongodbcommunity.mongodb.com \
 		crd/clusters.postgresql.cnpg.io \
-		crd/tenants.min.io \
+		crd/tenants.minio.min.io \
+		crd/mongodbcommunity.mongodbcommunity.mongodb.com \
 		--timeout=120s ||
 		fail "Operator CRDs failed"
 

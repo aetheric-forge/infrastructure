@@ -2,7 +2,8 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-  - ../../../../../platform/operators/minio/base
-  - ../../../../../platform/operators/cnpg/base
-  - ../../../../../platform/operators/keycloak/base
-  - ../../../../../platform/operators/rabbitmq/base
+  - ../../../../platform/operators/minio/base
+  - ../../../../platform/operators/cnpg/base
+  - ../../../../platform/operators/mongodb/base
+  - ../../../../platform/operators/keycloak/base
+  - ../../../../platform/operators/rabbitmq/base
