@@ -4,6 +4,6 @@ kind: Kustomization
 resources:
   - ../../../../platform/operators/minio/base
   - ../../../../platform/operators/cnpg/base
-  - ../../../../platform/operators/mongodb/base
+  - ../../../../platform/operators/forge-mongo/base
   - ../../../../platform/operators/keycloak/base
   - ../../../../platform/operators/rabbitmq/base
