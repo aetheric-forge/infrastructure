@@ -126,7 +126,7 @@ main() {
 	kustomize build --enable-helm --enable-alpha-plugins --enable-exec "$ROOT_DIR/apps/dev" | kubectl delete -f - 2>/dev/null || true
 
 	# wait for all CRs to be removed prior to continuing with teardown
-	for kind in tenant cluster rabbitmqcluster mongodbcommunity keycloak; do
+	for kind in tenant rabbitmqcluster mongodbcommunity keycloak backupstoragelocation backup schedule cluster; do
 		log "Waiting for all ${kind}s to be removed..."
 		wait_until_empty "$kind"
 	done
