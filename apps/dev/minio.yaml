@@ -4,7 +4,7 @@ metadata:
   name: minio-dev
   namespace: argocd
   finalizers:
-    - resources-finalizer.argocd.argoproj.io/background
+    - resources-finalizer.argocd.argoproj.io
 spec:
   project: services
   source:

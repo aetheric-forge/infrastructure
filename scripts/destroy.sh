@@ -123,11 +123,17 @@ main() {
 	log "Removing ArgoCD apps"
 
 	# Stop Argo from recreating/self-healing while keeping the controller alive.
-	for app in $(kubectl get applications -n argocd -o name); do
-		kubectl patch "$app" -n argocd --type=json -p='[
-	    {"op":"remove","path":"/spec/syncPolicy/automated"}
-	  ]' 2>/dev/null || true
-	done
+	kubectl patch application root-dev -n argocd \
+		--type=merge \
+		-p '{
+		"spec": {
+		  "syncPolicy": {
+		    "syncOptions": [
+		      "CreateNamespace=true"
+		    ]
+		  }
+		}
+	      }'
 
 	kustomize build --enable-helm --enable-alpha-plugins --enable-exec apps/dev | kubectl delete -f -
 
