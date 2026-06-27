@@ -22,11 +22,10 @@ spec:
             metadata:
               name: forge-db-dev-lb
               annotations:
-                metallb.universe.tf/address-pool: private-pool
+                metallb.io/address-pool: private-pool
                 external-dns.alpha.kubernetes.io/hostname: forge-db-dev.int.aethericforge.ca
             spec:
               type: LoadBalancer
-              loadBalancerIP: 192.168.1.242
 
   backup:
     target: primary

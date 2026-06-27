@@ -3,5 +3,7 @@ kind: Kustomization
 
 resources:
   - namespace.yaml
+  - ../../secrets/dev
+  - certificate.yaml
   - rabbitmq.yaml
-  - service.yaml
+  - ingress.yaml

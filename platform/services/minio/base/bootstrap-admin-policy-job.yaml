@@ -2,6 +2,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: minio-bootstrap
+  namespace: minio
 spec:
   backoffLimit: 5
   template:
@@ -21,6 +22,10 @@ spec:
             - -ec
             - |
               . "$MINIO_CONFIG_ENV_FILE"
+
+              echo "Allowing 600s for cluster initialization and initial setup..."
+
+              sleep 600
 
               until mc alias set minio \
                 https://minio.minio.svc.cluster.local \

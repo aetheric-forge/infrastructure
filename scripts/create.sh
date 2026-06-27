@@ -154,10 +154,6 @@ render_overlay() {
 	apply_rendered "$rendered" "$label"
 }
 
-########################################
-# Stage 3 — Bootstrap platform resources
-########################################
-
 deploy_platform_bootstrap() {
 	log "Deploying platform bootstrap substrate"
 
@@ -176,7 +172,7 @@ deploy_platform_bootstrap() {
 	########################################
 
 	render_overlay \
-		"$ROOT_DIR/clusters/single/$ENVIRONMENT/bootstrap/10-platform-core" \
+		"$ROOT_DIR/clusters/single/$ENVIRONMENT/10-platform-core" \
 		"platform-core"
 
 	log "Waiting for metallb CRDs..."
@@ -208,12 +204,45 @@ deploy_platform_bootstrap() {
 	########################################
 
 	render_overlay \
-		"$ROOT_DIR/clusters/single/$ENVIRONMENT/bootstrap/20-platform-config" \
+		"$ROOT_DIR/clusters/single/$ENVIRONMENT/20-platform-config" \
 		"platform-config"
+
+	########################################
+	# Phase 3 - Operators/CRDs
+	########################################
+
+	render_overlay \
+		"$ROOT_DIR/clusters/single/$ENVIRONMENT/30-platform-operators" \
+		"platform-operators"
+
+	log "Waiting for operator CRDs..."
+
+	kubectl wait \
+		--for=condition=Established \
+		crd/keycloaks.k8s.keycloak.org \
+		crd/rabbitmqclusters.rabbitmq.com \
+		crd/clusters.postgresql.cnpg.io \
+		crd/tenants.minio.min.io \
+		crd/mongodbcommunity.mongodbcommunity.mongodb.com \
+		--timeout=120s ||
+		fail "Operator CRDs failed"
+
+	log "Waiting for CNPG controller manager..."
+
+	kubectl wait \
+		--for=condition=Available \
+		deployment/cnpg-cloudnative-pg \
+		-n cnpg-system \
+		--timeout=120s
+
+	########################################
+	# Phase 4 - Platform services
+	########################################
+
+	render_overlay \
+		"$ROOT_DIR/clusters/single/$ENVIRONMENT/40-platform-services" \
+		"platform-services"
 }
-########################################
-# Stage 4 — Step CA trust
-########################################
 
 bootstrap_step_ca_trust() {
 	log "[Forge] Bootstrapping Step CA trust"
@@ -265,18 +294,6 @@ bootstrap_step_ca_trust() {
 }
 
 ########################################
-# Stage 5 — GitOps app declarations
-########################################
-
-deploy_gitops_apps() {
-	log "Handing control to GitOps app declarations"
-
-	render_overlay \
-		"$ROOT_DIR/clusters/single/$ENVIRONMENT/gitops" \
-		"gitops"
-}
-
-########################################
 # Stage 6 — Verification
 ########################################
 
@@ -313,7 +330,6 @@ main() {
 	setup_wireguard
 	deploy_cluster
 	deploy_platform_bootstrap
-	deploy_gitops_apps
 	bootstrap_step_ca_trust
 	verify
 

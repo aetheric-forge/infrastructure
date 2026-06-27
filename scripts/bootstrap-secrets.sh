@@ -12,6 +12,9 @@ MINIO_NAMESPACE="minio"
 VELERO_NAMESPACE="velero"
 ARGOCD_NAMESPACE="argocd"
 STEP_CA_NAMESPACE="step-ca"
+RABBITMQ_NAMESPACE="rabbitmq"
+FORGE_MONGO_NAMESPACE="forge-mongo"
+REDIS_NAMESPACE="redis"
 
 function require_env() {
 	for name in "$@"; do
@@ -278,9 +281,12 @@ function distribute_step_ca_certificates() {
 	local targets=(
 		"argocd:$ROOT_DIR/platform/services/argocd/secrets/$ENVIRONMENT/step-ca-root-ca.enc.yaml"
 		"$FORGE_DB_NAMESPACE:$ROOT_DIR/platform/services/forge-db/secrets/$ENVIRONMENT/step-ca-root-ca.enc.yaml"
-		"$KEYCLOAK_NAMESPACE:$ROOT_DIR/platform/services/keycloak/secrets/$ENVIRONMENT/step-ca-root-ca.enc.yaml"
+		"$KEYCLOAK_NAMESPACE:$ROOT_DIR/platform/services/forge-keycloak/secrets/$ENVIRONMENT/step-ca-root-ca.enc.yaml"
 		"$MINIO_NAMESPACE:$ROOT_DIR/platform/services/minio/secrets/$ENVIRONMENT/step-ca-root-ca.enc.yaml"
 		"$VELERO_NAMESPACE:$ROOT_DIR/platform/core/velero/secrets/$ENVIRONMENT/step-ca-root-ca.enc.yaml"
+		"$RABBITMQ_NAMESPACE:$ROOT_DIR/platform/services/rabbitmq/secrets/$ENVIRONMENT/step-ca-root-ca.enc.yaml"
+		"$FORGE_MONGO_NAMESPACE:$ROOT_DIR/platform/services/forge-mongo/secrets/$ENVIRONMENT/step-ca-root-ca.enc.yaml"
+		"$REDIS_NAMESPACE:$ROOT_DIR/platform/services/redis/secrets/$ENVIRONMENT/step-ca-root-ca.enc.yaml"
 	)
 
 	local target
@@ -305,7 +311,7 @@ function render_velero_bsl() {
 
 	ca_cert=$(base64 -w0 <"$cert_file")
 
-	cat <<EOF >"$ROOT_DIR/platform/core/velero/base/backupstoragelocation.yaml"
+	cat <<EOF >"$ROOT_DIR/platform/core/velero/overlays/$ENVIRONMENT/backupstoragelocation.yaml"
 apiVersion: velero.io/v1
 kind: BackupStorageLocation
 metadata:
@@ -375,7 +381,7 @@ EOF
 
 function create_forge_db_secrets() {
 	local forge_db_secret_dir="$ROOT_DIR/platform/services/forge-db/secrets/$ENVIRONMENT"
-	local keycloak_secret_dir="$ROOT_DIR/platform/services/keycloak/secrets/$ENVIRONMENT"
+	local keycloak_secret_dir="$ROOT_DIR/platform/services/forge-keycloak/secrets/$ENVIRONMENT"
 	local backup_s3
 	local keycloak_password
 
@@ -405,7 +411,7 @@ EOF
 
 function create_keycloak_secrets() {
 	create_sops_secret "$KEYCLOAK_NAMESPACE" "forge-keycloak-admin" \
-		"$ROOT_DIR/platform/services/keycloak/secrets/$ENVIRONMENT/forge-keycloak-admin.enc.yaml" \
+		"$ROOT_DIR/platform/services/forge-keycloak/secrets/$ENVIRONMENT/forge-keycloak-admin.enc.yaml" \
 		"$(basic_auth_secret "$KEYCLOAK_NAMESPACE" "forge-keycloak-admin" "admin" "$(rand_alnum 16)")"
 }
 
@@ -430,6 +436,44 @@ EOF
 		"${secret}"
 }
 
+function create_mongo_secrets() {
+	local admin=$(
+		cat <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: forge-mongo-admin
+  namespace: forge-mongo
+type: Opaque
+stringData:
+  password: "$(rand_alnum 16)"
+EOF
+	)
+
+	create_sops_secret "$FORGE_MONGO_NAMESPACE" "forge-mongo-admin" \
+		"$ROOT_DIR/platform/services/forge-mongo/secrets/$ENVIRONMENT/forge-mongo-admin.enc.yaml" \
+		"${admin}"
+}
+
+function create_redis_secrets() {
+	local auth=$(
+		cat <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: redis-auth
+  namespace: redis
+type: Opaque
+stringData:
+  password: "$(rand_alnum 32)"
+EOF
+	)
+
+	create_sops_secret "$REDIS_NAMESPACE" "redis-auth" \
+		"$ROOT_DIR/platform/services/redis/secrets/$ENVIRONMENT/redis-auth.enc.yaml" \
+		"${auth}"
+}
+
 function create_gitops_artifacts() {
 	create_minio_secret
 	create_velero_secret
@@ -437,6 +481,8 @@ function create_gitops_artifacts() {
 	create_forge_db_secrets
 	create_keycloak_secrets
 	create_argocd_secrets
+	create_mongo_secrets
+	create_redis_secrets
 }
 
 require_env \

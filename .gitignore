@@ -82,3 +82,5 @@ root_ca.*
 scripts/pulumi/cluster/gitops.yaml
 scripts/pulumi/cluster/platform-config.yaml
 scripts/pulumi/cluster/platform-core.yaml
+scripts/pulumi/cluster/platform-operators.yaml
+scripts/pulumi/cluster/platform-services.yaml

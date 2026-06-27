@@ -1,0 +1,30 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: rabbitmq-server-tls
+  namespace: rabbitmq
+spec:
+  secretName: rabbitmq-server-tls
+
+  issuerRef:
+    kind: ClusterIssuer
+    name: step-ca-int-acme
+
+  commonName: amqp-dev.int.aethericforge.ca
+
+  dnsNames:
+    - amqp-dev.int.aethericforge.ca
+    - rabbitmq-dev.int.aethericforge.ca
+
+  privateKey:
+    algorithm: RSA
+    size: 2048
+    rotationPolicy: Always
+
+  usages:
+    - digital signature
+    - key encipherment
+    - server auth
+
+  duration: 2160h      # 90 days
+  renewBefore: 360h    # 15 days

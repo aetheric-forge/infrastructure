@@ -88,7 +88,6 @@ delete_phase() {
 destroy_platform_bootstrap() {
 	if check_kube_api; then
 		log "Cluster reachable → unwinding GitOps resources..."
-		kubectl delete -n argocd -f "$ROOT_DIR/clusters/single/dev/gitops/dev-root-application.yaml" --ignore-not-found 2>/dev/null || true
 		log "🧹 Purging DNS01 artifacts..."
 		kubectl delete cert,certificaterequest --all -A || true
 		sleep 5
@@ -99,17 +98,32 @@ destroy_platform_bootstrap() {
 	log "Destroying platform bootstrap substrate"
 
 	delete_phase \
-		"$ROOT_DIR/clusters/single/dev/bootstrap/20-platform-config" \
+		"$ROOT_DIR/clusters/single/dev/40-platform-services" \
+		"platform-services"
+
+	delete_phase \
+		"$ROOT_DIR/clusters/single/dev/30-platform-operators" \
+		"platform-operators"
+
+	delete_phase \
+		"$ROOT_DIR/clusters/single/dev/20-platform-config" \
 		"platform-config"
 
 	delete_phase \
-		"$ROOT_DIR/clusters/single/dev/bootstrap/10-platform-core" \
+		"$ROOT_DIR/clusters/single/dev/10-platform-core" \
 		"platform-core"
 }
 
 ########################################
 # Main sequence
 ########################################
+wait_until_empty() {
+	local kind="$1"
+
+	while [[ -n "$(kubectl get "$kind" -A --no-headers 2>/dev/null)" ]]; do
+		sleep 1
+	done
+}
 
 main() {
 	log "Starting destroy sequence"
