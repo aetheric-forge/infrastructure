@@ -113,7 +113,7 @@ destroy_platform_bootstrap() {
 wait_until_empty() {
 	local kind="$1"
 
-	while [[ -n $(kubectl get "$kind" -A --no-headers 2>/dev/null) ]]; do
+	while [[ -n "$(kubectl get "$kind" -A --no-headers 2>/dev/null)" ]]; do
 		sleep 1
 	done
 }
@@ -123,8 +123,10 @@ main() {
 
 	log "Removing ArgoCD apps"
 
+	kubectl -n argocd delete app root-app --force 2>/dev/null || true
+
 	# remove ArgoCD apps and all associated CRs
-	delete_phase "$ROOT_DIR/apps/dev" "apps"
+	kustomize build --enable-helm --enable-alpha-plugins --enable-exec "$ROOT_DIR/apps/dev" | kubectl delete -f - 2>/dev/null || true
 
 	# wait for all CRs to be removed prior to continuing with teardown
 	for kind in tenant cluster rabbitmqcluster mongodbcommunity; do
