@@ -88,7 +88,6 @@ delete_phase() {
 destroy_platform_bootstrap() {
 	if check_kube_api; then
 		log "Cluster reachable → unwinding GitOps resources..."
-		kubectl delete -n argocd -f "$ROOT_DIR/clusters/single/dev/gitops/dev-root-application.yaml" --ignore-not-found 2>/dev/null || true
 		log "🧹 Purging DNS01 artifacts..."
 		kubectl delete cert,certificaterequest --all -A || true
 		sleep 5
