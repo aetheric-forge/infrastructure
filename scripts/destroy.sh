@@ -122,20 +122,27 @@ main() {
 
 	log "Removing ArgoCD apps"
 
+	ROOT_APP="root-dev"
 	# Stop Argo from recreating/self-healing while keeping the controller alive.
-	kubectl patch application root-dev -n argocd \
-		--type=merge \
-		-p '{
-		"spec": {
-		  "syncPolicy": {
-		    "syncOptions": [
-		      "CreateNamespace=true"
-		    ]
-		  }
-		}
-	      }'
+	kubectl annotate application "$ROOT_APP" -n argocd \
+		argocd.argoproj.io/skip-reconcile=true \
+		--overwrite
 
-	kustomize build --enable-helm --enable-alpha-plugins --enable-exec apps/dev | kubectl delete -f -
+	for app in $(kubectl get applications -n argocd -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}'); do
+		if [ "$app" != "$ROOT_APP" ]; then
+			kubectl delete application "$app" -n argocd --wait=false
+		fi
+	done
+
+	while [ "$(kubectl get applications -n argocd --no-headers 2>/dev/null | awk '$1 != "'"$ROOT_APP"'" {print}' | wc -l)" -gt 0 ]; do
+		sleep 2
+	done
+
+	kubectl patch application "$ROOT_APP" -n argocd \
+		--type=json \
+		-p='[{"op":"remove","path":"/metadata/finalizers"}]' 2>/dev/null || true
+
+	kubectl delete application "$ROOT_APP" -n argocd --ignore-not-found
 
 	# Step 1 — unwind GitOps while cluster still exists
 	destroy_platform_bootstrap
