@@ -122,14 +122,14 @@ main() {
 
 	log "Removing ArgoCD apps"
 
-	# remove ArgoCD apps and all associated CRs
-	kustomize build --enable-helm --enable-alpha-plugins --enable-exec "$ROOT_DIR/apps/dev" | kubectl delete -f - 2>/dev/null || true
-
-	# wait for all CRs to be removed prior to continuing with teardown
-	for kind in tenant rabbitmqcluster mongodbcommunity keycloak backupstoragelocation backup schedule cluster; do
-		log "Waiting for all ${kind}s to be removed..."
-		wait_until_empty "$kind"
+	# Stop Argo from recreating/self-healing while keeping the controller alive.
+	for app in $(kubectl get applications -n argocd -o name); do
+		kubectl patch "$app" -n argocd --type=json -p='[
+	    {"op":"remove","path":"/spec/syncPolicy/automated"}
+	  ]' 2>/dev/null || true
 	done
+
+	kustomize build --enable-helm --enable-alpha-plugins --enable-exec apps/dev | kubectl delete -f -
 
 	# Step 1 — unwind GitOps while cluster still exists
 	destroy_platform_bootstrap
