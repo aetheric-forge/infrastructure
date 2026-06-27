@@ -23,9 +23,9 @@ spec:
             - |
               . "$MINIO_CONFIG_ENV_FILE"
 
-              echo "Allowing 300s for cluster initialization..."
+              echo "Allowing 600s for cluster initialization and initial setup..."
 
-              sleep 300
+              sleep 600
 
               until mc alias set minio \
                 https://minio.minio.svc.cluster.local \
