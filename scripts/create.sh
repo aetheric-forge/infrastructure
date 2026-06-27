@@ -227,6 +227,14 @@ deploy_platform_bootstrap() {
 		--timeout=120s ||
 		fail "Operator CRDs failed"
 
+	log "Waiting for CNPG controller manager..."
+
+	kubectl wait \
+		--for=condition=Available \
+		deployment/cnpg-cloudnative-pg \
+		-n cnpg-system \
+		--timeout=120s
+
 	########################################
 	# Phase 4 - Platform services
 	########################################
