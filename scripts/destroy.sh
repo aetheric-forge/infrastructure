@@ -110,6 +110,13 @@ destroy_platform_bootstrap() {
 ########################################
 # Main sequence
 ########################################
+wait_until_empty() {
+	local kind="$1"
+
+	while [[ -n $(kubectl get "$kind" -A --no-headers 2>/dev/null) ]]; do
+		sleep 1
+	done
+}
 
 main() {
 	log "Starting destroy sequence"
@@ -120,20 +127,9 @@ main() {
 	delete_phase "$ROOT_DIR/apps/dev" "apps"
 
 	# wait for all CRs to be removed prior to continuing with teardown
-	while kubectl get rabbitmqcluster -A --no-headers 2>/dev/null | grep -q .; do
-		sleep 1
-	done
-
-	while kubectl get tenant -A --no-headers 2>/dev/null | grep -q .; do
-		sleep 1
-	done
-
-	while kubectl get mongodbcommunity -A --no-headers 2>/dev/null | grep -q .; do
-		sleep 1
-	done
-
-	while kubectl get cluster -A --no-headers 2>/dev/null | grep -q .; do
-		sleep 1
+	for kind in tenant cluster rabbitmqcluster mongodbcommunity; do
+		log "Waiting for all ${kind}s to be removed..."
+		wait_until_empty "$kind"
 	done
 
 	# Step 1 — unwind GitOps while cluster still exists
