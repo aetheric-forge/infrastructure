@@ -294,18 +294,6 @@ bootstrap_step_ca_trust() {
 }
 
 ########################################
-# Stage 5 — GitOps app declarations
-########################################
-
-deploy_gitops_apps() {
-	log "Handing control to GitOps app declarations"
-
-	render_overlay \
-		"$ROOT_DIR/clusters/single/$ENVIRONMENT/gitops" \
-		"gitops"
-}
-
-########################################
 # Stage 6 — Verification
 ########################################
 
@@ -342,7 +330,6 @@ main() {
 	setup_wireguard
 	deploy_cluster
 	deploy_platform_bootstrap
-	#deploy_gitops_apps
 	bootstrap_step_ca_trust
 	verify
 
