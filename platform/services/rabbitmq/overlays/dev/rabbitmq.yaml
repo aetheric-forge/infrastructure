@@ -20,6 +20,23 @@ spec:
       cpu: "2"
       memory: 2Gi
 
+  override:
+    statefulSet:
+      spec:
+        template:
+          spec:
+            containers:
+              - name: rabbitmq
+                startupProbe:
+                  exec:
+                    command:
+                      - rabbitmq-diagnostics
+                      - check_running
+                  initialDelaySeconds: 10
+                  periodSeconds: 10
+                  timeoutSeconds: 5
+                  failureThreshold: 30
+
   tls:
     secretName: rabbitmq-server-tls
     caSecretName: step-ca-root-ca
