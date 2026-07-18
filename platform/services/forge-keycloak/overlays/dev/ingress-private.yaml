@@ -1,28 +1,26 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: keycloak
-  namespace: keycloak-system
   annotations:
     cert-manager.io/cluster-issuer: step-ca-int-acme
     external-dns.alpha.kubernetes.io/hostname: sso-dev.int.aethericforge.ca
-    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    nginx.ingress.kubernetes.io/backend-protocol: HTTPS
+  name: keycloak-private
+  namespace: keycloak-system
 spec:
   ingressClassName: nginx-private
-
-  tls:
-    - hosts:
-        - sso-dev.int.aethericforge.ca
-      secretName: forge-keycloak-tls
-
   rules:
-    - host: sso-dev.int.aethericforge.ca
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: forge-keycloak-service
-                port:
-                  name: https
+  - host: sso-dev.int.aethericforge.ca
+    http:
+      paths:
+      - backend:
+          service:
+            name: forge-keycloak-service
+            port:
+              name: https
+        path: /
+        pathType: Prefix
+  tls:
+  - hosts:
+    - sso-dev.int.aethericforge.ca
+    secretName: forge-keycloak-tls
