@@ -6,7 +6,7 @@ metadata:
   annotations:
     cert-manager.io/cluster-issuer: step-ca-int-acme
 spec:
-  ingressClassName: nginx-private
+  ingressClassName: nginx
 
   tls:
     - hosts:
