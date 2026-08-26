@@ -346,7 +346,7 @@ function create_minio_secret() {
   config.env: |
     export MINIO_ROOT_USER="minio-root-$(rand_alnum 8)"
     export MINIO_ROOT_PASSWORD="$(rand_alnum 32)"
-    export MINIO_IDENTITY_OPENID_CONFIG_URL="https://sso-dev.int.aethericforge.ca/realms/int.aethericforge.ca/.well-known/openid-configuration"
+    export MINIO_IDENTITY_OPENID_CONFIG_URL="https://sso-dev.aethericforge.ca/realms/int.aethericforge.ca/.well-known/openid-configuration"
     export MINIO_BROWSER_REDIRECT_URL="https://console-dev.int.aethericforge.ca"
     export MINIO_SERVER_URL="https://s3-dev.int.aethericforge.ca"
     export MINIO_IDENTITY_OPENID_CLIENT_ID="minio"

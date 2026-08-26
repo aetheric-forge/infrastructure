@@ -1,155 +1,148 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-
-resources:
-  - namespace.yaml
-
 helmCharts:
-  - name: argo-cd
-    repo: https://argoproj.github.io/argo-helm
-    version: 9.7.0
-    releaseName: argocd
-    namespace: argocd
-    includeCRDs: true
-    valuesInline:
-      fullnameOverride: argocd
-      crds:
-        install: true
-      server:
-        ingress:
-          enabled: false
-        volumes:
-          - name: step-ca-root-ca
-            secret:
-              secretName: step-ca-root-ca
-          - name: ssl-certs
-            emptyDir: {}
-        initContainers:
-          - name: update-ca-trust
-            image: quay.io/argoproj/argocd:v3.4.4
-            securityContext:
-              runAsUser: 0
-              runAsGroup: 0
-            command:
-              - /bin/bash
-              - -c
-            args:
-              - |
-                set -euo pipefail
+- includeCRDs: true
+  name: argo-cd
+  namespace: argocd
+  releaseName: argocd
+  repo: https://argoproj.github.io/argo-helm
+  valuesInline:
+    configs:
+      cm:
+        kustomize.buildOptions: --enable-helm --enable-alpha-plugins --enable-exec
+        oidc.config: |
+          name: Keycloak
+          issuer: https://sso-dev.aethericforge.ca/realms/int.aethericforge.ca
+          clientID: argocd
+          clientSecret: $argocd-keycloak-oidc:clientSecret
 
-                mkdir -p /usr/local/share/ca-certificates
+          requestedScopes:
+            - openid
+            - profile
+            - email
+            - groups
 
-                cp /step-ca/ca.crt \
-                   /usr/local/share/ca-certificates/step-ca.crt
-
-                update-ca-certificates
-
-                cp -a /etc/ssl/certs/. /work-certs/
-            volumeMounts:
-              - name: step-ca-root-ca
-                mountPath: /step-ca
-                readOnly: true
-              - name: ssl-certs
-                mountPath: /work-certs
+          requestedIDTokenClaims:
+            groups:
+              essential: true
+        url: https://argocd-dev.int.aethericforge.ca
+      params:
+        application.namespaces: '*'
+        applicationset.namespaces: '*'
+      rbac:
+        policy.csv: |
+          g, argocd-admins, role:admin
+        policy.default: role:readonly
+    crds:
+      install: true
+    fullnameOverride: argocd
+    repoServer:
+      env:
+      - name: XDG_CONFIG_HOME
+        value: /home/argocd/.config
+      - name: SOPS_AGE_KEY_FILE
+        value: /home/argocd/.config/sops/age/keys.txt
+      initContainers:
+      - args:
+        - |
+          set -euo pipefail
+          apk add --no-cache curl tar
+          ARCH="$(uname -m)"
+          case "${ARCH}" in
+            x86_64) KSOPS_ARCH="x86_64"; SOPS_ARCH="amd64" ;;
+            aarch64) KSOPS_ARCH="arm64"; SOPS_ARCH="arm64" ;;
+            *) echo "unsupported arch: ${ARCH}" >&2; exit 1 ;;
+          esac
+          KSOPS_VERSION="v4.4.0"
+          KSOPS_VERSION_NO_V="${KSOPS_VERSION#v}"
+          SOPS_VERSION="v3.10.2"
+          curl -fsSL "https://github.com/viaduct-ai/kustomize-sops/releases/download/${KSOPS_VERSION}/ksops_${KSOPS_VERSION_NO_V}_Linux_${KSOPS_ARCH}.tar.gz" -o /tmp/ksops.tgz
+          tar -xzf /tmp/ksops.tgz -C /tmp
+          install -m 0755 /tmp/ksops /custom-tools/ksops
+          curl -fsSL "https://github.com/getsops/sops/releases/download/${SOPS_VERSION}/sops-${SOPS_VERSION}.linux.${SOPS_ARCH}" -o /custom-tools/sops
+          chmod 0755 /custom-tools/sops
+          mkdir -p /custom-tools/plugin/viaduct.ai/v1/ksops
+          cp /custom-tools/ksops /custom-tools/plugin/viaduct.ai/v1/ksops/ksops
+        command:
+        - /bin/sh
+        - -c
+        image: alpine:3.20
+        name: install-ksops
         volumeMounts:
-          - name: ssl-certs
-            mountPath: /etc/ssl/certs        
-      repoServer:
-        env:
-          - name: XDG_CONFIG_HOME
-            value: /home/argocd/.config
-          - name: SOPS_AGE_KEY_FILE
-            value: /home/argocd/.config/sops/age/keys.txt
-        volumes:
-          - name: custom-tools
-            emptyDir: {}
-          - name: sops-age
-            secret:
-              secretName: sops-age
-              optional: true
+        - mountPath: /custom-tools
+          name: custom-tools
+      volumeMounts:
+      - mountPath: /usr/local/bin/ksops
+        name: custom-tools
+        subPath: ksops
+      - mountPath: /usr/local/bin/sops
+        name: custom-tools
+        subPath: sops
+      - mountPath: /home/argocd/.config/kustomize/plugin
+        name: custom-tools
+        subPath: plugin
+      - mountPath: /home/argocd/.config/sops/age
+        name: sops-age
+        readOnly: true
+      volumes:
+      - emptyDir: {}
+        name: custom-tools
+      - name: sops-age
+        secret:
+          optional: true
+          secretName: sops-age
+    server:
+      ingress:
+        enabled: false
+      initContainers:
+      - args:
+        - |
+          set -euo pipefail
+
+          mkdir -p /usr/local/share/ca-certificates
+
+          cp /step-ca/ca.crt \
+             /usr/local/share/ca-certificates/step-ca.crt
+
+          update-ca-certificates
+
+          cp -a /etc/ssl/certs/. /work-certs/
+        command:
+        - /bin/bash
+        - -c
+        image: quay.io/argoproj/argocd:v3.4.4
+        name: update-ca-trust
+        securityContext:
+          runAsGroup: 0
+          runAsUser: 0
         volumeMounts:
-          - name: custom-tools
-            mountPath: /usr/local/bin/ksops
-            subPath: ksops
-          - name: custom-tools
-            mountPath: /usr/local/bin/sops
-            subPath: sops
-          - name: custom-tools
-            mountPath: /home/argocd/.config/kustomize/plugin
-            subPath: plugin
-          - name: sops-age
-            mountPath: /home/argocd/.config/sops/age
-            readOnly: true
-        initContainers:
-          - name: install-ksops
-            image: alpine:3.20
-            command:
-              - /bin/sh
-              - -c
-            args:
-              - |
-                set -euo pipefail
-                apk add --no-cache curl tar
-                ARCH="$(uname -m)"
-                case "${ARCH}" in
-                  x86_64) KSOPS_ARCH="x86_64"; SOPS_ARCH="amd64" ;;
-                  aarch64) KSOPS_ARCH="arm64"; SOPS_ARCH="arm64" ;;
-                  *) echo "unsupported arch: ${ARCH}" >&2; exit 1 ;;
-                esac
-                KSOPS_VERSION="v4.4.0"
-                KSOPS_VERSION_NO_V="${KSOPS_VERSION#v}"
-                SOPS_VERSION="v3.10.2"
-                curl -fsSL "https://github.com/viaduct-ai/kustomize-sops/releases/download/${KSOPS_VERSION}/ksops_${KSOPS_VERSION_NO_V}_Linux_${KSOPS_ARCH}.tar.gz" -o /tmp/ksops.tgz
-                tar -xzf /tmp/ksops.tgz -C /tmp
-                install -m 0755 /tmp/ksops /custom-tools/ksops
-                curl -fsSL "https://github.com/getsops/sops/releases/download/${SOPS_VERSION}/sops-${SOPS_VERSION}.linux.${SOPS_ARCH}" -o /custom-tools/sops
-                chmod 0755 /custom-tools/sops
-                mkdir -p /custom-tools/plugin/viaduct.ai/v1/ksops
-                cp /custom-tools/ksops /custom-tools/plugin/viaduct.ai/v1/ksops/ksops
-            volumeMounts:
-              - name: custom-tools
-                mountPath: /custom-tools
-      configs:
-        params:
-          application.namespaces: "*"
-          applicationset.namespaces: "*"
-        cm:
-          url: https://argocd-dev.int.aethericforge.ca
-
-          oidc.config: |
-            name: Keycloak
-            issuer: https://sso-dev.int.aethericforge.ca/realms/int.aethericforge.ca
-            clientID: argocd
-            clientSecret: $argocd-keycloak-oidc:clientSecret
-
-            requestedScopes:
-              - openid
-              - profile
-              - email
-              - groups
-
-            requestedIDTokenClaims:
-              groups:
-                essential: true
-
-          kustomize.buildOptions: "--enable-helm --enable-alpha-plugins --enable-exec"
-
-        rbac:
-          policy.default: role:readonly
-          policy.csv: |
-            g, argocd-admins, role:admin
-
+        - mountPath: /step-ca
+          name: step-ca-root-ca
+          readOnly: true
+        - mountPath: /work-certs
+          name: ssl-certs
+      volumeMounts:
+      - mountPath: /etc/ssl/certs
+        name: ssl-certs
+      volumes:
+      - name: step-ca-root-ca
+        secret:
+          secretName: step-ca-root-ca
+      - emptyDir: {}
+        name: ssl-certs
+  version: 9.7.0
+kind: Kustomization
 patches:
-  - path: rbac.yaml
-    target:
-      group: rbac.authorization.k8s.io
-      version: v1
-      kind: ClusterRole
-      name: argocd-application-controller
-
-  - path: rbac-binding.yaml
-    target:
-      group: rbac.authorization.k8s.io
-      version: v1
-      kind: ClusterRoleBinding
-      name: argocd-application-controller
+- path: rbac.yaml
+  target:
+    group: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: argocd-application-controller
+    version: v1
+- path: rbac-binding.yaml
+  target:
+    group: rbac.authorization.k8s.io
+    kind: ClusterRoleBinding
+    name: argocd-application-controller
+    version: v1
+resources:
+- namespace.yaml
