@@ -1,0 +1,264 @@
+version: "2.4"
+
+services:
+  postgresql:
+    image: postgres:17.5
+    container_name: dev-postgresql
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: platform-admin
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:?set POSTGRES_ADMIN_PASSWORD in .env}
+      POSTGRES_DB: postgres
+      KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?set KEYCLOAK_DB_PASSWORD in .env}
+      FORGE_CAMPUS_POSTGRES_PASSWORD: ${FORGE_CAMPUS_POSTGRES_PASSWORD:?set FORGE_CAMPUS_POSTGRES_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - dev-postgresql:/var/lib/postgresql/data
+      - ./postgresql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U platform-admin -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks: [dev-network]
+
+  mongodb:
+    image: mongo:8.0
+    container_name: dev-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: platform-admin
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ADMIN_PASSWORD:?set MONGO_ADMIN_PASSWORD in .env}
+      MONGO_FORGE_CAMPUS_USERNAME: forge-campus
+      MONGO_FORGE_CAMPUS_PASSWORD: ${MONGO_FORGE_CAMPUS_PASSWORD:?set MONGO_FORGE_CAMPUS_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:27017:27017"
+    volumes:
+      - dev-mongodb:/data/db
+      - dev-mongodb-config:/data/configdb
+      - ./mongodb/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --username platform-admin --password \"$$MONGO_INITDB_ROOT_PASSWORD\" --authenticationDatabase admin --eval 'db.adminCommand({ping:1}).ok' | grep 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    networks: [dev-network]
+
+  redis:
+    image: redis:8.2-alpine
+    container_name: dev-redis
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}"]
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - dev-redis:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    networks: [dev-network]
+
+  rabbitmq:
+    image: rabbitmq:4.1-management
+    container_name: dev-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: forge-campus
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?set RABBITMQ_PASSWORD in .env}
+      RABBITMQ_DEFAULT_VHOST: forge-campus
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
+    volumes:
+      - dev-rabbitmq:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    networks: [dev-network]
+
+  minio:
+    image: minio/minio:RELEASE.2025-04-08T15-41-24Z
+    container_name: dev-minio
+    restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: forge-campus
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - dev-minio:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks: [dev-network]
+
+  minio-bootstrap:
+    image: minio/mc:RELEASE.2025-04-08T15-39-49Z
+    container_name: dev-minio-bootstrap
+    restart: "no"
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in .env}
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        mc alias set dev http://dev-minio:9000 forge-campus "$${MINIO_ROOT_PASSWORD}"
+        mc mb --ignore-existing dev/forge-campus-archive
+    networks: [dev-network]
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.1.0
+    container_name: dev-keycloak
+    restart: unless-stopped
+    command: ["start-dev"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: platform-admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?set KEYCLOAK_ADMIN_PASSWORD in .env}
+      KC_DB: postgres
+      KC_DB_URL_HOST: dev-postgresql
+      KC_DB_URL_PORT: 5432
+      KC_DB_URL_DATABASE: keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?set KEYCLOAK_DB_PASSWORD in .env}
+      KC_HEALTH_ENABLED: "true"
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME: https://sso-dev.aethericforge.ca
+      KC_PROXY_HEADERS: xforwarded
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    volumes:
+      - dev-keycloak:/opt/keycloak/data
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000; printf 'GET /health/ready HTTP/1.1\\r\\nhost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3; grep -q '200 OK' <&3"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 30s
+    networks: [dev-network]
+
+  keycloak-bootstrap:
+    image: quay.io/keycloak/keycloak:26.1.0
+    container_name: dev-keycloak-bootstrap
+    restart: "no"
+    entrypoint: ["/bin/bash", "/bootstrap/bootstrap.sh"]
+    environment:
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?set KEYCLOAK_ADMIN_PASSWORD in .env}
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET:?set KEYCLOAK_CLIENT_SECRET in .env}
+      KEYCLOAK_PROVISIONER_CLIENT_SECRET: ${KEYCLOAK_PROVISIONER_CLIENT_SECRET:?set KEYCLOAK_PROVISIONER_CLIENT_SECRET in .env}
+    volumes:
+      - ./keycloak/bootstrap.sh:/bootstrap/bootstrap.sh:ro
+    depends_on:
+      keycloak:
+        condition: service_healthy
+    networks: [dev-network]
+
+  aethericforge-web:
+    build:
+      context: ../../aetheric-web
+      dockerfile: docker/Dockerfile
+    image: aethericforge-web:dev
+    container_name: aethericforge-web
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+      Keycloak__Authority: https://sso-dev.aethericforge.ca
+      Keycloak__Realm: aethericforge.ca
+      Keycloak__ClientId: forge-campus
+      Keycloak__ClientSecret: ${KEYCLOAK_CLIENT_SECRET:?set KEYCLOAK_CLIENT_SECRET in .env}
+      Keycloak__AdminClientId: forge-campus-provisioner
+      Keycloak__AdminClientSecret: ${KEYCLOAK_PROVISIONER_CLIENT_SECRET:?set KEYCLOAK_PROVISIONER_CLIENT_SECRET in .env}
+      MongoDb__Host: dev-mongodb
+      MongoDb__Port: 27017
+      MongoDb__Username: forge-campus
+      MongoDb__Password: ${MONGO_FORGE_CAMPUS_PASSWORD:?set MONGO_FORGE_CAMPUS_PASSWORD in .env}
+      MongoDb__DatabaseName: forge-campus
+      MongoDb__AuthenticationDatabase: forge-campus
+      MongoDb__AuthenticationMechanism: SCRAM-SHA-256
+      MongoDb__DirectConnection: "true"
+      Redis__Host: dev-redis
+      Redis__Port: 6379
+      Redis__Password: ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
+      Redis__Ssl: "false"
+      Redis__Database: 0
+      RabbitMq__Host: dev-rabbitmq
+      RabbitMq__Port: 5672
+      RabbitMq__Username: forge-campus
+      RabbitMq__Password: ${RABBITMQ_PASSWORD:?set RABBITMQ_PASSWORD in .env}
+      RabbitMq__VirtualHost: forge-campus
+      RabbitMq__Ssl: "false"
+      S3__ServiceUrl: http://dev-minio:9000
+      S3__AccessKey: forge-campus
+      S3__SecretKey: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in .env}
+      S3__ForcePathStyle: "true"
+      S3__AuthenticationRegion: us-east-1
+    ports:
+      - "127.0.0.1:5100:8080"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio-bootstrap:
+        condition: service_completed_successfully
+      keycloak-bootstrap:
+        condition: service_completed_successfully
+    networks: [dev-network]
+
+  blackcircuit-web:
+    build:
+      context: ../../blackcircuit-web
+      dockerfile: docker/Dockerfile
+    image: blackcircuit-web:dev
+    container_name: blackcircuit-web
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+    ports:
+      - "127.0.0.1:5101:8080"
+    networks: [dev-network]
+
+networks:
+  dev-network:
+    name: dev-network
+    driver: bridge
+
+volumes:
+  dev-postgresql:
+    name: dev-postgresql
+  dev-mongodb:
+    name: dev-mongodb
+  dev-mongodb-config:
+    name: dev-mongodb-config
+  dev-redis:
+    name: dev-redis
+  dev-rabbitmq:
+    name: dev-rabbitmq
+  dev-minio:
+    name: dev-minio
+  dev-keycloak:
+    name: dev-keycloak
