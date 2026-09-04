@@ -45,7 +45,7 @@ prompt_optional() {
 
 TMP=$(mktemp)
 
-CLOUD=$(prompt "CLOUD" "Cloud type (AWS/local)" "local")
+CLOUD=$(prompt "CLOUD" "Cloud type (aws/civo/local)" "local")
 echo "CLOUD=$CLOUD" >>"$TMP"
 
 if [ "$CLOUD" == "aws" ]; then
@@ -81,6 +81,17 @@ if [ "$CLOUD" == "aws" ]; then
 	fi
 fi
 
+if [ "$CLOUD" == "civo" ]; then
+	CIVO_REGION=$(prompt "CIVO_REGION" "Civo region" "NYC1")
+	echo "CIVO_REGION=$CIVO_REGION" >>"$TMP"
+
+	CIVO_NODE_SIZE=$(prompt "CIVO_NODE_SIZE" "Civo Kubernetes node size" "g4s.kube.small")
+	echo "CIVO_NODE_SIZE=$CIVO_NODE_SIZE" >>"$TMP"
+
+	CIVO_NODE_COUNT=$(prompt "CIVO_NODE_COUNT" "Civo Kubernetes node count" "1")
+	echo "CIVO_NODE_COUNT=$CIVO_NODE_COUNT" >>"$TMP"
+fi
+
 # --- Core ---
 ENVIRONMENT=$(prompt "ENVIRONMENT" "Environment name" "dev")
 echo "ENVIRONMENT=$ENVIRONMENT" >>"$TMP"
@@ -102,7 +113,9 @@ echo "EXTERNAL_DOMAIN=$BASE_DOMAIN" >>"$TMP"
 
 # --- Kubernetes ---
 # --- WireGuard ---
-WIREGUARD__ENABLED=$(prompt "WIREGUARD__ENABLED" "Enable WireGuard? (true/false)" "true")
+WIREGUARD_DEFAULT="true"
+[[ "$CLOUD" == "civo" ]] && WIREGUARD_DEFAULT="false"
+WIREGUARD__ENABLED=$(prompt "WIREGUARD__ENABLED" "Enable WireGuard? (true/false)" "$WIREGUARD_DEFAULT")
 echo "WIREGUARD__ENABLED=$WIREGUARD__ENABLED" >>"$TMP"
 
 if [[ "$WIREGUARD__ENABLED" == "true" ]]; then

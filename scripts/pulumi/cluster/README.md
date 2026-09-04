@@ -1,4 +1,26 @@
- # AWS Python S3 Bucket Pulumi Template
+ # Aetheric Forge Kubernetes cluster
+
+This Pulumi project provisions the platform Kubernetes cluster. It supports AWS
+EKS, Civo Kubernetes, and a local pre-existing kubeconfig.
+
+## Civo
+
+Set `CLOUD=civo` in the repository `.env` together with `CIVO_REGION`,
+`CIVO_NODE_SIZE`, and `CIVO_NODE_COUNT`. Authenticate without committing the
+token:
+
+```bash
+export CIVO_TOKEN="..."
+```
+
+The Civo deployment creates a dedicated network, firewall, and managed k3s
+cluster. Civo's default marketplace applications are reconciled after creation
+before this repository installs ingress-nginx.
+
+Do not create these resources manually in the Civo dashboard; Pulumi owns their
+lifecycle.
+
+## Legacy template notes
 
  A minimal Pulumi template for provisioning a single AWS S3 bucket using Python.
 

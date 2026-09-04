@@ -28,4 +28,5 @@ if cloud == "aws":
     install_ebs_csi(cluster_name, cluster)
     install_autoscaler(cluster, cluster_name, region)
 
+if cloud in {"aws", "civo"}:
     pulumi.export("kubeconfig", pulumi.Output.secret(cluster.kubeconfig))

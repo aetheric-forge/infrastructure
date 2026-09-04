@@ -4,7 +4,7 @@ set -euo pipefail
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/paths.sh"
 source "$ROOT_DIR/.env"
 
-if [ "$CLOUD" != "aws" ]; then
+if [ "$CLOUD" = "local" ]; then
 	exit 0
 fi
 

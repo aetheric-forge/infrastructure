@@ -3,6 +3,7 @@ import pulumi
 import json
 import pulumi_aws as aws
 import pulumi_eks as eks
+import pulumi_civo as civo
 
 def must(name: str) -> str:
     v = os.getenv(name)
@@ -18,6 +19,9 @@ environment = must("ENVIRONMENT")
 cluster_name = f"{org_name}-{system_name}-{environment}"
 
 cloud = os.getenv("CLOUD", "local")
+
+if cloud not in {"local", "aws", "civo"}:
+    raise ValueError(f"Unsupported cloud provider: {cloud}")
 
 if cloud == "aws":
     vpc_id = must("VPC_ID")
@@ -35,6 +39,44 @@ if cloud == "aws":
         instance_types = ["t3.small"]
 
 k8s_version = os.getenv("K8S_VERSION", "1.34")
+
+def create_civo_cluster():
+    region = os.getenv("CIVO_REGION", "NYC1").upper()
+    node_count = int(os.getenv("CIVO_NODE_COUNT", "1"))
+    node_size = os.getenv("CIVO_NODE_SIZE", "g4s.kube.small")
+    version = os.getenv("CIVO_K8S_VERSION")
+
+    network = civo.Network(
+        f"{cluster_name}-network",
+        label=f"{cluster_name}-network",
+        region=region,
+    )
+
+    firewall = civo.Firewall(
+        f"{cluster_name}-firewall",
+        name=f"{cluster_name}-firewall",
+        network_id=network.id,
+        region=region,
+        create_default_rules=True,
+    )
+
+    args = {
+        "name": cluster_name,
+        "region": region,
+        "network_id": network.id,
+        "firewall_id": firewall.id,
+        "cluster_type": "k3s",
+        "pools": {
+            "label": "workers",
+            "node_count": node_count,
+            "size": node_size,
+        },
+        "write_kubeconfig": True,
+    }
+    if version:
+        args["kubernetes_version"] = version
+
+    return civo.KubernetesCluster(cluster_name, **args)
 
 def create_cluster():
     if cloud == "aws":
@@ -175,7 +217,9 @@ def create_cluster():
             policy_arn=route53_policy.arn,
         )
 
-    kubeconfig = cluster.kubeconfig if cloud == "aws" else "~/.kube/config"
-    pulumi.export("kubeconfig", kubeconfig)
+        return cluster
 
-    return cluster if cloud == "aws" else None
+    if cloud == "civo":
+        return create_civo_cluster()
+
+    return None

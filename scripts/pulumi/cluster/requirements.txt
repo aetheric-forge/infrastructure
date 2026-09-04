@@ -3,3 +3,4 @@ pulumi-aws>=7.0.0,<8.0.0
 pulumi-eks
 pulumi-command
 pulumi-kubernetes
+pulumi-civo>=2.4.8,<3.0.0
