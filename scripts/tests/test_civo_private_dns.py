@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[2]
 CREATE = (ROOT / 'scripts/create.sh').read_text()
 LIB = ROOT / 'scripts/lib/civo-loadbalancers.sh'
 DNS = 'external-dns.alpha.kubernetes.io/'
+COREDNS = (ROOT / 'clusters/single/civo/dev/20-platform-config/kustomization.yaml').read_text()
 
 
 def function(name):
@@ -53,6 +54,11 @@ def service_specs(resources):
 
 
 class PrivateDnsTests(unittest.TestCase):
+    def test_coredns_uses_standard_dns_port_for_internal_queries(self):
+        self.assertIn('int.aethericforge.ca:53 {', COREDNS)
+        self.assertIn('forward . INT_DNS_HOST_PLACEHOLDER:53', COREDNS)
+        self.assertNotIn('INT_DNS_HOST_PLACEHOLDER:5335', COREDNS)
+
     def test_overlay_restores_loadbalancers_and_private_firewall(self):
         resources = patched_resources()
         for service_type, annotations in service_specs(resources):

@@ -42,7 +42,7 @@ patches:
 
           int.aethericforge.ca:53 {
               errors
-              forward . INT_DNS_HOST_PLACEHOLDER:5335
+              forward . INT_DNS_HOST_PLACEHOLDER:53
           }
 
           import /etc/coredns/custom/*.server

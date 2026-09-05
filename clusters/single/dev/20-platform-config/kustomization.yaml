@@ -40,9 +40,9 @@ patches:
               forward . /etc/resolv.conf
           }
 
-          int.aethericforge.ca:5335 {
+          int.aethericforge.ca:53 {
               errors
-              forward . 192.168.1.1
+              forward . 192.168.1.1:53
           }
 
           import /etc/coredns/custom/*.server
