@@ -1,0 +1,177 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../../../../platform/services/argocd/overlays/dev
+  - ../../../../../platform/services/forge-db/overlays/dev
+  - ../../../../../platform/services/forge-keycloak/overlays/dev
+  - ../../../../../platform/services/forge-mongo/overlays/dev
+  - ../../../../../platform/services/minio/overlays/dev
+  - ../../../../../platform/services/redis/overlays/dev
+  - ../../../../../platform/services/rabbitmq/overlays/dev
+
+patches:
+  - target:
+      group: networking.k8s.io
+      version: v1
+      kind: Ingress
+    patch: |-
+      - op: add
+        path: /metadata/annotations/external-dns.alpha.kubernetes.io~1target
+        value: CIVO_PRIVATE_LB_IP_PLACEHOLDER
+      - op: replace
+        path: /spec/ingressClassName
+        value: nginx-private
+  - target:
+      group: minio.min.io
+      version: v2
+      kind: Tenant
+      name: minio
+    patch: |-
+      - op: replace
+        path: /spec/pools/0/volumeClaimTemplate/spec/storageClassName
+        value: civo-volume
+  - target:
+      group: apps
+      version: v1
+      kind: StatefulSet
+      name: redis
+    patch: |-
+      - op: replace
+        path: /spec/volumeClaimTemplates/0/spec/storageClassName
+        value: civo-volume
+  - target:
+      group: rabbitmq.com
+      version: v1beta1
+      kind: RabbitmqCluster
+      name: rabbitmq
+    patch: |-
+      - op: replace
+        path: /spec/persistence/storageClassName
+        value: civo-volume
+      - op: replace
+        path: /spec/service/type
+        value: ClusterIP
+      - op: remove
+        path: /spec/service/annotations/metallb.io~1address-pool
+  - target:
+      group: mongodbcommunity.mongodb.com
+      version: v1
+      kind: MongoDBCommunity
+      name: forge-mongo
+    patch: |-
+      - op: add
+        path: /spec/statefulSet/spec/volumeClaimTemplates/0/spec/storageClassName
+        value: civo-volume
+      - op: add
+        path: /spec/statefulSet/spec/template
+        value:
+          spec:
+            containers:
+              - name: mongod
+                resources:
+                  requests:
+                    cpu: 100m
+                    memory: 256Mi
+                  limits:
+                    cpu: 500m
+                    memory: 512Mi
+              - name: mongodb-agent
+                resources:
+                  requests:
+                    cpu: 100m
+                    memory: 256Mi
+                  limits:
+                    cpu: 500m
+                    memory: 512Mi
+  - target:
+      group: k8s.keycloak.org
+      version: v2alpha1
+      kind: Keycloak
+      name: forge-keycloak
+    patch: |-
+      - op: add
+        path: /spec/resources
+        value:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+          limits:
+            cpu: 750m
+            memory: 1Gi
+      - op: replace
+        path: /spec/db/host
+        value: forge-db-rw.forge-db.svc.cluster.local
+  - target:
+      group: networking.k8s.io
+      version: v1
+      kind: Ingress
+      name: keycloak-public
+    patch: |-
+      - op: replace
+        path: /metadata/annotations/cert-manager.io~1cluster-issuer
+        value: le-prod
+      - op: replace
+        path: /metadata/annotations/external-dns.alpha.kubernetes.io~1target
+        value: CIVO_PUBLIC_LB_IP_PLACEHOLDER
+      - op: replace
+        path: /spec/ingressClassName
+        value: nginx-public
+      - op: replace
+        path: /spec/rules/0/host
+        value: sso-dev.aethericforge.ca
+      - op: add
+        path: /spec/rules/-
+        value:
+          host: sso.aethericforge.ca
+          http:
+            paths:
+              - backend:
+                  service:
+                    name: forge-keycloak-service
+                    port:
+                      name: https
+                path: /
+                pathType: Prefix
+      - op: replace
+        path: /spec/tls/0/hosts/0
+        value: sso-dev.aethericforge.ca
+      - op: add
+        path: /spec/tls/0/hosts/-
+        value: sso.aethericforge.ca
+  - target:
+      version: v1
+      kind: Service
+      name: redis
+    patch: |-
+      - op: replace
+        path: /spec/type
+        value: ClusterIP
+      - op: remove
+        path: /metadata/annotations/metallb.io~1address-pool
+  - target:
+      version: v1
+      kind: Service
+      name: forge-mongo-lb
+    patch: |-
+      - op: replace
+        path: /spec/type
+        value: ClusterIP
+      - op: remove
+        path: /metadata/annotations/metallb.io~1address-pool
+  - target:
+      group: postgresql.cnpg.io
+      version: v1
+      kind: Cluster
+      name: forge-db
+    patch: |-
+      - op: remove
+        path: /spec/managed/services/additional
+  - target:
+      group: networking.k8s.io
+      version: v1
+      kind: Ingress
+      name: argocd-server
+    patch: |-
+      - op: remove
+        path: /metadata/annotations/metallb.io~1address-pool

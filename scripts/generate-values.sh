@@ -48,6 +48,7 @@ extraArgs:
   - --rfc2136-zone=${INTERNAL_DOMAIN}
   - --rfc2136-tsig-secret-alg=hmac-sha256
   - --rfc2136-tsig-keyname=external-dns-${ENVIRONMENT}-key
+  - --rfc2136-tsig-axfr
 
 env:
   - name: EXTERNAL_DNS_RFC2136_TSIG_SECRET

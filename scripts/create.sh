@@ -13,6 +13,11 @@ source "$SCRIPTS_DIR/lib/paths.sh"
 
 source "$ROOT_DIR/.env"
 
+CLUSTER_DEPLOYMENT_ROOT="$ROOT_DIR/clusters/single/$ENVIRONMENT"
+if [[ "$CLOUD" == "civo" ]]; then
+	CLUSTER_DEPLOYMENT_ROOT="$ROOT_DIR/clusters/single/civo/$ENVIRONMENT"
+fi
+
 ########################################
 # Helpers
 ########################################
@@ -40,12 +45,76 @@ require_cmd() {
 	command -v "$1" >/dev/null 2>&1 || fail "Missing required command: $1"
 }
 
+discover_civo_private_ingress_ip() {
+	local load_balancer_id=""
+	local private_ip=""
+	local public_ip=""
+	local response=""
+
+	[[ -n "${CIVO_TOKEN:-}" ]] || fail "Missing Civo API token"
+	require_cmd curl
+	require_cmd jq
+	require_cmd python3
+
+	log "Discovering the Civo private ingress address..."
+	for _ in $(seq 1 60); do
+		load_balancer_id=$(kubectl get service ingress-nginx-private-controller \
+			-n ingress-nginx \
+			-o jsonpath='{.metadata.annotations.kubernetes\.civo\.com/loadbalancer-id}' \
+			2>/dev/null || true)
+
+		if [[ -n "$load_balancer_id" ]]; then
+			response=$(curl -fsS \
+				-H "Authorization: bearer $CIVO_TOKEN" \
+				"https://api.civo.com/v2/loadbalancers/$load_balancer_id" || true)
+			private_ip=$(jq -r '.private_ip // empty' <<<"$response")
+		fi
+
+		[[ -n "$private_ip" ]] && break
+		sleep 5
+	done
+
+	[[ -n "$private_ip" ]] || fail "Civo did not assign a private ingress address"
+	for _ in $(seq 1 60); do
+		public_ip=$(kubectl get service ingress-nginx-public-controller \
+			-n ingress-nginx \
+			-o jsonpath='{.status.loadBalancer.ingress[0].ip}' \
+			2>/dev/null || true)
+		[[ -n "$public_ip" ]] && break
+		sleep 5
+	done
+	[[ -n "$public_ip" ]] || fail "Civo did not assign a public ingress address"
+	python3 - "$private_ip" "${NETWORK_CIDR:?Missing Civo network CIDR}" <<'PY' ||
+import ipaddress
+import sys
+
+address = ipaddress.ip_address(sys.argv[1])
+network = ipaddress.ip_network(sys.argv[2], strict=False)
+raise SystemExit(0 if address in network and address.is_private else 1)
+PY
+		fail "Civo ingress address $private_ip is not private or is outside $NETWORK_CIDR"
+
+	export CIVO_PRIVATE_LB_IP="$private_ip"
+	export CIVO_PUBLIC_LB_IP="$public_ip"
+	log "Private ingress address: $CIVO_PRIVATE_LB_IP"
+	log "Public ingress address: $CIVO_PUBLIC_LB_IP"
+}
+
 kustomize_build() {
-	kustomize build \
-		--enable-helm \
-		--enable-alpha-plugins \
-		--enable-exec \
-		"$@"
+	if [[ -n "${SOPS_AGE_KEY:-}" && -r "$SOPS_AGE_KEY" ]]; then
+		SOPS_AGE_KEY_FILE="$SOPS_AGE_KEY" env -u SOPS_AGE_KEY \
+			kustomize build \
+			--enable-helm \
+			--enable-alpha-plugins \
+			--enable-exec \
+			"$@"
+	else
+		kustomize build \
+			--enable-helm \
+			--enable-alpha-plugins \
+			--enable-exec \
+			"$@"
+	fi
 }
 
 render_checked() {
@@ -122,6 +191,10 @@ deploy_cluster() {
 
 	"$SCRIPTS_DIR"/pulumi/pulumi-up.sh || fail "Cluster deployment failed"
 	"$SCRIPTS_DIR"/merge-kubeconfig.sh || fail "Could not update ~/.kube/config"
+	"$SCRIPTS_DIR"/generate-env.sh || fail "Could not refresh cluster outputs"
+	set -a
+	source "$ROOT_DIR/.env.pulumi.generated"
+	set +a
 	"$SCRIPTS_DIR"/bootstrap-secrets.sh || fail "Could not bootstrap kube secrets"
 	log "✅ Cluster manifestation complete."
 }
@@ -133,7 +206,11 @@ setup_wireguard() {
 	fi
 
 	log "🔑 Binding keys to unseen gates..."
-	"$SCRIPTS_DIR"/wireguard/setup.sh
+	if [[ "$CLOUD" == "civo" ]]; then
+		"$SCRIPTS_DIR"/wireguard/setup-civo.sh
+	else
+		"$SCRIPTS_DIR"/wireguard/setup.sh
+	fi
 	log "⚡ The conduit holds. You may pass."
 
 	pause_for_operator \
@@ -151,6 +228,30 @@ render_overlay() {
 		"$rendered" \
 		"$label"
 
+	if [[ "$CLOUD" == "civo" ]]; then
+		[[ -n "${WIREGUARD_PRIVATE_IP:-}" ]] || fail "Missing Civo WireGuard private IP"
+		[[ -n "${INT_DNS_HOST:-}" ]] || fail "Missing internal DNS host"
+		[[ -n "${WIREGUARD__LOCAL_CIDRS:-}" ]] || fail "Missing local network CIDR"
+		[[ -n "${PRIVATE_LB_FIREWALL_ID:-}" ]] || fail "Missing Civo private load-balancer firewall ID"
+		sed -i "s/WIREGUARD_PRIVATE_IP_PLACEHOLDER/${WIREGUARD_PRIVATE_IP}/g" "$rendered"
+		sed -i "s/INT_DNS_HOST_PLACEHOLDER/${INT_DNS_HOST}/g" "$rendered"
+		sed -i "s/INTERNAL_DOMAIN_PLACEHOLDER/${INTERNAL_DOMAIN}/g" "$rendered"
+		sed -i "s/EXTERNAL_DOMAIN_PLACEHOLDER/${EXTERNAL_DOMAIN}/g" "$rendered"
+		sed -i "s/ENVIRONMENT_PLACEHOLDER/${ENVIRONMENT}/g" "$rendered"
+		sed -i "s|WIREGUARD_LOCAL_CIDR_PLACEHOLDER|${WIREGUARD__LOCAL_CIDRS}|g" "$rendered"
+		sed -i "s/CIVO_PRIVATE_LB_FIREWALL_ID_PLACEHOLDER/${PRIVATE_LB_FIREWALL_ID}/g" "$rendered"
+		if [[ -n "${CIVO_PRIVATE_LB_IP:-}" ]]; then
+			sed -i "s/CIVO_PRIVATE_LB_IP_PLACEHOLDER/${CIVO_PRIVATE_LB_IP}/g" "$rendered"
+		fi
+		if [[ -n "${CIVO_PUBLIC_LB_IP:-}" ]]; then
+			sed -i "s/CIVO_PUBLIC_LB_IP_PLACEHOLDER/${CIVO_PUBLIC_LB_IP}/g" "$rendered"
+		fi
+	fi
+
+	if grep -q '[A-Z][A-Z_]*_PLACEHOLDER' "$rendered"; then
+		fail "$label contains unresolved configuration placeholders"
+	fi
+
 	apply_rendered "$rendered" "$label"
 }
 
@@ -164,7 +265,9 @@ deploy_platform_bootstrap() {
 	kubectl get ns argocd >/dev/null 2>&1 || kubectl create ns argocd
 	kubectl get ns external-dns >/dev/null 2>&1 || kubectl create ns external-dns
 	kubectl get ns cert-manager >/dev/null 2>&1 || kubectl create ns cert-manager
-	kubectl get ns metallb-system >/dev/null 2>&1 || kubectl create ns metallb-system
+	if [[ "$CLOUD" != "civo" ]]; then
+		kubectl get ns metallb-system >/dev/null 2>&1 || kubectl create ns metallb-system
+	fi
 	kubectl get ns step-ca >/dev/null 2>&1 || kubectl create ns step-ca
 
 	########################################
@@ -172,29 +275,35 @@ deploy_platform_bootstrap() {
 	########################################
 
 	render_overlay \
-		"$ROOT_DIR/clusters/single/$ENVIRONMENT/10-platform-core" \
+		"$CLUSTER_DEPLOYMENT_ROOT/10-platform-core" \
 		"platform-core"
 
-	log "Waiting for metallb CRDs..."
-	for crd in ipaddresspools.metallb.io l2advertisements.metallb.io; do
-		until kubectl get crd "$crd" >/dev/null 2>&1; do
-			sleep 2
+	if [[ "$CLOUD" == "civo" ]]; then
+		discover_civo_private_ingress_ip
+	fi
+
+	if [[ "$CLOUD" != "civo" ]]; then
+		log "Waiting for metallb CRDs..."
+		for crd in ipaddresspools.metallb.io l2advertisements.metallb.io; do
+			until kubectl get crd "$crd" >/dev/null 2>&1; do
+				sleep 2
+			done
 		done
-	done
 
-	kubectl wait \
-		--for=condition=Established \
-		crd/ipaddresspools.metallb.io \
-		crd/l2advertisements.metallb.io \
-		--timeout=120s ||
-		fail "metallb CRDs failed"
+		kubectl wait \
+			--for=condition=Established \
+			crd/ipaddresspools.metallb.io \
+			crd/l2advertisements.metallb.io \
+			--timeout=120s ||
+			fail "metallb CRDs failed"
 
-	log "Waiting for metallb controller..."
-	kubectl rollout status \
-		deployment/metallb-controller \
-		-n metallb-system \
-		--timeout=120s ||
-		fail "metallb controller failed"
+		log "Waiting for metallb controller..."
+		kubectl rollout status \
+			deployment/metallb-controller \
+			-n metallb-system \
+			--timeout=120s ||
+			fail "metallb controller failed"
+	fi
 
 	# give cluster a second to settle
 	sleep 2
@@ -204,7 +313,7 @@ deploy_platform_bootstrap() {
 	########################################
 
 	render_overlay \
-		"$ROOT_DIR/clusters/single/$ENVIRONMENT/20-platform-config" \
+		"$CLUSTER_DEPLOYMENT_ROOT/20-platform-config" \
 		"platform-config"
 
 	########################################
@@ -212,7 +321,7 @@ deploy_platform_bootstrap() {
 	########################################
 
 	render_overlay \
-		"$ROOT_DIR/clusters/single/$ENVIRONMENT/30-platform-operators" \
+		"$CLUSTER_DEPLOYMENT_ROOT/30-platform-operators" \
 		"platform-operators"
 
 	log "Waiting for operator CRDs..."
@@ -240,7 +349,7 @@ deploy_platform_bootstrap() {
 	########################################
 
 	render_overlay \
-		"$ROOT_DIR/clusters/single/$ENVIRONMENT/40-platform-services" \
+		"$CLUSTER_DEPLOYMENT_ROOT/40-platform-services" \
 		"platform-services"
 }
 
@@ -327,8 +436,13 @@ main() {
 	echo "🌌 Spinning up the universe..."
 
 	deploy_foundation
-	setup_wireguard
-	deploy_cluster
+	if [[ "$CLOUD" == "civo" ]]; then
+		deploy_cluster
+		setup_wireguard
+	else
+		setup_wireguard
+		deploy_cluster
+	fi
 	deploy_platform_bootstrap
 	bootstrap_step_ca_trust
 	verify

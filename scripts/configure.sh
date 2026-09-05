@@ -90,6 +90,12 @@ if [ "$CLOUD" == "civo" ]; then
 
 	CIVO_NODE_COUNT=$(prompt "CIVO_NODE_COUNT" "Civo Kubernetes node count" "1")
 	echo "CIVO_NODE_COUNT=$CIVO_NODE_COUNT" >>"$TMP"
+
+	CIVO_NODE_POOL_LABEL=$(prompt "CIVO_NODE_POOL_LABEL" "Civo Kubernetes node pool label" "workers")
+	echo "CIVO_NODE_POOL_LABEL=$CIVO_NODE_POOL_LABEL" >>"$TMP"
+
+	CIVO_NETWORK_CIDR=$(prompt "CIVO_NETWORK_CIDR" "Civo private network CIDR" "10.60.0.0/24")
+	echo "CIVO_NETWORK_CIDR=$CIVO_NETWORK_CIDR" >>"$TMP"
 fi
 
 # --- Core ---
@@ -114,7 +120,7 @@ echo "EXTERNAL_DOMAIN=$BASE_DOMAIN" >>"$TMP"
 # --- Kubernetes ---
 # --- WireGuard ---
 WIREGUARD_DEFAULT="true"
-[[ "$CLOUD" == "civo" ]] && WIREGUARD_DEFAULT="false"
+[[ "$CLOUD" == "civo" ]] && WIREGUARD_DEFAULT="true"
 WIREGUARD__ENABLED=$(prompt "WIREGUARD__ENABLED" "Enable WireGuard? (true/false)" "$WIREGUARD_DEFAULT")
 echo "WIREGUARD__ENABLED=$WIREGUARD__ENABLED" >>"$TMP"
 
@@ -122,7 +128,9 @@ if [[ "$WIREGUARD__ENABLED" == "true" ]]; then
 	WG_SSH_KEY=$(prompt "WIREGUARD_SSH_KEY_NAME" "WireGuard SSH key name")
 	echo "WIREGUARD__SSH_KEY_NAME=$WG_SSH_KEY" >>"$TMP"
 
-	WG_CIDR=$(prompt "WIREGUARD_TUNNEL_CIDR" "WireGuard tunnel CIDR" "10.200.10.0/24")
+	WG_CIDR_DEFAULT="10.200.10.0/24"
+	[[ "$CLOUD" == "civo" ]] && WG_CIDR_DEFAULT="10.200.20.0/24"
+	WG_CIDR=$(prompt "WIREGUARD_TUNNEL_CIDR" "WireGuard tunnel CIDR" "$WG_CIDR_DEFAULT")
 	echo "WIREGUARD__TUNNEL_CIDR=$WG_CIDR" >>"$TMP"
 
 	WG_SSH_PUBLIC_KEY_FILE=$(prompt "WIREGUARD_SSH_PUBLIC_KEY_FILE" "Wireguard SSH public key file" "$HOME/.ssh/id_ed25519.pub")

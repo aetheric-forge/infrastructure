@@ -20,7 +20,7 @@ spec:
       serviceAccountName: redis
 
       securityContext:
-        fsGroup: 1001
+        fsGroup: 1000
 
       containers:
         - name: redis

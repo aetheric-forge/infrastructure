@@ -32,6 +32,7 @@ echo "# ⚠️ GENERATED FILE - DO NOT EDIT" >"$TMP"
 jq -r '
   to_entries |
   .[] |
+  select(.key != "kubeconfig") |
   if (.value | type) == "string" then
     "\(.key | ascii_upcase)=\(.value)"
   else

@@ -1,0 +1,48 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../../../../platform/core/ingress-nginx/overlays/dev
+  - ../../../../../platform/core/external-dns/overlays/dev
+  - ../../../../../platform/core/step-ca/overlays/dev
+  - ../../../../../platform/core/cert-manager/overlays/dev
+  - ../../../../../platform/core/velero/overlays/dev
+  - wireguard-route-agent.yaml
+
+patches:
+  - target:
+      kind: ConfigMap
+      name: coredns
+      namespace: kube-system
+    patch: |-
+      - op: replace
+        path: /data/Corefile
+        value: |
+          .:53 {
+              errors
+              health
+              ready
+              kubernetes cluster.local in-addr.arpa ip6.arpa {
+                pods insecure
+                fallthrough in-addr.arpa ip6.arpa
+              }
+              hosts /etc/coredns/NodeHosts {
+                ttl 60
+                reload 15s
+                fallthrough
+              }
+              prometheus :9153
+              cache 30
+              loop
+              reload
+              loadbalance
+              import /etc/coredns/custom/*.override
+              forward . /etc/resolv.conf
+          }
+
+          int.aethericforge.ca:53 {
+              errors
+              forward . INT_DNS_HOST_PLACEHOLDER:5335
+          }
+
+          import /etc/coredns/custom/*.server

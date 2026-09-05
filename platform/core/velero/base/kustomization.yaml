@@ -16,6 +16,10 @@ helmCharts:
     includeCRDs: true
 
     valuesInline:
+      kubectl:
+        image:
+          repository: registry.k8s.io/kubectl
+          tag: v1.35.0
       initContainers:
           - name: velero-plugin-for-aws
             image: velero/velero-plugin-for-aws:v1.10.1
@@ -33,5 +37,4 @@ helmCharts:
       schedules: {}
 
       snapshotsEnabled: false
-
 
