@@ -44,6 +44,22 @@ This reapplies the complete platform-services stage and discovers the existing
 ingress addresses. It does not rerun Pulumi, provision the cluster, or reinstall
 platform controllers. The ordinary full bootstrap invokes the same two-pass flow.
 
+If an existing deployment reports ownership conflicts for MongoDB's
+`kubernetes.civo.com/firewall-id` or PostgreSQL's
+`spec.managed.services.additional`, run this one-time migration:
+
+```bash
+bash scripts/create.sh --platform-services --adopt-service-fields
+```
+
+It force-applies only that firewall annotation and the desired PostgreSQL
+additional-Service list (an atomic CRD field), using a temporary field manager.
+The normal manifest apply still checks all other conflicts. After it succeeds,
+the temporary manager relinquishes ownership so subsequent updates use normal
+apply. Review the desired additional-Service list before migrating if you have
+added other managed Services outside this repository. An interrupted migration
+can be rerun with the same flag.
+
 After operators reconcile and ExternalDNS syncs, check the Service target
 annotations, resolve the four names through internal DNS, and test service access
 from the private network. The targets should be in `NETWORK_CIDR`. Independently

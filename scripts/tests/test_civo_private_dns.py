@@ -140,6 +140,49 @@ deploy_platform_services
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(fixture.read_text(), 'route: 192.168.1.0/24\n')
 
+    def test_adoption_contains_only_reported_fields(self):
+        resources = patched_resources()
+        resources.append({'apiVersion': 'v1', 'kind': 'Secret', 'metadata': {'name': 'unrelated'}, 'data': {'token': 'must-not-copy'}})
+        helper = ROOT / 'scripts/lib/civo-service-adoption.py'
+        # kubectl versions can emit a List or a stream of individual objects.
+        for payload in [json.dumps({'kind': 'List', 'items': resources}), '\n'.join(map(json.dumps, resources))]:
+            result = subprocess.run(['python3', str(helper)], input=payload, text=True, capture_output=True, check=True)
+            items = json.loads(result.stdout)['items']
+            self.assertEqual(len(items), 2)
+            mongo = next(i for i in items if i['kind'] == 'Service')
+            self.assertEqual(set(mongo), {'apiVersion', 'kind', 'metadata'})
+            self.assertEqual(set(mongo['metadata']['annotations']), {'kubernetes.civo.com/firewall-id'})
+            db = next(i for i in items if i['kind'] == 'Cluster')
+            self.assertEqual(set(db['spec']), {'managed'})
+            self.assertEqual(set(db['spec']['managed']['services']), {'additional'})
+            self.assertNotIn('must-not-copy', result.stdout)
+            release = subprocess.run(['python3', str(helper), '--release'], input=result.stdout, text=True, capture_output=True, check=True)
+            for item in json.loads(release.stdout)['items']:
+                self.assertEqual(set(item), {'apiVersion', 'kind', 'metadata'})
+                self.assertEqual(set(item['metadata']), {'name', 'namespace'})
+
+    def test_adoption_force_is_scoped_and_temporary(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / 'fixture.json').write_text(json.dumps({'kind': 'List', 'items': patched_resources()}))
+            script = '\n'.join(function(name) for name in ['log', 'fail', 'apply_rendered'])
+            script += r"""
+kubectl() {
+  if [[ "$1" == create ]]; then cat fixture.json; return; fi
+  printf '%s\n' "$*" >> commands.txt
+  if [[ "${!#}" == '-' ]]; then cat >> fragments.json; fi
+}
+apply_rendered rendered.yaml platform-services
+"""
+            result = subprocess.run(['bash', '-euo', 'pipefail', '-c', script], cwd=tmp, text=True, capture_output=True,
+                                    env={**os.environ, 'CLOUD': 'civo', 'CIVO_ADOPT_SERVICE_FIELDS': 'true', 'SCRIPTS_DIR': str(ROOT / 'scripts')})
+            self.assertEqual(result.returncode, 0, result.stderr)
+            commands = (Path(tmp) / 'commands.txt').read_text().splitlines()
+            self.assertEqual(len(commands), 3)
+            self.assertIn('--force-conflicts --field-manager=forge-service-migration', commands[0])
+            self.assertEqual(commands[1], 'apply --server-side -f rendered.yaml')
+            self.assertNotIn('--force-conflicts', commands[2])
+            self.assertIn('--field-manager=forge-service-migration', commands[2])
+
     def test_discovery_failure_does_not_enable_dns(self):
         result, applied = self.run_deploy(fail_discovery=True)
         self.assertNotEqual(result.returncode, 0)

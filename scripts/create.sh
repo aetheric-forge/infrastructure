@@ -111,8 +111,25 @@ apply_rendered() {
 	local rendered="$1"
 	local label="$2"
 
+	local adoption="" release=""
+	if [[ "$CLOUD" == "civo" && "$label" == "platform-services" && "${CIVO_ADOPT_SERVICE_FIELDS:-false}" == "true" ]]; then
+		# Use a separate manager: applying partial objects with our normal manager
+		# could prune other fields that it already owns.
+		adoption=$(kubectl create --dry-run=client --validate=false -f "$rendered" -o json |
+			python3 "$SCRIPTS_DIR/lib/civo-service-adoption.py") || fail "Could not prepare service field adoption"
+		release=$(printf '%s' "$adoption" | python3 "$SCRIPTS_DIR/lib/civo-service-adoption.py" --release) || fail "Could not prepare ownership release"
+		log "Adopting MongoDB's firewall annotation and PostgreSQL's additional Service list..."
+		printf '%s' "$adoption" | kubectl apply --server-side --force-conflicts \
+			--field-manager=forge-service-migration -f - || fail "Service field adoption failed"
+	fi
 	log "Applying $label..."
 	kubectl apply --server-side -f "$rendered" || fail "$label apply failed"
+	if [[ -n "$release" ]]; then
+		# Normal apply now co-owns the desired values. Relinquish the temporary
+		# manager's ownership so the next DNS target update needs no force.
+		printf '%s' "$release" | kubectl apply --server-side \
+			--field-manager=forge-service-migration -f - || fail "Service migration ownership release failed"
+	fi
 }
 
 wait_for_namespace() {
@@ -456,6 +473,11 @@ main() {
 
 case "${1:-}" in
 	--platform-services)
+		[[ $# -le 2 && "${2:-}" == "" || $# -eq 2 && "$2" == "--adopt-service-fields" ]] || fail "Usage: $0 --platform-services [--adopt-service-fields]"
+		export CIVO_ADOPT_SERVICE_FIELDS=false
+		if [[ "${2:-}" == "--adopt-service-fields" ]]; then
+			export CIVO_ADOPT_SERVICE_FIELDS=true
+		fi
 		# Reconcile an existing cluster without rerunning Pulumi or bootstrap.
 		[[ -r "$ROOT_DIR/.env.pulumi.generated" ]] || fail "Missing .env.pulumi.generated; refresh cluster outputs first"
 		set -a
