@@ -92,7 +92,7 @@ civo_private_service_ip rabbitmq rabbitmq
         with tempfile.TemporaryDirectory() as tmp:
             fixture = Path(tmp) / 'fixture.yaml'
             fixture.write_text(yaml.safe_dump_all(patched_resources()))
-            script = '\n'.join(function(name) for name in ['log', 'fail', 'render_overlay', 'deploy_platform_services'])
+            script = '\n'.join(function(name) for name in ['log', 'fail', 'replace_civo_placeholder', 'render_overlay', 'deploy_platform_services'])
             script += '''
 render_checked() { cp fixture.yaml "$2"; }
 apply_rendered() { count=$((count+1)); cp "$1" "applied-$count.yaml"; }
@@ -107,6 +107,8 @@ count=0
 deploy_platform_services
 '''
             env = {**os.environ, 'CLOUD': 'civo', 'CLUSTER_DEPLOYMENT_ROOT': '/unused', 'WIREGUARD_PRIVATE_IP': '10.60.0.2', 'INT_DNS_HOST': '10.60.0.2', 'WIREGUARD__LOCAL_CIDRS': '192.168.1.0/24', 'PRIVATE_LB_FIREWALL_ID': 'private-firewall', 'INTERNAL_DOMAIN': 'int.aethericforge.ca', 'EXTERNAL_DOMAIN': 'aethericforge.ca', 'ENVIRONMENT': 'dev', 'CIVO_PRIVATE_LB_IP': '10.60.0.9', 'CIVO_PUBLIC_LB_IP': '212.2.247.176', 'FAIL_DISCOVERY': str(int(fail_discovery))}
+            for name in ['WIREGUARD_PRIVATE_IP', 'WIREGUARD__LOCAL_CIDRS', 'INT_DNS_HOST']:
+                env.pop(name, None)
             result = subprocess.run(['bash', '-euc', script], cwd=tmp, env=env, capture_output=True, text=True)
             applied = [list(yaml.safe_load_all(p.read_text())) for p in sorted(Path(tmp).glob('applied-*.yaml'))]
             return result, applied
@@ -122,6 +124,21 @@ deploy_platform_services
             self.assertEqual(annotations[DNS + 'controller'], 'dns-controller')
             self.assertEqual(annotations['kubernetes.civo.com/firewall-id'], 'private-firewall')
         self.assertEqual(applied[1][3]['metadata']['annotations'][DNS + 'target'], '10.60.0.9')
+
+    def test_placeholder_requires_config_only_when_used(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = Path(tmp) / 'route.yaml'
+            script = function('fail') + '\n' + function('replace_civo_placeholder')
+            script += '\nunset WIREGUARD__LOCAL_CIDRS\nreplace_civo_placeholder route.yaml WIREGUARD_LOCAL_CIDR_PLACEHOLDER WIREGUARD__LOCAL_CIDRS'
+            fixture.write_text('route: WIREGUARD_LOCAL_CIDR_PLACEHOLDER\n')
+            result = subprocess.run(['bash', '-euc', script], cwd=tmp, capture_output=True, text=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('Missing WIREGUARD__LOCAL_CIDRS', result.stdout)
+            script = function('fail') + '\n' + function('replace_civo_placeholder')
+            script += '\nWIREGUARD__LOCAL_CIDRS=192.168.1.0/24\nreplace_civo_placeholder route.yaml WIREGUARD_LOCAL_CIDR_PLACEHOLDER WIREGUARD__LOCAL_CIDRS'
+            result = subprocess.run(['bash', '-euc', script], cwd=tmp, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(fixture.read_text(), 'route: 192.168.1.0/24\n')
 
     def test_discovery_failure_does_not_enable_dns(self):
         result, applied = self.run_deploy(fail_discovery=True)

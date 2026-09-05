@@ -188,6 +188,19 @@ setup_wireguard() {
 		"Enable the local DNS AWS forwarder now, then press Enter to continue..."
 }
 
+replace_civo_placeholder() {
+	local rendered="$1" placeholder="$2" variable="$3"
+	local value="${!variable:-}"
+	if grep -q "$placeholder" "$rendered"; then
+		[[ -n "$value" ]] || fail "Missing $variable required by $rendered"
+		# Escape replacement metacharacters; CIDRs can contain slashes.
+		value="${value//\\/\\\\}"
+		value="${value//&/\\&}"
+		value="${value//|/\\|}"
+		sed -i "s|$placeholder|$value|g" "$rendered"
+	fi
+}
+
 render_overlay() {
 	local overlay="$1"
 	local label="$2"
@@ -200,17 +213,14 @@ render_overlay() {
 		"$label"
 
 	if [[ "$CLOUD" == "civo" ]]; then
-		[[ -n "${WIREGUARD_PRIVATE_IP:-}" ]] || fail "Missing Civo WireGuard private IP"
-		[[ -n "${INT_DNS_HOST:-}" ]] || fail "Missing internal DNS host"
-		[[ -n "${WIREGUARD__LOCAL_CIDRS:-}" ]] || fail "Missing local network CIDR"
-		[[ -n "${PRIVATE_LB_FIREWALL_ID:-}" ]] || fail "Missing Civo private load-balancer firewall ID"
-		sed -i "s/WIREGUARD_PRIVATE_IP_PLACEHOLDER/${WIREGUARD_PRIVATE_IP}/g" "$rendered"
-		sed -i "s/INT_DNS_HOST_PLACEHOLDER/${INT_DNS_HOST}/g" "$rendered"
-		sed -i "s/INTERNAL_DOMAIN_PLACEHOLDER/${INTERNAL_DOMAIN}/g" "$rendered"
-		sed -i "s/EXTERNAL_DOMAIN_PLACEHOLDER/${EXTERNAL_DOMAIN}/g" "$rendered"
-		sed -i "s/ENVIRONMENT_PLACEHOLDER/${ENVIRONMENT}/g" "$rendered"
-		sed -i "s|WIREGUARD_LOCAL_CIDR_PLACEHOLDER|${WIREGUARD__LOCAL_CIDRS}|g" "$rendered"
-		sed -i "s/CIVO_PRIVATE_LB_FIREWALL_ID_PLACEHOLDER/${PRIVATE_LB_FIREWALL_ID}/g" "$rendered"
+		# Require only settings actually referenced by this deployment stage.
+		replace_civo_placeholder "$rendered" WIREGUARD_PRIVATE_IP_PLACEHOLDER WIREGUARD_PRIVATE_IP
+		replace_civo_placeholder "$rendered" INT_DNS_HOST_PLACEHOLDER INT_DNS_HOST
+		replace_civo_placeholder "$rendered" INTERNAL_DOMAIN_PLACEHOLDER INTERNAL_DOMAIN
+		replace_civo_placeholder "$rendered" EXTERNAL_DOMAIN_PLACEHOLDER EXTERNAL_DOMAIN
+		replace_civo_placeholder "$rendered" ENVIRONMENT_PLACEHOLDER ENVIRONMENT
+		replace_civo_placeholder "$rendered" WIREGUARD_LOCAL_CIDR_PLACEHOLDER WIREGUARD__LOCAL_CIDRS
+		replace_civo_placeholder "$rendered" CIVO_PRIVATE_LB_FIREWALL_ID_PLACEHOLDER PRIVATE_LB_FIREWALL_ID
 		if [[ -n "${CIVO_PRIVATE_LB_IP:-}" ]]; then
 			sed -i "s/CIVO_PRIVATE_LB_IP_PLACEHOLDER/${CIVO_PRIVATE_LB_IP}/g" "$rendered"
 		fi
