@@ -179,6 +179,8 @@ apply_rendered rendered.yaml platform-services
             commands = (Path(tmp) / 'commands.txt').read_text().splitlines()
             self.assertEqual(len(commands), 3)
             self.assertIn('--force-conflicts --field-manager=forge-service-migration', commands[0])
+            self.assertIn('--validate=false', commands[0])
+            self.assertIn('--validate=false', commands[2])
             self.assertEqual(commands[1], 'apply --server-side -f rendered.yaml')
             self.assertNotIn('--force-conflicts', commands[2])
             self.assertIn('--field-manager=forge-service-migration', commands[2])

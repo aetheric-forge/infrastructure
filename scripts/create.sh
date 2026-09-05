@@ -119,7 +119,7 @@ apply_rendered() {
 			python3 "$SCRIPTS_DIR/lib/civo-service-adoption.py") || fail "Could not prepare service field adoption"
 		release=$(printf '%s' "$adoption" | python3 "$SCRIPTS_DIR/lib/civo-service-adoption.py" --release) || fail "Could not prepare ownership release"
 		log "Adopting MongoDB's firewall annotation and PostgreSQL's additional Service list..."
-		printf '%s' "$adoption" | kubectl apply --server-side --force-conflicts \
+		printf '%s' "$adoption" | kubectl apply --server-side --validate=false --force-conflicts \
 			--field-manager=forge-service-migration -f - || fail "Service field adoption failed"
 	fi
 	log "Applying $label..."
@@ -127,7 +127,7 @@ apply_rendered() {
 	if [[ -n "$release" ]]; then
 		# Normal apply now co-owns the desired values. Relinquish the temporary
 		# manager's ownership so the next DNS target update needs no force.
-		printf '%s' "$release" | kubectl apply --server-side \
+		printf '%s' "$release" | kubectl apply --server-side --validate=false \
 			--field-manager=forge-service-migration -f - || fail "Service migration ownership release failed"
 	fi
 }
