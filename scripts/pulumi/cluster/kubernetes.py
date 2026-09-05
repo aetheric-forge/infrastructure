@@ -217,8 +217,8 @@ cat >/etc/wireguard/wg0.conf <<EOF
 PrivateKey = $(cat /etc/wireguard/private.key)
 Address = {tunnel_prefix}.1/24
 ListenPort = 51820
-PostUp = iptables -A FORWARD -i wg0 -j ACCEPT; iptables -A FORWARD -o wg0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT; iptables -t nat -A POSTROUTING -s {tunnel_cidr} -d {network_cidr} -o $VPC_INTERFACE -j MASQUERADE
-PostDown = iptables -D FORWARD -i wg0 -j ACCEPT; iptables -D FORWARD -o wg0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT; iptables -t nat -D POSTROUTING -s {tunnel_cidr} -d {network_cidr} -o $VPC_INTERFACE -j MASQUERADE
+PostUp = iptables -A FORWARD -i wg0 -j ACCEPT; iptables -A FORWARD -o wg0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT; iptables -t nat -A POSTROUTING -s {tunnel_cidr} -d {network_cidr} -o $VPC_INTERFACE -j MASQUERADE; iptables -t nat -A POSTROUTING -d {home_cidr} -o wg0 -j MASQUERADE
+PostDown = iptables -D FORWARD -i wg0 -j ACCEPT; iptables -D FORWARD -o wg0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT; iptables -t nat -D POSTROUTING -s {tunnel_cidr} -d {network_cidr} -o $VPC_INTERFACE -j MASQUERADE; iptables -t nat -D POSTROUTING -d {home_cidr} -o wg0 -j MASQUERADE
 
 [Peer]
 PublicKey = {local_public_key}

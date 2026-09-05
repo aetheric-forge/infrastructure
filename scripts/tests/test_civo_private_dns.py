@@ -23,6 +23,8 @@ COREDNS_KUSTOMIZATION = yaml.safe_load(
 COREDNS = yaml.safe_load(
     (ROOT / 'clusters/single/civo/dev/20-platform-config/coredns-custom.yaml').read_text()
 )
+WIREGUARD_SETUP = (ROOT / 'scripts/wireguard/setup-civo.sh').read_text()
+PULUMI_CLUSTER = (ROOT / 'scripts/pulumi/cluster/kubernetes.py').read_text()
 
 
 def function(name):
@@ -59,6 +61,24 @@ def service_specs(resources):
 
 
 class PrivateDnsTests(unittest.TestCase):
+    def test_gateway_masquerades_home_bound_traffic(self):
+        self.assertIn(
+            'iptables -t nat -A POSTROUTING -d ${HOME_CIDR} -o wg0 -j MASQUERADE',
+            WIREGUARD_SETUP,
+        )
+        self.assertIn(
+            'iptables -t nat -D POSTROUTING -d ${HOME_CIDR} -o wg0 -j MASQUERADE',
+            WIREGUARD_SETUP,
+        )
+        self.assertIn(
+            'iptables -t nat -A POSTROUTING -d {home_cidr} -o wg0 -j MASQUERADE',
+            PULUMI_CLUSTER,
+        )
+        self.assertIn(
+            'iptables -t nat -D POSTROUTING -d {home_cidr} -o wg0 -j MASQUERADE',
+            PULUMI_CLUSTER,
+        )
+
     def test_coredns_uses_standard_dns_port_for_internal_queries(self):
         self.assertIn('coredns-custom.yaml', COREDNS_KUSTOMIZATION['resources'])
         self.assertEqual(COREDNS['metadata'], {

@@ -64,8 +64,8 @@ cat >/etc/wireguard/wg0.conf <<EOC
 PrivateKey = \$(cat /etc/wireguard/private.key)
 Address = ${TUNNEL_PREFIX}.1/24
 ListenPort = 51820
-PostUp = iptables -A FORWARD -i wg0 -j ACCEPT; iptables -A FORWARD -i \${VPC_INTERFACE} -o wg0 -j ACCEPT; iptables -A FORWARD -o \${VPC_INTERFACE} -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT; iptables -t nat -A POSTROUTING -s ${TUNNEL_CIDR} -d ${VPC_CIDR} -o \${VPC_INTERFACE} -j MASQUERADE
-PostDown = iptables -D FORWARD -i wg0 -j ACCEPT; iptables -D FORWARD -i \${VPC_INTERFACE} -o wg0 -j ACCEPT; iptables -D FORWARD -o \${VPC_INTERFACE} -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT; iptables -t nat -D POSTROUTING -s ${TUNNEL_CIDR} -d ${VPC_CIDR} -o \${VPC_INTERFACE} -j MASQUERADE
+PostUp = iptables -A FORWARD -i wg0 -j ACCEPT; iptables -A FORWARD -i \${VPC_INTERFACE} -o wg0 -j ACCEPT; iptables -A FORWARD -o \${VPC_INTERFACE} -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT; iptables -t nat -A POSTROUTING -s ${TUNNEL_CIDR} -d ${VPC_CIDR} -o \${VPC_INTERFACE} -j MASQUERADE; iptables -t nat -A POSTROUTING -d ${HOME_CIDR} -o wg0 -j MASQUERADE
+PostDown = iptables -D FORWARD -i wg0 -j ACCEPT; iptables -D FORWARD -i \${VPC_INTERFACE} -o wg0 -j ACCEPT; iptables -D FORWARD -o \${VPC_INTERFACE} -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT; iptables -t nat -D POSTROUTING -s ${TUNNEL_CIDR} -d ${VPC_CIDR} -o \${VPC_INTERFACE} -j MASQUERADE; iptables -t nat -D POSTROUTING -d ${HOME_CIDR} -o wg0 -j MASQUERADE
 
 [Peer]
 PublicKey = $(cat "$LOCAL_PUBLIC_KEY")
