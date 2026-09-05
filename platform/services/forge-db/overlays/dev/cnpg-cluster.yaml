@@ -18,6 +18,7 @@ spec:
     services:
       additional:
         - selectorType: rw
+          updateStrategy: patch
           serviceTemplate:
             metadata:
               name: forge-db-dev-lb
