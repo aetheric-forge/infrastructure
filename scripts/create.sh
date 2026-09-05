@@ -10,6 +10,7 @@ ssh-add 2>/dev/null || true
 export ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export SCRIPTS_DIR="$ROOT_DIR/scripts"
 source "$SCRIPTS_DIR/lib/paths.sh"
+source "$SCRIPTS_DIR/lib/civo-loadbalancers.sh"
 
 source "$ROOT_DIR/.env"
 
@@ -46,35 +47,14 @@ require_cmd() {
 }
 
 discover_civo_private_ingress_ip() {
-	local load_balancer_id=""
-	local private_ip=""
-	local public_ip=""
-	local response=""
+	local private_ip="" public_ip=""
 
-	[[ -n "${CIVO_TOKEN:-}" ]] || fail "Missing Civo API token"
 	require_cmd curl
 	require_cmd jq
 	require_cmd python3
-
 	log "Discovering the Civo private ingress address..."
-	for _ in $(seq 1 60); do
-		load_balancer_id=$(kubectl get service ingress-nginx-private-controller \
-			-n ingress-nginx \
-			-o jsonpath='{.metadata.annotations.kubernetes\.civo\.com/loadbalancer-id}' \
-			2>/dev/null || true)
-
-		if [[ -n "$load_balancer_id" ]]; then
-			response=$(curl -fsS \
-				-H "Authorization: bearer $CIVO_TOKEN" \
-				"https://api.civo.com/v2/loadbalancers/$load_balancer_id" || true)
-			private_ip=$(jq -r '.private_ip // empty' <<<"$response")
-		fi
-
-		[[ -n "$private_ip" ]] && break
-		sleep 5
-	done
-
-	[[ -n "$private_ip" ]] || fail "Civo did not assign a private ingress address"
+	private_ip=$(civo_private_service_ip ingress-nginx ingress-nginx-private-controller) ||
+		fail "Could not discover the private ingress address"
 	for _ in $(seq 1 60); do
 		public_ip=$(kubectl get service ingress-nginx-public-controller \
 			-n ingress-nginx \
@@ -84,15 +64,6 @@ discover_civo_private_ingress_ip() {
 		sleep 5
 	done
 	[[ -n "$public_ip" ]] || fail "Civo did not assign a public ingress address"
-	python3 - "$private_ip" "${NETWORK_CIDR:?Missing Civo network CIDR}" <<'PY' ||
-import ipaddress
-import sys
-
-address = ipaddress.ip_address(sys.argv[1])
-network = ipaddress.ip_network(sys.argv[2], strict=False)
-raise SystemExit(0 if address in network and address.is_private else 1)
-PY
-		fail "Civo ingress address $private_ip is not private or is outside $NETWORK_CIDR"
 
 	export CIVO_PRIVATE_LB_IP="$private_ip"
 	export CIVO_PUBLIC_LB_IP="$public_ip"
@@ -243,6 +214,11 @@ render_overlay() {
 		if [[ -n "${CIVO_PRIVATE_LB_IP:-}" ]]; then
 			sed -i "s/CIVO_PRIVATE_LB_IP_PLACEHOLDER/${CIVO_PRIVATE_LB_IP}/g" "$rendered"
 		fi
+		# Keep service DNS disabled until all three private addresses are known.
+		sed -i "s/CIVO_SERVICE_DNS_CONTROLLER_PLACEHOLDER/${CIVO_SERVICE_DNS_CONTROLLER:-awaiting-private-ip}/g" "$rendered"
+		sed -i "s/CIVO_AMQP_PRIVATE_IP_PLACEHOLDER/${CIVO_AMQP_PRIVATE_IP:-pending.invalid}/g" "$rendered"
+		sed -i "s/CIVO_MONGO_PRIVATE_IP_PLACEHOLDER/${CIVO_MONGO_PRIVATE_IP:-pending.invalid}/g" "$rendered"
+		sed -i "s/CIVO_DB_PRIVATE_IP_PLACEHOLDER/${CIVO_DB_PRIVATE_IP:-pending.invalid}/g" "$rendered"
 		if [[ -n "${CIVO_PUBLIC_LB_IP:-}" ]]; then
 			sed -i "s/CIVO_PUBLIC_LB_IP_PLACEHOLDER/${CIVO_PUBLIC_LB_IP}/g" "$rendered"
 		fi
@@ -253,6 +229,26 @@ render_overlay() {
 	fi
 
 	apply_rendered "$rendered" "$label"
+}
+
+deploy_platform_services() {
+	if [[ "$CLOUD" == "civo" ]]; then
+		# Provision first; do not let ExternalDNS publish public Service status IPs.
+		export CIVO_SERVICE_DNS_CONTROLLER=awaiting-private-ip
+		unset CIVO_AMQP_PRIVATE_IP CIVO_MONGO_PRIVATE_IP CIVO_DB_PRIVATE_IP
+	fi
+	render_overlay "$CLUSTER_DEPLOYMENT_ROOT/40-platform-services" "platform-services"
+	if [[ "$CLOUD" == "civo" ]]; then
+		log "Discovering private addresses for RabbitMQ, MongoDB, and PostgreSQL..."
+		CIVO_AMQP_PRIVATE_IP=$(civo_private_service_ip rabbitmq rabbitmq) || fail "RabbitMQ private address discovery failed"
+		CIVO_MONGO_PRIVATE_IP=$(civo_private_service_ip forge-mongo forge-mongo-lb) || fail "MongoDB private address discovery failed"
+		CIVO_DB_PRIVATE_IP=$(civo_private_service_ip forge-db forge-db-dev-lb) || fail "PostgreSQL private address discovery failed"
+		export CIVO_AMQP_PRIVATE_IP CIVO_MONGO_PRIVATE_IP CIVO_DB_PRIVATE_IP
+		export CIVO_SERVICE_DNS_CONTROLLER=dns-controller
+		# Re-render the owning RabbitMQ/CNPG resources too, so operators retain targets.
+		render_overlay "$CLUSTER_DEPLOYMENT_ROOT/40-platform-services" "platform-services"
+		log "Private DNS targets: AMQP=$CIVO_AMQP_PRIVATE_IP MongoDB=$CIVO_MONGO_PRIVATE_IP PostgreSQL=$CIVO_DB_PRIVATE_IP S3=$CIVO_PRIVATE_LB_IP"
+	fi
 }
 
 deploy_platform_bootstrap() {
@@ -348,9 +344,7 @@ deploy_platform_bootstrap() {
 	# Phase 4 - Platform services
 	########################################
 
-	render_overlay \
-		"$CLUSTER_DEPLOYMENT_ROOT/40-platform-services" \
-		"platform-services"
+	deploy_platform_services
 }
 
 bootstrap_step_ca_trust() {
@@ -450,4 +444,19 @@ main() {
 	log "Forge is online 🔥"
 }
 
-main "$@"
+case "${1:-}" in
+	--platform-services)
+		# Reconcile an existing cluster without rerunning Pulumi or bootstrap.
+		[[ -r "$ROOT_DIR/.env.pulumi.generated" ]] || fail "Missing .env.pulumi.generated; refresh cluster outputs first"
+		set -a
+		source "$ROOT_DIR/.env.pulumi.generated"
+		set +a
+		cd "$CLUSTER_DIR" || fail "Missing cluster dir"
+		if [[ "$CLOUD" == "civo" ]]; then
+			discover_civo_private_ingress_ip
+		fi
+		deploy_platform_services
+		;;
+	"") main ;;
+	*) fail "Usage: $0 [--platform-services]" ;;
+esac
