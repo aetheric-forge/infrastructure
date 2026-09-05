@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coredns-custom
+  namespace: kube-system
+data:
+  int.server: |
+    int.aethericforge.ca:53 {
+        errors
+        cache 30
+        forward . INT_DNS_HOST_PLACEHOLDER:53
+    }
