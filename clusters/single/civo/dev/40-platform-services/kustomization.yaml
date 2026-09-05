@@ -49,11 +49,17 @@ patches:
       - op: replace
         path: /spec/persistence/storageClassName
         value: civo-volume
-      - op: replace
-        path: /spec/service/type
-        value: ClusterIP
       - op: remove
         path: /spec/service/annotations/metallb.io~1address-pool
+      - op: add
+        path: /spec/service/annotations/kubernetes.civo.com~1firewall-id
+        value: CIVO_PRIVATE_LB_FIREWALL_ID_PLACEHOLDER
+      - op: add
+        path: /spec/service/annotations/external-dns.alpha.kubernetes.io~1controller
+        value: CIVO_SERVICE_DNS_CONTROLLER_PLACEHOLDER
+      - op: add
+        path: /spec/service/annotations/external-dns.alpha.kubernetes.io~1target
+        value: CIVO_AMQP_PRIVATE_IP_PLACEHOLDER
   - target:
       group: mongodbcommunity.mongodb.com
       version: v1
@@ -154,11 +160,17 @@ patches:
       kind: Service
       name: forge-mongo-lb
     patch: |-
-      - op: replace
-        path: /spec/type
-        value: ClusterIP
       - op: remove
         path: /metadata/annotations/metallb.io~1address-pool
+      - op: add
+        path: /metadata/annotations/kubernetes.civo.com~1firewall-id
+        value: CIVO_PRIVATE_LB_FIREWALL_ID_PLACEHOLDER
+      - op: add
+        path: /metadata/annotations/external-dns.alpha.kubernetes.io~1controller
+        value: CIVO_SERVICE_DNS_CONTROLLER_PLACEHOLDER
+      - op: add
+        path: /metadata/annotations/external-dns.alpha.kubernetes.io~1target
+        value: CIVO_MONGO_PRIVATE_IP_PLACEHOLDER
   - target:
       group: postgresql.cnpg.io
       version: v1
@@ -166,7 +178,16 @@ patches:
       name: forge-db
     patch: |-
       - op: remove
-        path: /spec/managed/services/additional
+        path: /spec/managed/services/additional/0/serviceTemplate/metadata/annotations/metallb.io~1address-pool
+      - op: add
+        path: /spec/managed/services/additional/0/serviceTemplate/metadata/annotations/kubernetes.civo.com~1firewall-id
+        value: CIVO_PRIVATE_LB_FIREWALL_ID_PLACEHOLDER
+      - op: add
+        path: /spec/managed/services/additional/0/serviceTemplate/metadata/annotations/external-dns.alpha.kubernetes.io~1controller
+        value: CIVO_SERVICE_DNS_CONTROLLER_PLACEHOLDER
+      - op: add
+        path: /spec/managed/services/additional/0/serviceTemplate/metadata/annotations/external-dns.alpha.kubernetes.io~1target
+        value: CIVO_DB_PRIVATE_IP_PLACEHOLDER
   - target:
       group: networking.k8s.io
       version: v1
