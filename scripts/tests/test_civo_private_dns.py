@@ -28,6 +28,9 @@ PULUMI_CLUSTER = (ROOT / 'scripts/pulumi/cluster/kubernetes.py').read_text()
 CERT_MANAGER_KUSTOMIZATION = yaml.safe_load(
     (ROOT / 'platform/core/cert-manager/base/kustomization.yaml').read_text()
 )
+MINIO_POLICIES = yaml.safe_load(
+    (ROOT / 'platform/services/minio/base/admin-policy-configmap.yaml').read_text()
+)
 
 
 def function(name):
@@ -64,6 +67,18 @@ def service_specs(resources):
 
 
 class PrivateDnsTests(unittest.TestCase):
+    def test_minio_admin_policy_matches_console_admin(self):
+        policy = json.loads(MINIO_POLICIES['data']['minio-admins.json'])
+        statements = {
+            tuple(statement['Action']): statement
+            for statement in policy['Statement']
+        }
+        self.assertEqual(set(statements), {('admin:*',), ('kms:*',), ('s3:*',)})
+        self.assertEqual(
+            statements[('s3:*',)]['Resource'],
+            ['arn:aws:s3:::*'],
+        )
+
     def test_cert_manager_checks_dns01_through_bind(self):
         values = CERT_MANAGER_KUSTOMIZATION['helmCharts'][0]['valuesInline']
         self.assertIn(

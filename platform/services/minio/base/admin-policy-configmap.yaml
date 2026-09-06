@@ -14,6 +14,23 @@ data:
           ],
           "Effect": "Allow",
           "Sid": ""
+        },
+        {
+          "Action": [
+            "kms:*"
+          ],
+          "Effect": "Allow",
+          "Sid": ""
+        },
+        {
+          "Action": [
+            "s3:*"
+          ],
+          "Effect": "Allow",
+          "Resource": [
+            "arn:aws:s3:::*"
+          ],
+          "Sid": ""
         }
       ]
     }
