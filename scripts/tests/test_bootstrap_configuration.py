@@ -1,6 +1,8 @@
 from pathlib import Path
 import unittest
 
+import yaml
+
 
 ROOT = Path(__file__).resolve().parents[2]
 CONFIGURE = (ROOT / "scripts/configure.sh").read_text()
@@ -11,6 +13,9 @@ CLUSTER = (ROOT / "scripts/pulumi/cluster/kubernetes.py").read_text()
 STEP_CA = (ROOT / "platform/core/step-ca/base/deployment.yaml").read_text()
 CERT_MANAGER = (ROOT / "platform/core/cert-manager/base/kustomization.yaml").read_text()
 GENERATE_VALUES = (ROOT / "scripts/generate-values.sh").read_text()
+MINIO_BOOTSTRAP = yaml.safe_load(
+    (ROOT / "platform/services/minio/base/bootstrap-admin-policy-job.yaml").read_text()
+)
 
 
 class BootstrapConfigurationTests(unittest.TestCase):
@@ -76,6 +81,18 @@ class BootstrapConfigurationTests(unittest.TestCase):
     def test_external_dns_exclusion_uses_configured_domain(self):
         self.assertIn('--exclude-domains=${INTERNAL_DOMAIN}', GENERATE_VALUES)
         self.assertNotIn('--exclude-domains=int.aethericforge.ca', GENERATE_VALUES)
+
+    def test_minio_policy_bootstrap_is_bounded_and_reports_failures(self):
+        self.assertEqual(MINIO_BOOTSTRAP['spec']['activeDeadlineSeconds'], 660)
+        container = MINIO_BOOTSTRAP['spec']['template']['spec']['containers'][0]
+        self.assertEqual(
+            container['image'],
+            'quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z',
+        )
+        script = container['command'][-1]
+        self.assertNotIn('sleep 600', script)
+        self.assertNotIn('/policies/minio-admins.json || true', script)
+        self.assertIn('MinIO did not become ready within 600 seconds', script)
 
 
 if __name__ == "__main__":
