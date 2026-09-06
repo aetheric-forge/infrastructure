@@ -99,10 +99,11 @@ and the documents that are still being aligned for v2.0.
 
 For the current bootstrap sequence, read:
 
-1. [Prerequisites](docs/00-prerequisites.md)
-2. [Deployment Models](docs/02-deployment-models.md)
-3. [Quick Start](docs/01-quickstart.md)
-4. [Bootstrap Runbook](docs/bootstrap-runbook.md)
+1. [Deployment Models](docs/02-deployment-models.md)
+2. [Prerequisites](docs/00-prerequisites.md)
+3. [Configuration Reference](docs/03-configuration-reference.md)
+4. [Quick Start](docs/01-quickstart.md)
+5. [Bootstrap Runbook](docs/bootstrap-runbook.md)
 
 The quick start and bootstrap runbook are being revised for the v2.0 Civo
 workflow. Until that work is complete, treat the

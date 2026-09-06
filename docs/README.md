@@ -9,12 +9,14 @@ Read these documents in order when evaluating or deploying the platform:
 
 1. [v2.0.0 Release Notes](release-notes/v2.0.0.md) — release scope, upgrade
    notes, operational boundaries, and validated behavior
-2. [Prerequisites](00-prerequisites.md) — tools and access required before
-   configuration
-3. [Deployment Models](02-deployment-models.md) — differences between Civo,
+2. [Deployment Models](02-deployment-models.md) — differences between Civo,
    local k3s, AWS, and Docker Compose
-4. [Quick Start](01-quickstart.md) — abbreviated deployment path
-5. [Bootstrap Runbook](bootstrap-runbook.md) — complete bootstrap sequence and
+3. [Prerequisites](00-prerequisites.md) — tools, accounts, keys, and network
+   planning required before configuration
+4. [Configuration Reference](03-configuration-reference.md) — `.env` inputs,
+   provider credentials, generated values, and current constraints
+5. [Quick Start](01-quickstart.md) — abbreviated deployment path
+6. [Bootstrap Runbook](bootstrap-runbook.md) — complete bootstrap sequence and
    verification
 
 The prerequisites, deployment-model, quick-start, and bootstrap documents are
