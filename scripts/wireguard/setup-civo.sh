@@ -18,7 +18,21 @@ REMOTE_PRIVATE_IP="${WIREGUARD_PRIVATE_IP:?Missing WireGuard private IP}"
 VPC_CIDR="${NETWORK_CIDR:-10.60.0.0/24}"
 HOME_CIDR="${WIREGUARD__LOCAL_CIDRS:-192.168.1.0/24}"
 TUNNEL_CIDR="${WIREGUARD__TUNNEL_CIDR:-10.200.10.0/24}"
-TUNNEL_PREFIX="${TUNNEL_CIDR%.*}"
+TUNNEL_VALUES="$(python3 - "$TUNNEL_CIDR" <<'PY'
+import ipaddress
+import sys
+
+network = ipaddress.ip_network(sys.argv[1], strict=False)
+if network.version != 4:
+    raise SystemExit("WireGuard tunnel CIDR must be IPv4")
+if network.prefixlen > 30:
+    raise SystemExit("WireGuard tunnel CIDR must contain at least two usable addresses")
+print(network.with_prefixlen, network.network_address + 1, network.network_address + 2, network.prefixlen)
+PY
+)"
+read -r TUNNEL_CIDR GATEWAY_IP CLIENT_IP TUNNEL_PREFIX_LENGTH <<<"$TUNNEL_VALUES"
+GATEWAY_ADDRESS="${GATEWAY_IP}/${TUNNEL_PREFIX_LENGTH}"
+CLIENT_ADDRESS="${CLIENT_IP}/${TUNNEL_PREFIX_LENGTH}"
 LAN_INTERFACE="$(ip route get "${HOME_CIDR%/*}" | awk '{for (i=1; i<=NF; i++) if ($i == "dev") {print $(i+1); exit}}')"
 
 test -s "$LOCAL_PRIVATE_KEY"
@@ -62,14 +76,14 @@ test -n "\$VPC_INTERFACE"
 cat >/etc/wireguard/wg0.conf <<EOC
 [Interface]
 PrivateKey = \$(cat /etc/wireguard/private.key)
-Address = ${TUNNEL_PREFIX}.1/24
+Address = ${GATEWAY_ADDRESS}
 ListenPort = 51820
 PostUp = iptables -A FORWARD -i wg0 -j ACCEPT; iptables -A FORWARD -i \${VPC_INTERFACE} -o wg0 -j ACCEPT; iptables -A FORWARD -o \${VPC_INTERFACE} -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT; iptables -t nat -A POSTROUTING -s ${TUNNEL_CIDR} -d ${VPC_CIDR} -o \${VPC_INTERFACE} -j MASQUERADE; iptables -t nat -A POSTROUTING -d ${HOME_CIDR} -o wg0 -j MASQUERADE
 PostDown = iptables -D FORWARD -i wg0 -j ACCEPT; iptables -D FORWARD -i \${VPC_INTERFACE} -o wg0 -j ACCEPT; iptables -D FORWARD -o \${VPC_INTERFACE} -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT; iptables -t nat -D POSTROUTING -s ${TUNNEL_CIDR} -d ${VPC_CIDR} -o \${VPC_INTERFACE} -j MASQUERADE; iptables -t nat -D POSTROUTING -d ${HOME_CIDR} -o wg0 -j MASQUERADE
 
 [Peer]
 PublicKey = $(cat "$LOCAL_PUBLIC_KEY")
-AllowedIPs = ${HOME_CIDR},${TUNNEL_PREFIX}.2/32
+AllowedIPs = ${HOME_CIDR},${CLIENT_IP}/32
 EOC
 chmod 600 /etc/wireguard/wg0.conf
 systemctl restart wg-quick@wg0
@@ -78,14 +92,14 @@ EOF
 cat >"$LOCAL_CONFIG" <<EOF
 [Interface]
 PrivateKey = $(cat "$LOCAL_PRIVATE_KEY")
-Address = ${TUNNEL_PREFIX}.2/24
+Address = ${CLIENT_ADDRESS}
 PostUp = iptables -I FORWARD 1 -i %i -o ${LAN_INTERFACE} -d ${HOME_CIDR} -j ACCEPT; iptables -I FORWARD 1 -i ${LAN_INTERFACE} -o %i -s ${HOME_CIDR} -d ${VPC_CIDR} -j ACCEPT; iptables -t nat -A POSTROUTING -s ${TUNNEL_CIDR} -d ${HOME_CIDR} -o ${LAN_INTERFACE} -j MASQUERADE; iptables -t nat -A POSTROUTING -s ${VPC_CIDR} -d ${HOME_CIDR} -o ${LAN_INTERFACE} -j MASQUERADE
 PostDown = iptables -D FORWARD -i %i -o ${LAN_INTERFACE} -d ${HOME_CIDR} -j ACCEPT; iptables -D FORWARD -i ${LAN_INTERFACE} -o %i -s ${HOME_CIDR} -d ${VPC_CIDR} -j ACCEPT; iptables -t nat -D POSTROUTING -s ${TUNNEL_CIDR} -d ${HOME_CIDR} -o ${LAN_INTERFACE} -j MASQUERADE; iptables -t nat -D POSTROUTING -s ${VPC_CIDR} -d ${HOME_CIDR} -o ${LAN_INTERFACE} -j MASQUERADE
 
 [Peer]
 PublicKey = $(cat "$REMOTE_PUBLIC_KEY")
 Endpoint = ${REMOTE_HOST}:51820
-AllowedIPs = ${VPC_CIDR},${TUNNEL_PREFIX}.1/32
+AllowedIPs = ${VPC_CIDR},${GATEWAY_IP}/32
 PersistentKeepalive = 25
 EOF
 chmod 600 "$LOCAL_CONFIG"
@@ -99,7 +113,7 @@ sudo -n sysctl --system >/dev/null
 sudo -n systemctl enable wg-quick@wg-civo >/dev/null
 sudo -n systemctl restart wg-quick@wg-civo
 
-ping -c 2 "${TUNNEL_PREFIX}.1" >/dev/null
+ping -c 2 "${GATEWAY_IP}" >/dev/null
 ping -c 2 "$REMOTE_PRIVATE_IP" >/dev/null
 
 echo "WireGuard tunnel established"

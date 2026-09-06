@@ -18,7 +18,21 @@ fi
 HOST=$WIREGUARD_PUBLIC_IP
 SG=$WIREGUARD_SG_ID
 TUNNEL_CIDR="${WIREGUARD__TUNNEL_CIDR:?Missing WireGuard tunnel CIDR}"
-TUNNEL_PREFIX="${TUNNEL_CIDR%.*}"
+TUNNEL_VALUES="$(python3 - "$TUNNEL_CIDR" <<'PY'
+import ipaddress
+import sys
+
+network = ipaddress.ip_network(sys.argv[1], strict=False)
+if network.version != 4:
+    raise SystemExit("WireGuard tunnel CIDR must be IPv4")
+if network.prefixlen > 30:
+    raise SystemExit("WireGuard tunnel CIDR must contain at least two usable addresses")
+print(network.with_prefixlen, network.network_address + 1, network.network_address + 2, network.prefixlen)
+PY
+)"
+read -r TUNNEL_CIDR GATEWAY_IP CLIENT_IP TUNNEL_PREFIX_LENGTH <<<"$TUNNEL_VALUES"
+GATEWAY_ADDRESS="${GATEWAY_IP}/${TUNNEL_PREFIX_LENGTH}"
+CLIENT_ADDRESS="${CLIENT_IP}/${TUNNEL_PREFIX_LENGTH}"
 
 echo "🌐 Opening temporary SSH access"
 
@@ -73,12 +87,12 @@ echo "⚙️ Building configs"
 sudo tee "/etc/wireguard/wg0.conf" >/dev/null <<EOF
 [Interface]
 PrivateKey = $LOCAL_PRIV
-Address = ${TUNNEL_PREFIX}.2/24
+Address = ${CLIENT_ADDRESS}
 
 [Peer]
 PublicKey = $REMOTE_PUB
 Endpoint = $WIREGUARD_PUBLIC_IP:51820
-AllowedIPs = $AWS__VPC_CIDR,${TUNNEL_PREFIX}.1/32
+AllowedIPs = $AWS__VPC_CIDR,${GATEWAY_IP}/32
 PersistentKeepalive = 25
 EOF
 
@@ -91,14 +105,14 @@ test -n "\$VPC_INTERFACE"
 sudo tee /etc/wireguard/wg0.conf > /dev/null <<EOC
 [Interface]
 PrivateKey = \$(sudo cat /etc/wireguard/private.key)
-Address = ${TUNNEL_PREFIX}.1/24
+Address = ${GATEWAY_ADDRESS}
 ListenPort = 51820
 PostUp = iptables -A FORWARD -i wg0 -o \${VPC_INTERFACE} -j ACCEPT; iptables -A FORWARD -i \${VPC_INTERFACE} -o wg0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT; iptables -t nat -A POSTROUTING -s $TUNNEL_CIDR -o \${VPC_INTERFACE} -j MASQUERADE
 PostDown = iptables -D FORWARD -i wg0 -o \${VPC_INTERFACE} -j ACCEPT; iptables -D FORWARD -i \${VPC_INTERFACE} -o wg0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT; iptables -t nat -D POSTROUTING -s $TUNNEL_CIDR -o \${VPC_INTERFACE} -j MASQUERADE
 
 [Peer]
 PublicKey = $LOCAL_PUB
-AllowedIPs = $WIREGUARD__LOCAL_CIDRS,${TUNNEL_PREFIX}.2/32
+AllowedIPs = $WIREGUARD__LOCAL_CIDRS,${CLIENT_IP}/32
 EOC
 
 sudo systemctl enable wg-quick@wg0
@@ -112,7 +126,7 @@ sudo wg-quick up "$WG_DIR/wg0.conf" || true
 
 echo "🔍 Verifying tunnel"
 
-ping -c 2 "${TUNNEL_PREFIX}.1" >/dev/null
+ping -c 2 "${GATEWAY_IP}" >/dev/null
 
 echo "🔒 Closing temporary SSH access"
 

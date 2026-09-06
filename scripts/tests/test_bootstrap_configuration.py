@@ -1,4 +1,5 @@
 from pathlib import Path
+import subprocess
 import unittest
 
 import yaml
@@ -8,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[2]
 CONFIGURE = (ROOT / "scripts/configure.sh").read_text()
 CREATE = (ROOT / "scripts/create.sh").read_text()
 AWS_WIREGUARD = (ROOT / "scripts/wireguard/setup.sh").read_text()
+CIVO_WIREGUARD = (ROOT / "scripts/wireguard/setup-civo.sh").read_text()
 FOUNDATION_WIREGUARD = (
     ROOT / "scripts/pulumi/foundation/wireguard.py"
 ).read_text()
@@ -55,6 +57,28 @@ class BootstrapConfigurationTests(unittest.TestCase):
         self.assertIn('WIREGUARD__TUNNEL_CIDR', AWS_WIREGUARD)
         self.assertIn('$AWS__VPC_CIDR', AWS_WIREGUARD)
         self.assertIn('$WIREGUARD__LOCAL_CIDRS', AWS_WIREGUARD)
+
+    def test_wireguard_addresses_are_calculated_from_the_cidr(self):
+        for script in (AWS_WIREGUARD, CIVO_WIREGUARD):
+            self.assertIn('ipaddress.ip_network(sys.argv[1], strict=False)', script)
+            self.assertIn('network.network_address + 1', script)
+            self.assertIn('network.network_address + 2', script)
+            self.assertNotIn('${TUNNEL_CIDR%.*}', script)
+            calculator = script.split("<<'PY'\n", 1)[1].split("\nPY", 1)[0]
+            result = subprocess.run(
+                ['python3', '-', '10.200.16.0/20'],
+                input=calculator,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+            self.assertEqual(
+                result.stdout.strip(),
+                '10.200.16.0/20 10.200.16.1 10.200.16.2 20',
+            )
+        self.assertIn('ipaddress.ip_network(tunnel_cidr, strict=False)', CLUSTER)
+        self.assertNotIn('tunnel_cidr.rsplit(".", 1)', CLUSTER)
+        self.assertIn('{gateway_ip}/{tunnel_network.prefixlen}', CLUSTER)
 
     def test_aws_wireguard_discovers_and_persists_vpc_interface(self):
         self.assertIn("VPC_INTERFACE=\\$(ip route show default", AWS_WIREGUARD)

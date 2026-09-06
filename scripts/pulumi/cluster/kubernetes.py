@@ -1,3 +1,4 @@
+import ipaddress
 import os
 from pathlib import Path
 import pulumi
@@ -132,7 +133,16 @@ def create_civo_wireguard_gateway(network, region: str, network_cidr: str):
 
     local_public_key = public_key_path.read_text().strip()
     ssh_public_key = ssh_key_path.read_text().strip()
-    tunnel_prefix = tunnel_cidr.rsplit(".", 1)[0]
+    tunnel_network = ipaddress.ip_network(tunnel_cidr, strict=False)
+    if tunnel_network.version != 4:
+        raise ValueError("WIREGUARD__TUNNEL_CIDR must be IPv4")
+    if tunnel_network.prefixlen > 30:
+        raise ValueError(
+            "WIREGUARD__TUNNEL_CIDR must contain at least two usable addresses"
+        )
+    tunnel_cidr = tunnel_network.with_prefixlen
+    gateway_ip = str(tunnel_network.network_address + 1)
+    client_ip = str(tunnel_network.network_address + 2)
 
     gateway_firewall = civo.Firewall(
         f"{cluster_name}-wireguard-firewall",
@@ -216,14 +226,14 @@ test -n "$VPC_INTERFACE"
 cat >/etc/wireguard/wg0.conf <<EOF
 [Interface]
 PrivateKey = $(cat /etc/wireguard/private.key)
-Address = {tunnel_prefix}.1/24
+Address = {gateway_ip}/{tunnel_network.prefixlen}
 ListenPort = 51820
 PostUp = iptables -A FORWARD -i wg0 -j ACCEPT; iptables -A FORWARD -o wg0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT; iptables -t nat -A POSTROUTING -s {tunnel_cidr} -d {network_cidr} -o $VPC_INTERFACE -j MASQUERADE; iptables -t nat -A POSTROUTING -d {home_cidr} -o wg0 -j MASQUERADE
 PostDown = iptables -D FORWARD -i wg0 -j ACCEPT; iptables -D FORWARD -o wg0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT; iptables -t nat -D POSTROUTING -s {tunnel_cidr} -d {network_cidr} -o $VPC_INTERFACE -j MASQUERADE; iptables -t nat -D POSTROUTING -d {home_cidr} -o wg0 -j MASQUERADE
 
 [Peer]
 PublicKey = {local_public_key}
-AllowedIPs = {home_cidr},{tunnel_prefix}.2/32
+AllowedIPs = {home_cidr},{client_ip}/32
 EOF
 systemctl enable --now wg-quick@wg0
 """
