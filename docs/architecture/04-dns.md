@@ -1,389 +1,139 @@
 # DNS Architecture
 
-DNS is a foundational component of the Aetheric Forge control plane.
+Aetheric Forge separates public naming from private naming and separates
+ordinary client resolution from authoritative dynamic updates.
 
-Rather than treating DNS as a separate operational concern, Aetheric Forge integrates DNS directly into the GitOps platform architecture.
+## Zone boundaries
 
-This enables automated service discovery, ingress publication, certificate issuance, and platform self-management.
+The v2 reference uses two distinct zones:
 
----
+| Zone | Visibility | Authority | Reconciler |
+| --- | --- | --- | --- |
+| External domain | Public | Cloudflare | Public ExternalDNS |
+| Internal domain | Private | BIND | RFC2136 ExternalDNS |
 
-## Why DNS Matters
+The default reference domains are `aethericforge.ca` and
+`int.aethericforge.ca`. They are separate namespaces, not split-horizon views of
+one zone.
 
-Many platform services depend on reliable DNS.
+## Resolver and authority roles
 
-Examples include:
+The home DNS host exposes two logical services:
 
-- Argo CD ingress
-- Application ingress
-- Certificate validation
-- Service discovery
-- Platform APIs
+- Pi-hole on port 53 answers ordinary client DNS queries.
+- BIND on port 5335 is authoritative for the internal zone and accepts
+  authenticated RFC2136 updates.
 
-Without DNS, users and systems must rely on direct IP addressing, which becomes difficult to manage as environments grow.
-
-Aetheric Forge uses automated DNS management to ensure that platform resources remain discoverable and consistent.
-
----
-
-## Design Principles
-
-The DNS architecture is built around several principles:
-
-- DNS is part of the control plane
-- DNS records are generated automatically
-- Platform services should not require manual DNS administration
-- Internal and public DNS responsibilities remain separate
-- GitOps defines desired DNS behavior
-
----
-
-## DNS Ownership
-
-DNS management is distributed across several components.
+Pi-hole forwards the internal zone to BIND:
 
 ```text
-Ingress
-    │
-    ▼
-ExternalDNS
-    │
-    ▼
-DNS Provider
-    │
-    ▼
-DNS Records
+Private client ──► Pi-hole :53 ──► BIND :5335
+                                      │
+                                      └── authoritative internal answer
 ```
 
-Applications and platform services declare their networking requirements.
+BIND may run on the same host, but the ports and responsibilities remain
+distinct.
 
-ExternalDNS converts those requirements into DNS records.
+## Publication paths
 
-The authoritative DNS server remains responsible for publishing those records.
-
----
-
-## Internal DNS
-
-Internal DNS provides name resolution for services intended to remain inside the platform or private network.
-
-Examples include:
-
-- Internal Argo CD access
-- Administrative services
-- Internal APIs
-- Platform management interfaces
-
-The local deployment model uses BIND9 as the authoritative internal DNS server.
+Two ExternalDNS instances run in the cluster:
 
 ```text
-Applications
-      │
-      ▼
-Ingress
-      │
-      ▼
-ExternalDNS
-      │
-      ▼
-RFC2136 Updates
-      │
-      ▼
-BIND9
+Public Ingress/Service ──► Cloudflare ExternalDNS ──► public zone
+
+Private Ingress/Service ──► RFC2136 ExternalDNS ──► BIND :5335
 ```
 
-ExternalDNS performs authenticated dynamic updates using RFC2136 and TSIG credentials.
+Each instance has its own domain filter, registry owner, provider credentials,
+and visibility boundary. Public ExternalDNS excludes the internal domain.
 
----
+Internal updates use a dedicated TSIG key. cert-manager uses a separate TSIG
+key for DNS-01 challenge records. BIND policy must authorize each key only for
+its intended names and operations.
 
-## Public DNS
+## Civo private targets
 
-Public DNS provides name resolution for services intended to be reachable from external networks.
+Civo LoadBalancer Services can report a publicly routable address in
+Kubernetes status even when the intended consumer is private. The bootstrap
+therefore does not use Service status as the internal DNS target.
 
-Examples include:
+For RabbitMQ, MongoDB, and PostgreSQL, deployment proceeds in two passes:
 
-- Public websites
-- Public APIs
-- Internet-facing applications
+1. Create the Services with internal DNS publication disabled.
+2. Query Civo for each load balancer's private address.
+3. Validate that every address is private and belongs to the configured Civo
+   network.
+4. Reapply the owning resources with explicit ExternalDNS target annotations.
 
-Public DNS records are managed through supported DNS providers.
+The MinIO S3 hostname targets the private ingress load balancer. Internal web
+applications also use private ingress; public Keycloak uses public ingress.
 
-Examples include:
+Private-address discovery is a deployment operation, not a continuous
+controller. Replace a load balancer only with a plan to rerun discovery and
+verify its record.
 
-- Cloudflare
-- Route53
-- Other supported providers
+## ACME DNS-01 path
 
-ExternalDNS publishes records using provider-specific APIs.
+Private certificate issuance depends on fresh authoritative TXT answers:
 
 ```text
-Applications
-      │
-      ▼
-Ingress
-      │
-      ▼
-ExternalDNS
-      │
-      ▼
-Provider API
-      │
-      ▼
-Public DNS
+cert-manager ── RFC2136 update ──► BIND :5335
+cert-manager ── DNS-01 self-check ► BIND :5335
+step-ca     ── challenge lookup ──► configured resolver path
 ```
 
----
+cert-manager's recursive self-check is directed to BIND rather than Pi-hole.
+This avoids stale negative cache entries after a challenge TXT record is
+created. Ordinary clients continue to use Pi-hole on port 53.
 
-## DNS Automation
+## Network dependency
 
-DNS records are not typically created manually.
+Cluster Pods reach the home DNS network through the Civo WireGuard gateway. The
+path requires:
 
-Instead, records are generated automatically from platform resources.
+- Routes from cluster nodes and Pods toward the gateway
+- IPv4 forwarding on both gateway endpoints
+- Forwarding firewall rules
+- Source NAT where the return network lacks a route to the original source
+- TCP and UDP access to ports 53 and 5335 as appropriate
 
-For example:
+An RFC2136 log entry whose source is the gateway address is expected when source
+NAT is used.
 
-```text
-Ingress Created
-        │
-        ▼
-ExternalDNS Detects Hostname
-        │
-        ▼
-DNS Record Created
+## Record ownership and deletion
+
+ExternalDNS uses TXT ownership records and `sync` policy. Removing or disabling
+the owning declaration can remove a previously managed record. During the first
+pass of private-service deployment, publication is intentionally suppressed;
+complete the second pass promptly after correcting a discovery failure.
+
+Manual records can conflict with controller ownership. Emergency manual repair
+must be followed by a correction to the owning manifest or controller inputs.
+
+## Diagnosing DNS
+
+Check the chain in order:
+
+1. Route to the home DNS host.
+2. Pi-hole answer on port 53.
+3. Authoritative BIND answer on port 5335.
+4. TSIG-authenticated update acceptance in BIND logs.
+5. ExternalDNS or cert-manager events.
+6. Final client answer and TTL/cache behavior.
+
+Useful comparisons:
+
+```bash
+dig @"$INT_DNS_HOST" "$INTERNAL_DOMAIN" SOA
+dig @"$INT_DNS_HOST" -p 5335 "$INTERNAL_DOMAIN" SOA
+dig @"$INT_DNS_HOST" -p 5335 \
+    "_acme-challenge.example.$INTERNAL_DOMAIN" TXT
 ```
 
-Removing the resource causes the DNS record to be removed automatically.
+Do not treat a successful RFC2136 update as proof that the client resolver,
+route, or certificate controller sees the same answer.
 
-This ensures that DNS remains synchronized with the actual state of the platform.
+## Next step
 
----
-
-## RFC2136 Integration
-
-Local deployments use RFC2136 dynamic updates to communicate with BIND9.
-
-RFC2136 provides:
-
-- Authenticated updates
-- Automated record management
-- Controller-driven reconciliation
-
-Authentication is performed using TSIG credentials configured during bootstrap.
-
-```text
-ExternalDNS
-      │
-      ▼
-TSIG Authentication
-      │
-      ▼
-RFC2136 Update
-      │
-      ▼
-BIND9
-```
-
-This allows DNS records to be managed automatically without granting unrestricted administrative access to the DNS server.
-
----
-
-## ExternalDNS
-
-ExternalDNS acts as the DNS reconciliation controller.
-
-Its responsibilities include:
-
-- Monitoring Kubernetes resources
-- Generating DNS records
-- Creating records
-- Updating records
-- Removing obsolete records
-
-ExternalDNS performs for DNS what Argo CD performs for Kubernetes resources.
-
-```text
-Desired DNS State
-         │
-         ▼
-    ExternalDNS
-         │
-         ▼
-Authoritative DNS
-```
-
----
-
-## DNS and GitOps
-
-DNS configuration is ultimately driven by GitOps.
-
-When a service is added, modified, or removed through Git, the platform automatically updates DNS to match.
-
-```text
-Git Change
-     │
-     ▼
-Argo CD
-     │
-     ▼
-Ingress Update
-     │
-     ▼
-ExternalDNS
-     │
-     ▼
-DNS Update
-```
-
-This creates a fully automated workflow from configuration change to published DNS record.
-
----
-
-## Zone Authority Boundaries
-
-Aetheric Forge separates internal and public DNS by delegating authority to different DNS zones.
-
-Example:
-
-```text
-Public Zone
-
-    example.ca
-
-Internal Zone
-
-    int.example.ca
-```
-
-These zones are managed independently.
-
-The internal DNS server is authoritative only for the internal zone.
-
-The public DNS provider is authoritative only for the public zone.
-
-```text
-                    DNS
-                     │
-        ┌────────────┴────────────┐
-        ▼                         ▼
-
-   example.ca              int.example.ca
-   Public Zone             Internal Zone
-
-   Cloudflare                 BIND9
-```
-
-This architecture intentionally avoids split-horizon DNS.
-
-In a split-horizon design, the same DNS zone returns different answers depending on the source of the query.
-
-For example:
-
-```text
-example.ca
-
-    Internal Query → 10.0.0.5
-    External Query → 203.0.113.10
-```
-
-Aetheric Forge does not use this model.
-
-Instead, internal and external resources receive distinct hostnames within separate authoritative zones.
-
-Examples:
-
-```text
-argocd.example.ca
-argocd.int.example.ca
-```
-
-This approach provides:
-
-- Clear authority boundaries
-- Simpler troubleshooting
-- Predictable resolution behavior
-- Reduced DNS ambiguity
-- Easier disaster recovery
-
-A hostname should resolve identically regardless of where the query originates.
-
-The hostname itself communicates whether the resource is intended for internal or public access.
-
----
-
-## Internal and Public Separation
-
-Aetheric Forge intentionally separates internal and public DNS responsibilities.
-
-```text
-                 DNS
-                  │
-       ┌──────────┴──────────┐
-       ▼                     ▼
-
- Internal Zone         Public Zone
- int.example.ca         example.ca
-
-     BIND9             DNS Provider
-       │                    │
-       ▼                    ▼
-
- Internal Services    Public Services
-```
-
-This separation provides:
-
-- Improved security
-- Reduced accidental exposure
-- Clear operational boundaries
-- Simplified troubleshooting
-
-Internal resources remain private unless intentionally published through the public zone.
-
-This model encourages explicit exposure decisions rather than relying on network location or DNS query origin.
-
-A service should be public because it was intentionally published, not because DNS returned a different answer.
-
-The DNS namespace itself communicates the intended visibility of the service.
-
----
-
-## Failure Recovery
-
-Because DNS configuration is driven by platform configuration rather than manual record creation, recovery is simplified.
-
-After restoring:
-
-- Kubernetes
-- Argo CD
-- ExternalDNS
-- DNS credentials
-
-DNS records can be recreated automatically through reconciliation.
-
-The authoritative source remains the platform configuration rather than manually maintained DNS entries.
-
----
-
-## Design Goals
-
-The DNS architecture is designed to provide:
-
-- Automated DNS management
-- GitOps-driven reconciliation
-- Clear authority boundaries
-- Secure dynamic updates
-- Consistent service discovery
-- Minimal manual administration
-
-The ultimate goal is simple:
-
-> Services should become reachable because they were deployed, not because someone manually created a DNS record.
-
----
-
-## Next Steps
-
-Continue with:
-
-- [PKI Architecture](06-pki.md)
+Continue with [Configuration Management](05-configuration.md).

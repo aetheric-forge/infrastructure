@@ -1,359 +1,122 @@
 # PKI Architecture
 
-Public Key Infrastructure (PKI) provides identity and trust within an Aetheric Forge environment.
+Aetheric Forge uses separate public and private trust domains. cert-manager
+automates certificate lifecycle for both, while step-ca provides the private
+ACME authority.
 
-While DNS allows systems to locate services, PKI allows systems to verify that those services are authentic.
+## Trust boundaries
 
-Together, DNS and PKI form the foundation of secure service communication.
+| Use | Issuer | Trust source | Validation |
+| --- | --- | --- | --- |
+| Public ingress | Public ACME issuer | Public operating-system/browser roots | Public DNS-01 |
+| Internal ingress and services | step-ca ACME issuer | Aetheric Forge private root | Internal DNS-01 through BIND |
 
----
+An internal hostname must not depend on public certificate authority
+validation. A public certificate must not imply that an internal service should
+be exposed publicly.
 
-## Why PKI Matters
+## Components
 
-When a user connects to a service, two questions must be answered:
+### cert-manager
 
-1. Where is the service?
-2. Can the service be trusted?
+cert-manager watches Certificate and issuer resources, creates ACME Orders and
+Challenges, and writes issued key pairs to Kubernetes Secrets. It owns renewal
+timing and the generated TLS Secret lifecycle.
 
-DNS answers the first question.
+### step-ca
 
-PKI answers the second.
+step-ca runs inside the cluster as the private certificate authority and ACME
+server. It uses the SOPS-encrypted root and provisioner secrets prepared for the
+environment.
 
-```text
-DNS
- │
- ▼
-Where is the service?
+### BIND
 
-PKI
- │
- ▼
-Can the service be trusted?
-```
+BIND is authoritative for the internal zone on port 5335. cert-manager uses its
+dedicated TSIG key to create and remove `_acme-challenge` TXT records.
 
-Without PKI, encrypted communication cannot reliably verify the identity of the systems involved.
-
----
-
-## Design Principles
-
-The PKI architecture is built around several principles:
-
-- Trust should be automated
-- Certificate issuance should not require manual intervention
-- Internal and external trust domains should remain separate
-- Certificates should be managed declaratively
-- Renewal should occur automatically
-- GitOps should define desired certificate behavior
-
----
-
-## Architectural Components
-
-Several components work together to provide certificate management.
+## Private issuance flow
 
 ```text
-Ingress
-    │
-    ▼
-Certificate Request
-    │
-    ▼
-cert-manager
-    │
-    ▼
-Certificate Authority
-    │
-    ▼
-Issued Certificate
-```
-
-Each component has a specific responsibility.
-
----
-
-## Certificate Authority
-
-A Certificate Authority (CA) is responsible for issuing certificates.
-
-Within Aetheric Forge, the internal certificate authority serves as the trust anchor for internal services.
-
-The CA establishes:
-
-- Service identity
-- Certificate issuance policy
-- Trust relationships
-- Renewal authority
-
-The CA becomes the source of trust for internal platform communication.
-
----
-
-## Internal Trust Domain
-
-Aetheric Forge maintains an internal trust domain separate from public certificate infrastructure.
-
-Examples include:
-
-```text
-argocd.int.example.ca
-grafana.int.example.ca
-api.int.example.ca
-```
-
-Certificates for these services are issued by the internal certificate authority.
-
-```text
-Internal Service
-       │
-       ▼
-Internal CA
-       │
-       ▼
-Internal Certificate
-```
-
-This allows internal services to operate independently of public certificate providers.
-
----
-
-## Public Trust Domain
-
-Public services may require certificates trusted by external clients.
-
-Examples include:
-
-```text
-example.ca
-api.example.ca
-app.example.ca
-```
-
-These services may use publicly trusted certificate authorities.
-
-```text
-Public Service
-       │
-       ▼
-Public CA
-       │
-       ▼
-Public Certificate
-```
-
-The specific public CA depends on deployment requirements.
-
----
-
-## Certificate Automation
-
-Aetheric Forge automates certificate lifecycle management.
-
-The platform automatically:
-
-- Requests certificates
-- Issues certificates
-- Renews certificates
-- Replaces expiring certificates
-
-Operators should rarely need to manage certificates manually.
-
----
-
-## cert-manager
-
-cert-manager acts as the certificate lifecycle controller.
-
-Its responsibilities include:
-
-- Monitoring certificate resources
-- Requesting certificates
-- Managing renewals
-- Tracking certificate status
-- Updating certificate secrets
-
-cert-manager performs for certificates what ExternalDNS performs for DNS records.
-
-```text
-Desired Certificate State
-             │
-             ▼
-        cert-manager
-             │
-             ▼
-   Certificate Authority
-```
-
----
-
-## step-ca
-
-Aetheric Forge uses step-ca as the internal certificate authority.
-
-step-ca provides:
-
-- Internal certificate issuance
-- ACME compatibility
-- Automated renewal support
-- Internal trust management
-
-```text
-cert-manager
-      │
-      ▼
-   ACME
-      │
-      ▼
- step-ca
-      │
-      ▼
 Certificate
+    │
+    ▼
+cert-manager ──► step-ca ACME order
+    │
+    ├── RFC2136 TXT update ──► BIND :5335
+    └── DNS-01 self-check ───► BIND :5335
+                                  │
+step-ca validates challenge ◄─────┘
+    │
+    ▼
+cert-manager stores TLS Secret
 ```
 
-This allows internal certificates to be issued using the same operational model commonly used with public certificate authorities.
+The self-check deliberately bypasses Pi-hole. A caching resolver can retain a
+negative answer created immediately before the challenge record, while the
+authoritative BIND answer is already correct.
 
----
+## Public issuance flow
 
-## ACME
+Public ingress Certificates use the public ACME ClusterIssuer. ExternalDNS
+publishes the public hostname through Cloudflare, and the public ACME service
+validates the corresponding challenge.
 
-ACME provides a standard protocol for automated certificate issuance.
+Public issuance therefore depends on public DNS delegation and propagation,
+not the internal Pi-hole/BIND path.
 
-Aetheric Forge uses ACME internally to simplify certificate management.
+## Trust bootstrap
 
-Benefits include:
+After step-ca starts, the bootstrap workflow:
 
-- Standardized workflows
-- Automated issuance
-- Automated renewal
-- Reduced operational complexity
+1. Reads the root certificate from the running step-ca Pod.
+2. Creates or updates the cert-manager trust Secret.
+3. Patches the internal ACME ClusterIssuer with the CA bundle.
+4. Leaves cert-manager to issue and renew workload certificates.
 
-Applications do not need to understand the underlying certificate authority.
+Clients still need the private root in their own trust stores. Installing it in
+Kubernetes does not automatically establish trust in an operator workstation,
+browser profile, mobile device, or application-specific certificate store.
 
-They simply request certificates through the platform.
+## Secret ownership
 
----
+- The private root key and step-ca provisioner passwords are encrypted desired
+  state.
+- The SOPS age identity capable of decrypting them remains outside Git.
+- Issued TLS Secrets are runtime state owned by cert-manager.
+- A Certificate resource, not its generated Secret, is the durable place to
+  change names, issuer, or renewal behavior.
 
-## Relationship to GitOps
+Loss of the root private key prevents faithful CA recovery. Compromise of that
+key compromises the private trust domain. Back it up separately and test the
+recovery procedure.
 
-Certificate behavior is defined through GitOps-managed resources.
+## Renewal dependencies
 
-Examples include:
+Private renewal requires all of the following at renewal time:
 
-- Issuers
-- ClusterIssuers
-- Certificates
-- Ingress resources
+- step-ca is healthy and trusts its configured root/provisioner state.
+- cert-manager trusts the step-ca ACME endpoint.
+- cert-manager can reach BIND on TCP and UDP port 5335.
+- BIND accepts the cert-manager TSIG key.
+- Authoritative TXT queries return the new challenge value.
+- WireGuard routing, forwarding, and source NAT return replies to the cluster.
 
-When GitOps applies a change:
+A currently valid certificate can conceal a broken renewal path. Validate an
+actual Order/Challenge cycle after networking or DNS changes.
 
-```text
-Git Change
-     │
-     ▼
-Argo CD
-     │
-     ▼
-cert-manager
-     │
-     ▼
-Certificate Issued
-```
+## Diagnosis order
 
-The desired certificate state remains stored in Git.
+1. Certificate condition and events
+2. Order and Challenge state
+3. cert-manager controller logs
+4. Direct authoritative TXT answer on BIND port 5335
+5. BIND update log and TSIG identity
+6. WireGuard route, forwarding, and return traffic
+7. step-ca health and ACME logs
 
-The actual certificate lifecycle is managed by platform controllers.
+Do not delete a valid TLS Secret until the issuance dependency failure is
+understood.
 
----
+## Next step
 
-## Runtime Ownership
-
-Certificates are examples of runtime-generated resources.
-
-GitOps defines:
-
-- What certificates should exist
-- Which authority should issue them
-- Which services should use them
-
-Runtime controllers generate:
-
-- Certificate requests
-- Issued certificates
-- Renewal operations
-- Certificate secrets
-
-This separation follows the ownership principles described elsewhere in the architecture.
-
----
-
-## Failure Recovery
-
-Because certificate configuration is managed declaratively, recovery is simplified.
-
-After restoring:
-
-- Kubernetes
-- GitOps
-- cert-manager
-- step-ca
-
-Certificates can be recreated automatically through reconciliation.
-
-The platform configuration remains the authoritative source of truth.
-
----
-
-## Design Goals
-
-The PKI architecture is designed to provide:
-
-- Automated trust management
-- Declarative certificate configuration
-- Internal certificate authority support
-- Automated renewal
-- GitOps-driven operations
-- Minimal manual intervention
-
-The ultimate goal is simple:
-
-> Services should receive trusted certificates because they were deployed, not because someone manually generated them.
-
----
-
-## Summary
-
-PKI provides the trust layer of the Aetheric Forge platform.
-
-DNS answers:
-
-```text
-Where is the service?
-```
-
-PKI answers:
-
-```text
-Can the service be trusted?
-```
-
-Together they provide secure, automated service discovery and communication.
-
-```text
-DNS
- │
- ▼
-Location
-
-PKI
- │
- ▼
-Trust
-```
-
----
-
-## Next Steps
-
-Continue with:
-
-- [Networking Architecture](07-networking.md)
+Continue with [Networking Architecture](07-networking.md).

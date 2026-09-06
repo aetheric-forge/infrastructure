@@ -1,304 +1,102 @@
 # Platform Component Catalog
 
-## Purpose
-
-This document defines the components that comprise the Aetheric Forge GitOps Bootstrap platform, their responsibilities, ownership boundaries, and dependencies.
-
-The catalog serves as the authoritative inventory of platform services and is used to guide operational decisions, architecture reviews, platform evolution, and future service integration.
-
-The objective is not to describe implementation details, but rather to provide a clear understanding of what components exist within the platform and the role each component plays.
-
----
-
-# Component Classification
-
-Platform components are organized into the following layers:
-
-| Layer     | Purpose                                                                   |
-| --------- | ------------------------------------------------------------------------- |
-| Substrate | Physical and virtual resources required to host the platform              |
-| Bootstrap | Services required to establish GitOps control and platform administration |
-| Platform  | Shared cluster services consumed by workloads                             |
-| Workloads | Applications and services deployed onto the platform                      |
-
-These classifications help establish ownership boundaries and clarify responsibility throughout the platform lifecycle.
-
----
-
-# Substrate Layer
-
-## Kubernetes
-
-| Property     | Value                            |
-| ------------ | -------------------------------- |
-| Component    | Kubernetes                       |
-| Role         | Container orchestration platform |
-| Owner        | Infrastructure                   |
-| Managed By   | Pulumi                           |
-| Dependencies | Compute, networking, storage     |
-
-### Responsibilities
-
-- Cluster scheduling
-- Container orchestration
-- Service networking
-- Storage integration
-- Kubernetes API services
-
----
-
-# Bootstrap Layer
-
-## Argo CD
-
-| Property     | Value                        |
-| ------------ | ---------------------------- |
-| Component    | Argo CD                      |
-| Role         | GitOps reconciliation engine |
-| Owner        | Platform                     |
-| Managed By   | Bootstrap process            |
-| Dependencies | Kubernetes, Git repository   |
-
-### Responsibilities
-
-- Declarative deployment management
-- Continuous reconciliation
-- Drift detection
-- Application lifecycle management
-
-### Notes
-
-Argo CD serves as the platform control plane and is responsible for managing all GitOps-controlled resources following bootstrap completion.
-
----
-
-## WireGuard
-
-| Property     | Value                 |
-| ------------ | --------------------- |
-| Component    | WireGuard             |
-| Role         | Administrative access |
-| Owner        | Bootstrap             |
-| Managed By   | Bootstrap process     |
-| Dependencies | Network connectivity  |
-
-### Responsibilities
-
-- Secure administrative access
-- Bootstrap connectivity
-- Platform management access
-
-### Notes
-
-WireGuard provides private administrative access to platform services and is intended to reduce reliance on publicly exposed management endpoints.
-
----
-
-# Platform Layer
-
-## BIND
-
-| Property     | Value               |
-| ------------ | ------------------- |
-| Component    | BIND                |
-| Role         | DNS services        |
-| Owner        | Platform            |
-| Managed By   | Argo CD             |
-| Dependencies | Kubernetes, MetalLB |
-
-### Responsibilities
-
-- Internal DNS resolution
-- Zone management
-- Service discovery support
-
----
-
-## step-ca
-
-| Property     | Value                 |
-| ------------ | --------------------- |
-| Component    | step-ca               |
-| Role         | Certificate Authority |
-| Owner        | Platform              |
-| Managed By   | Argo CD               |
-| Dependencies | DNS                   |
-
-### Responsibilities
-
-- Internal PKI
-- Certificate issuance
-- ACME services
-- Trust establishment
-
----
-
-## MetalLB
-
-| Property     | Value                 |
-| ------------ | --------------------- |
-| Component    | MetalLB               |
-| Role         | Load balancing        |
-| Owner        | Platform              |
-| Managed By   | Argo CD               |
-| Dependencies | Kubernetes networking |
-
-### Responsibilities
-
-- LoadBalancer service support
-- Address allocation
-- Service exposure
-
----
-
-## Ingress Controller
-
-| Property     | Value                    |
-| ------------ | ------------------------ |
-| Component    | NGINX Ingress Controller |
-| Role         | HTTP ingress and routing |
-| Owner        | Platform                 |
-| Managed By   | Argo CD                  |
-| Dependencies | MetalLB, step-ca         |
-
-### Responsibilities
-
-- HTTP routing
-- TLS termination
-- Application exposure
-- Ingress policy enforcement
-
----
-
-## ExternalDNS
-
-| Property     | Value          |
-| ------------ | -------------- |
-| Component    | ExternalDNS    |
-| Role         | DNS automation |
-| Owner        | Platform       |
-| Managed By   | Argo CD        |
-| Dependencies | BIND           |
-
-### Responsibilities
-
-- DNS record management
-- Service-to-DNS reconciliation
-- Automated platform naming
-
----
-
-## cert-manager
-
-| Property     | Value                            |
-| ------------ | -------------------------------- |
-| Component    | cert-manager                     |
-| Role         | Certificate lifecycle management |
-| Owner        | Platform                         |
-| Managed By   | Argo CD                          |
-| Dependencies | step-ca                          |
-
-### Responsibilities
-
-- Certificate provisioning
-- Certificate renewal
-- Integration with ACME issuers
-
----
-
-## Keycloak (Planned v0.8.1)
-
-| Property     | Value                          |
-| ------------ | ------------------------------ |
-| Component    | Keycloak                       |
-| Role         | Identity and access management |
-| Owner        | Platform                       |
-| Managed By   | Argo CD                        |
-| Dependencies | DNS, step-ca                   |
-
-### Responsibilities
-
-- Authentication
-- Authorization
-- Single Sign-On (SSO)
-- OIDC federation
-- Identity management
-
----
-
-# Workload Layer
-
-The following components are planned as part of the application services layer.
-
-## Redis (Planned v0.9.0)
-
-### Responsibilities
-
-- Caching
-- Session storage
-- Distributed coordination
-
----
-
-## RabbitMQ (Planned v0.9.0)
-
-### Responsibilities
-
-- Messaging
-- Event distribution
-- Work queue management
-
----
-
-## MongoDB (Planned v0.9.0)
-
-### Responsibilities
-
-- Document persistence
-- Application data storage
-
----
-
-# Ownership Boundaries
-
-The platform is intentionally divided into ownership layers.
-
-| Layer          | Responsibility                                                |
-| -------------- | ------------------------------------------------------------- |
-| Infrastructure | Provisioning and lifecycle management of Kubernetes resources |
-| Bootstrap      | Initial platform establishment and administrative access      |
-| Platform       | Shared services required by workloads                         |
-| Workloads      | Business and application services                             |
-
-Ownership boundaries are intended to minimize operational ambiguity and clarify lifecycle responsibilities.
-
----
-
-# Dependency Summary
-
-| Component          | Depends On           |
-| ------------------ | -------------------- |
-| Argo CD            | Kubernetes           |
-| WireGuard          | Network connectivity |
-| BIND               | Kubernetes, MetalLB  |
-| step-ca            | DNS                  |
-| cert-manager       | step-ca              |
-| ExternalDNS        | BIND                 |
-| Ingress Controller | MetalLB, step-ca     |
-| Keycloak           | DNS, step-ca         |
-| Redis              | Kubernetes           |
-| RabbitMQ           | Kubernetes           |
-| MongoDB            | Kubernetes           |
-
----
-
-# Platform Evolution
-
-| Version | Milestone                           |
-| ------- | ----------------------------------- |
-| v0.8.0  | Bootstrap platform baseline         |
-| v0.8.1  | Identity integration and federation |
-| v0.9.0  | Application services layer          |
-| v1.0.0  | Production reference platform       |
-
-This catalog will evolve as platform services are added, removed, or reassigned between ownership layers.
+This catalog describes the components present in the v2.0 repository and their
+owners in the Civo development reference environment.
+
+## Substrate and bootstrap
+
+| Component | Role | Primary owner | Important dependencies |
+| --- | --- | --- | --- |
+| Civo private network | Node, gateway, and private load-balancer network | Pulumi/Civo | Civo account and region |
+| Civo managed k3s | Kubernetes runtime | Pulumi/Civo | Network, firewall, node pool |
+| WireGuard gateway | Route between Civo and home network | Pulumi plus setup scripts | Public reachability, peer keys, forwarding |
+| Kubeconfig merge | Operator cluster access | Bootstrap | Pulumi kubeconfig output, kubectl |
+| Bootstrap Secrets | Initial repository, SOPS, and DNS access | Bootstrap | Operator-supplied credentials |
+
+Local k3s and AWS EKS provide alternative substrates. MetalLB belongs to the
+shared local/AWS path and is not used by the Civo reference overlay.
+
+## Core controllers
+
+| Component | Role | Managed by | Dependencies |
+| --- | --- | --- | --- |
+| ingress-nginx private | Internal HTTP routing and TLS termination | Kubernetes manifests/Helm | Civo private firewall and load balancer |
+| ingress-nginx public | Public HTTP routing and TLS termination | Kubernetes manifests/Helm | Civo public load balancer |
+| ExternalDNS internal | RFC2136 publication of internal names | Kubernetes manifests/Helm | BIND, TSIG, WireGuard route |
+| ExternalDNS public | Cloudflare publication of public names | Kubernetes manifests/Helm | Cloudflare token and public zone |
+| cert-manager | Public/private certificate lifecycle | Kubernetes manifests | DNS, issuers, step-ca trust |
+| step-ca | Private CA and ACME endpoint | Kubernetes manifests | Encrypted CA material, internal DNS |
+| Velero | Backup orchestration | Kubernetes manifests | MinIO S3 endpoint and credentials |
+
+Pi-hole and BIND are external to the reference cluster. Pi-hole provides client
+resolution on port 53; BIND provides internal authority and RFC2136 on port
+5335.
+
+## Operators
+
+| Operator | Owns |
+| --- | --- |
+| MinIO Operator | MinIO Tenant and storage workloads |
+| CloudNativePG | PostgreSQL cluster, Pods, and managed Services |
+| MongoDB Community Operator | MongoDB replica set and supporting workloads |
+| Keycloak Operator | Keycloak deployment and Service |
+| RabbitMQ Cluster Operator | RabbitMQ cluster and Service |
+
+Operator-created children must be configured through their custom resources or
+supported templates. Direct child edits are subject to reconciliation.
+
+## Shared services
+
+| Service | Purpose | Exposure in Civo dev | Major dependencies |
+| --- | --- | --- | --- |
+| Argo CD | GitOps UI and reconciliation engine | Private ingress | Git repository key, SOPS identity, step-ca TLS |
+| Keycloak | Identity provider and SSO | Public ingress | PostgreSQL, public DNS and ACME |
+| MinIO | Object storage and console | Private ingress | MinIO Operator, storage, Keycloak OIDC |
+| PostgreSQL | Relational data and Keycloak database | Cluster plus private load balancer | CloudNativePG, storage, private DNS |
+| MongoDB | Document database | Private load balancer | MongoDB Operator, storage, private DNS |
+| RabbitMQ | Messaging and management | Private load balancer/ingress as declared | RabbitMQ Operator, storage, private DNS |
+| Redis | Cache and coordination | ClusterIP | Storage and encrypted authentication Secret |
+
+The `minio-admins` policy is declarative and grants the administrative, KMS,
+and S3 permissions required for MinIO console administration through SSO.
+
+## External systems
+
+| System | Responsibility |
+| --- | --- |
+| Cloudflare | Public DNS authority and records |
+| Pi-hole | Private client resolver and conditional forwarder |
+| BIND | Internal zone authority, RFC2136, ACME TXT records |
+| Git provider | Desired-state repository and deploy-key authorization |
+| Pulumi backend | Infrastructure state and update history |
+| Home router | LAN routing, WireGuard peer, forwarding, persistent firewall/NAT |
+| Client trust stores | Trust of the private step-ca root |
+
+These are real platform dependencies even though their complete configuration
+does not live in this repository.
+
+## Dependency summary
+
+```text
+Cloud infrastructure
+        │
+        ▼
+Kubernetes + WireGuard route
+        │
+        ├──► DNS ──► PKI ──► ingress
+        │
+        ├──► operators ──► stateful services
+        │
+        └──► repository/SOPS access ──► desired configuration
+```
+
+Failures should be diagnosed from the earliest dependency boundary. A service
+cannot repair a missing route; a certificate cannot repair stale authoritative
+DNS; and Argo CD cannot reconcile external state it does not own.
+
+## Release status
+
+All components listed above are implemented in the repository. The complete
+end-to-end validation claim applies to the Civo `dev` overlay for v2.0. Local
+k3s and AWS assets remain available with narrower validation, while `test` and
+`prod` are not complete operational environments.

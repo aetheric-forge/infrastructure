@@ -1,234 +1,110 @@
 # Bootstrap Ownership
 
-Aetheric Forge separates bootstrap responsibilities from GitOps responsibilities.
+Bootstrap establishes enough infrastructure, access, trust, and Kubernetes
+state for the platform to operate. It is not an ownerless collection of setup
+steps: every artifact belongs to a specific lifecycle.
 
-This separation is one of the most important architectural boundaries in the platform.
+## Ownership categories
 
-Bootstrap creates the minimum foundation required for GitOps to operate. After that point, GitOps becomes responsible for the ongoing management of the platform.
+| Category | Owner | Examples |
+| --- | --- | --- |
+| Infrastructure | Pulumi | Civo network, cluster, firewalls, gateway; AWS VPC and EKS |
+| Operator-local | Operator and bootstrap scripts | `.env`, Pulumi outputs, kubeconfig, WireGuard keys |
+| Bootstrap credentials | Bootstrap scripts | Argo CD repository key, SOPS identity, DNS provider credentials |
+| Desired platform state | Version-controlled manifests | Controllers, operators, Services, Ingresses, Certificates |
+| Runtime state | Kubernetes and controllers | Pods, endpoints, issued certificates, load-balancer addresses |
+| External state | External operator/provider | DNS zones, home firewall, trust stores, cloud accounts |
 
----
+## What bootstrap does
 
-## Core Principle
+The v2.0 Civo workflow:
 
-The bootstrap process starts the platform.
+1. Applies two Pulumi projects.
+2. Merges the resulting kubeconfig.
+3. Creates initial Kubernetes credentials.
+4. Configures WireGuard peers and forwarding.
+5. Applies manifests in dependency order.
+6. Discovers private Civo addresses required for internal DNS.
+7. Connects cert-manager to the step-ca trust root.
 
-GitOps runs the platform.
+These actions are imperative orchestration around declarative sources. The
+scripts decide ordering; Pulumi and Kubernetes resources still describe the
+desired state within their respective systems.
 
-```text
-Bootstrap
-    │
-    ▼
-Argo CD
-    │
-    ▼
-GitOps Reconciliation
-    │
-    ▼
-Platform Management
-```
+## Bootstrap-owned local files
 
-Bootstrap is intentionally limited.
+The following are local or generated state and are ignored by Git:
 
-It should create only what is required for GitOps to become operational.
+- `.env`
+- `.env.pulumi.generated`
+- Pulumi stack configuration files below `scripts/pulumi/`
+- Rendered phase manifests
+- `.wireguard/`
+- Kubeconfig material
+- Plaintext CA files and backups
 
----
+They must be backed up according to their recovery value, but they are not
+desired-state documents to commit.
 
-## Why Ownership Matters
+## Version-controlled secrets
 
-Clear ownership prevents configuration drift, accidental overwrites, and operational confusion.
+SOPS-encrypted `.enc.yaml` files are an intentional exception. Their ciphertext
+and metadata are version-controlled desired state. The age identity that can
+decrypt them remains outside Git.
 
-Every resource should answer a simple question:
+Bootstrap may create an encrypted manifest when both the Kubernetes Secret and
+the expected encrypted file are absent. Existing encrypted credentials should
+normally be preserved during an upgrade.
 
-> Who is responsible for managing this?
+## Runtime ownership
 
-If the answer is unclear, the resource is likely to cause problems later.
+Do not edit generated resources as if they were source:
 
----
+| Runtime object | Owning declaration |
+| --- | --- |
+| Pod or ReplicaSet | Deployment, StatefulSet, operator resource, or chart values |
+| EndpointSlice | Service selectors and healthy Pods |
+| Issued TLS Secret | Certificate and issuer configuration |
+| DNS record | Ingress/Service annotation and ExternalDNS configuration |
+| Civo load-balancer address | Service plus Civo provider state |
+| Operator-created Service | Owning custom resource and Service template |
 
-## Bootstrap-Owned Resources
+Manual runtime changes may be useful for emergency diagnosis, but the durable
+fix belongs in the owner.
 
-Bootstrap-owned resources are created before GitOps can safely manage the platform.
+## Field ownership migrations
 
-Examples include:
+Server-side apply records ownership at the field level. Existing Civo services
+can carry ownership from an older manager for MongoDB's firewall annotation or
+CloudNativePG's additional-Service list.
 
-- Local environment configuration
-- Initial Argo CD installation
-- Git repository access credentials
-- SOPS AGE key references
-- Initial Kubernetes secrets required by Argo CD
-- Initial DNS update credentials
-- External DNS provider credentials
-- Initial root application wiring
+The `--adopt-service-fields` path exists only for those known fields. It uses a
+temporary field manager and relinquishes ownership afterward. It is not a
+general license to force conflicts.
 
-These resources exist to start reconciliation.
+## Day-two changes
 
-They are not intended to become the long-term management model for the platform.
+- Change cloud infrastructure in Pulumi and review a preview.
+- Change platform declarations in Git and reconcile the affected stage.
+- Rotate encrypted credentials by updating and re-encrypting their manifests.
+- Repair runtime objects through their owning declaration.
+- Change home DNS, routing, and trust stores in their external configuration.
 
----
+The current Civo bootstrap directly applies its staged platform manifests and
+also deploys Argo CD with repository credentials. Continuous GitOps coverage is
+determined by the Argo CD Applications registered for an environment; do not
+assume that every directly bootstrapped object has an active Argo owner.
 
-## GitOps-Owned Resources
+## Recovery rule
 
-GitOps-owned resources are managed through Git and reconciled by Argo CD.
+When a stage fails, locate the earliest broken ownership boundary. A DNS
+failure may originate in routing, BIND authority, TSIG access, an ExternalDNS
+declaration, or cached client resolution. Recreating a downstream certificate
+or ingress does not repair those owners.
 
-Examples include:
+See the [Bootstrap Runbook](../bootstrap-runbook.md) and
+[Upgrade Runbook](../upgrade-runbook.md) for operational checkpoints.
 
-- Platform services
-- Application definitions
-- Ingress resources
-- Certificate issuers
-- DNS record declarations
-- Environment overlays
-- Service configuration
-- Workload manifests
+## Next step
 
-These resources should be modified in Git, not directly in the cluster.
-
----
-
-## Runtime-Owned Resources
-
-Some resources are created by controllers at runtime.
-
-Examples include:
-
-- Issued certificates
-- Generated DNS records
-- Controller-managed status fields
-- Pods created by Deployments
-- ReplicaSets
-- Service endpoints
-- Load balancer assignments
-
-These resources are managed by Kubernetes controllers or platform controllers.
-
-They should generally not be edited manually.
-
----
-
-## Ownership Boundaries
-
-Aetheric Forge uses three broad ownership categories:
-
-| Owner               | Manages                     | Examples                                                 |
-| ------------------- | --------------------------- | -------------------------------------------------------- |
-| Bootstrap           | Initial platform foundation | Argo CD install, repository credentials, initial secrets |
-| GitOps              | Desired platform state      | Applications, services, manifests, overlays              |
-| Runtime Controllers | Generated operational state | Pods, certificates, DNS records, endpoints               |
-
-Understanding these categories helps operators determine where changes should be made.
-
----
-
-## Change Rules
-
-Use the following rules:
-
-| Resource Type             | Change Location                       |
-| ------------------------- | ------------------------------------- |
-| Bootstrap configuration   | Local configuration / `.env`          |
-| GitOps-managed manifests  | Git                                   |
-| Application configuration | Git                                   |
-| Runtime status            | Do not edit directly                  |
-| Generated resources       | Modify the owning declaration instead |
-
-When in doubt, look for the owner before making changes.
-
----
-
-## Example: Application Change
-
-To change an application deployment:
-
-1. Modify the application manifest in Git.
-2. Commit the change.
-3. Push to the repository.
-4. Allow Argo CD to reconcile the cluster.
-
-Do not edit the deployment directly with `kubectl`.
-
-Manual edits will be overwritten during reconciliation.
-
----
-
-## Example: Certificate Change
-
-To change certificate behavior:
-
-1. Modify the certificate or issuer configuration in Git.
-2. Commit the change.
-3. Push to the repository.
-4. Allow cert-manager and Argo CD to reconcile.
-
-Do not manually edit generated certificate secrets unless performing emergency recovery.
-
----
-
-## Example: DNS Change
-
-To change DNS behavior:
-
-1. Modify the relevant ingress, service, or ExternalDNS configuration in Git.
-2. Commit the change.
-3. Push to the repository.
-4. Allow Argo CD and ExternalDNS to reconcile.
-
-Do not manually edit generated DNS records unless performing emergency repair.
-
----
-
-## Bootstrap Is Not Day-Two Operations
-
-Bootstrap is not intended to be the normal way to operate the platform.
-
-After the platform is running, routine changes should happen through GitOps.
-
-Bootstrap may be used again when:
-
-- Rebuilding a cluster
-- Creating a new environment
-- Recovering from severe failure
-- Rotating foundational credentials
-- Re-establishing GitOps access
-
-Routine platform changes should not require re-running bootstrap.
-
----
-
-## Drift and Reconciliation
-
-Configuration drift occurs when the running cluster differs from the state declared in Git.
-
-GitOps reduces drift by continuously reconciling the cluster.
-
-However, drift can still occur when:
-
-- Resources are changed manually
-- Secrets are rotated outside the documented process
-- Runtime resources are edited directly
-- Bootstrap-owned resources are modified without updating configuration
-
-The safest correction is usually to update the owning source and allow reconciliation to complete.
-
----
-
-## Design Goal
-
-The goal of the ownership model is simple:
-
-> Operators should always know where to make a change.
-
-If a change belongs to bootstrap, update bootstrap configuration.
-
-If a change belongs to GitOps, update Git.
-
-If a resource is runtime-generated, update the declaration that creates it.
-
-This keeps the platform predictable, reproducible, and recoverable.
-
----
-
-## Next Steps
-
-Continue with:
-
-- [Configuration Management](05-configuration.md)
+Continue with [GitOps Architecture](03-gitops.md).

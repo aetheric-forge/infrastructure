@@ -1,317 +1,122 @@
 # GitOps Architecture
 
-GitOps is the operational foundation of Aetheric Forge.
+Git stores the intended platform declarations and their history. Argo CD is the
+platform's reconciliation engine, but bootstrap remains responsible for
+establishing the cluster, credentials, dependency order, and initial platform
+state.
 
-Every major platform capability—including networking, DNS, certificate management, and application deployment—is managed through GitOps reconciliation.
-
-Understanding GitOps is essential to understanding how the platform operates.
-
----
-
-## What Is GitOps?
-
-GitOps is an operational model in which Git becomes the authoritative source of truth for system configuration.
-
-Rather than making changes directly within a running environment, changes are committed to a Git repository and automatically applied to the platform.
-
-The desired state of the platform exists in Git.
-
-The actual state of the platform exists in Kubernetes.
-
-GitOps continuously works to make those states match.
+## Desired and actual state
 
 ```text
-Desired State (Git)
-          │
-          ▼
-       Argo CD
-          │
-          ▼
-Actual State (Cluster)
+Git declarations ──► renderer/controller ──► Kubernetes objects
+                                                │
+                                                ▼
+                                      runtime controller state
 ```
 
----
+Desired state includes Kustomize bases and overlays, Helm values embedded in
+overlays, Pulumi programs, Argo CD application definitions, and SOPS-encrypted
+Secret manifests. Actual state includes the resources running in Kubernetes and
+the external records or load balancers created by controllers.
 
-## Why GitOps?
+## Git is authoritative for declarations
 
-Traditional infrastructure and platform management often relies on manual changes.
+Git should contain:
 
-Examples include:
+- Reusable platform bases
+- Deployment-model and environment overlays
+- Controller and operator configuration
+- Service and ingress declarations
+- Certificate and DNS intent
+- SOPS-encrypted secret manifests
+- Pulumi source code
 
-- Editing resources with kubectl
-- Making changes through web interfaces
-- Executing imperative deployment commands
-- Applying one-off fixes directly to running systems
+Git must not contain:
 
-These approaches create configuration drift and make environments difficult to reproduce.
+- `.env` or generated Pulumi output
+- Provider tokens or plaintext credentials
+- SOPS age identities
+- Repository or WireGuard private keys
+- Kubeconfig data
+- Rendered phase manifests
+- Runtime status or discovered addresses as an undocumented manual edit
 
-GitOps addresses these challenges by ensuring that platform configuration is:
+## Bootstrap and Argo CD
 
-- Version controlled
-- Auditable
-- Reproducible
-- Recoverable
-- Declarative
+The Civo v2 workflow renders and server-side applies four stages directly:
 
-The Git repository becomes the operational record of the platform.
+1. Core controllers
+2. Platform configuration
+3. Operators
+4. Shared services
 
----
+This ordering solves the initial dependency problem: CRDs and controllers must
+exist before their dependent resources. Argo CD is deployed as a shared service
+and receives repository access during bootstrap.
 
-## Core Principle
+An environment becomes continuously GitOps-managed only for resources covered
+by its registered Argo CD Applications. The presence of Argo CD alone does not
+prove that every bootstrapped object is reconciled by Argo.
 
-The most important rule in Aetheric Forge is:
+## Environment overlays
 
-> If a resource is managed by GitOps, modify Git instead of modifying the cluster.
+Reusable components live under `platform/`. Environment composition lives
+under `clusters/`.
 
-Changes made directly to GitOps-managed resources are temporary.
-
-During the next reconciliation cycle, Argo CD will restore the state defined in Git.
-
----
-
-## Git as the Source of Truth
-
-Git stores:
-
-- Platform configuration
-- Application definitions
-- Infrastructure manifests
-- Environment overlays
-- Certificate configuration
-- DNS configuration
-
-Git does not store:
-
-- Runtime state
-- Generated secrets
-- Bootstrap credentials
-- Ephemeral operational data
-
-Git describes what the platform should look like.
-
-Git does not describe everything that happens inside the platform.
-
----
-
-## Reconciliation
-
-Reconciliation is the process of comparing the desired state with the actual state.
-
-Argo CD continuously performs this comparison.
+The v2 reference overlay is:
 
 ```text
-Git Repository
-       │
-       ▼
-Desired State
-       │
-       ▼
-    Compare
-       │
-       ▼
-Cluster State
+clusters/single/civo/dev/
+├── 10-platform-core
+├── 20-platform-config
+├── 30-platform-operators
+└── 40-platform-services
 ```
 
-When differences are detected, Argo CD attempts to correct them.
+Provider-specific behavior belongs in the provider overlay rather than a
+shared base. Examples include Civo firewall annotations, storage classes,
+private load-balancer targets, and WireGuard route agents.
 
-This process is known as self-healing.
+## Controller chains
 
----
-
-## Self-Healing
-
-Suppose an operator accidentally deletes a deployment.
+Some desired state crosses system boundaries:
 
 ```text
-Git:
-  deployment exists
-
-Cluster:
-  deployment missing
+Ingress/Service declaration
+        │
+        ├──► ingress-nginx routing
+        ├──► ExternalDNS record
+        └──► cert-manager Certificate/Secret
 ```
 
-Argo CD detects the difference and recreates the deployment.
+A Git change is not complete until each relevant controller has reconciled it.
+Health must be checked at every boundary rather than only in Argo CD.
 
-The platform automatically returns to its desired state.
+## Safe change workflow
 
-This capability significantly reduces configuration drift and operational mistakes.
+1. Identify the owner and environment overlay.
+2. Change the smallest declarative source.
+3. Render and validate locally.
+4. Review generated differences.
+5. Commit and push the change.
+6. Reconcile through the environment's supported workflow.
+7. Verify runtime and external effects.
 
----
+Do not edit an operator-created Service if the operator custom resource owns its
+template. Do not publish a Civo public status address as a private DNS target.
+Do not force server-side-apply conflicts outside the scoped migration helper.
 
-## The GitOps Control Plane
+## Drift and recovery
 
-Aetheric Forge uses Argo CD as its GitOps controller.
+Drift can exist in Kubernetes, Pulumi, DNS, cloud resources, or external home
+network configuration. Argo CD can repair only the resources it owns. Pulumi
+repairs infrastructure drift; bootstrap reruns or focused stages repair
+bootstrap-owned state; external operators repair DNS delegation, routing, and
+trust stores.
 
-Argo CD is responsible for:
+Before recovery, determine which reconciler is responsible. Multiple
+reconcilers claiming the same field create conflict rather than resilience.
 
-- Monitoring Git repositories
-- Detecting configuration changes
-- Applying manifests
-- Monitoring application health
-- Restoring desired state
+## Next step
 
-Argo CD acts as the bridge between Git and Kubernetes.
-
-```text
-Git
- │
- ▼
-Argo CD
- │
- ▼
-Kubernetes
-```
-
----
-
-## Application Hierarchy
-
-Aetheric Forge organizes deployments hierarchically.
-
-```text
-Root Application
-       │
-       ▼
-Provider Applications
-       │
-       ▼
-Platform Components
-       │
-       ▼
-Workloads
-```
-
-This structure allows large platforms to be managed as smaller, independent components.
-
-Each layer is responsible for deploying the layer beneath it.
-
----
-
-## Environment Management
-
-Different environments may require different configuration.
-
-Examples include:
-
-- Development
-- Testing
-- Production
-
-GitOps manages these differences through environment-specific overlays and configuration.
-
-The deployment workflow remains consistent across environments.
-
-Only configuration changes.
-
----
-
-## Operational Workflow
-
-The standard operational workflow is:
-
-```text
-Modify Configuration
-         │
-         ▼
-Commit Changes
-         │
-         ▼
-Push to Git
-         │
-         ▼
-Argo CD Detects Change
-         │
-         ▼
-Reconciliation
-         │
-         ▼
-Updated Platform
-```
-
-No direct cluster modification is required.
-
----
-
-## Failure Recovery
-
-GitOps significantly simplifies disaster recovery.
-
-If a cluster is lost:
-
-1. Recreate the infrastructure.
-2. Restore bootstrap credentials.
-3. Restore GitOps access.
-4. Allow Argo CD to reconcile the platform.
-
-Because platform configuration already exists in Git, much of the environment can be recreated automatically.
-
----
-
-## Benefits
-
-GitOps provides several operational advantages:
-
-- Reduced configuration drift
-- Improved auditability
-- Faster recovery
-- Simplified change management
-- Consistent deployment processes
-- Reproducible environments
-
-These characteristics make GitOps particularly well suited to educational environments, small organizations, and self-hosted infrastructure.
-
----
-
-## Relationship to Bootstrap
-
-Bootstrap and GitOps have different responsibilities.
-
-Bootstrap creates the minimum resources required for GitOps to operate.
-
-Examples include:
-
-- Repository credentials
-- Initial secrets
-- Environment configuration
-- Initial Argo CD installation
-
-Once Argo CD becomes operational, GitOps assumes responsibility for the ongoing management of platform resources.
-
-```text
-Bootstrap
-     │
-     ▼
-Argo CD
-     │
-     ▼
-Platform Management
-```
-
-Bootstrap starts the platform.
-
-GitOps runs the platform.
-
----
-
-## Design Goals
-
-The GitOps architecture in Aetheric Forge is designed to provide:
-
-- Declarative operations
-- Reproducible environments
-- Automated reconciliation
-- Self-healing infrastructure
-- Clear ownership boundaries
-- Minimal manual intervention
-
-These goals guide every other architectural decision within the platform.
-
----
-
-## Next Steps
-
-The next document describes how deployment configuration is collected and managed within Aetheric Forge.
-
-Continue with:
-
-- [Configuration Management](05-configuration.md)
+Continue with [DNS Architecture](04-dns.md).

@@ -1,442 +1,117 @@
 # Application Delivery
 
-Application delivery is the process of deploying workloads onto an Aetheric Forge platform.
+Application delivery combines a version-controlled workload declaration with
+network visibility, DNS, certificates, configuration, and secrets. An
+application is ready only when every required controller boundary has
+reconciled.
 
-The platform is designed so that applications are delivered through GitOps using the same principles that manage the platform itself.
+## Workload structure
 
-Applications become part of the desired state of the environment and are continuously reconciled by the GitOps control plane.
-
----
-
-## Core Principle
-
-Applications are deployed by modifying Git.
-
-Applications are not deployed by manually interacting with the cluster.
-
-The standard workflow is:
+Reusable application or service definitions belong in a base. Provider and
+environment differences belong in overlays:
 
 ```text
-Application Definition
-          │
-          ▼
-         Git
-          │
-          ▼
-       Argo CD
-          │
-          ▼
-     Kubernetes
-          │
-          ▼
-    Running Service
+component/
+├── base/
+│   ├── deployment-or-operator-resource.yaml
+│   ├── service.yaml
+│   └── kustomization.yaml
+├── overlays/
+│   └── dev/
+└── secrets/
+    └── dev/
+        └── secret.enc.yaml
 ```
 
-Git remains the authoritative source of truth.
+The exact structure varies for operator-managed services, but ownership should
+remain visible.
 
----
-
-## Why GitOps Application Delivery?
-
-Traditional deployment workflows often rely on manual commands.
-
-Examples include:
-
-- kubectl apply
-- Helm install
-- Manual configuration changes
-- Direct cluster access
-
-These approaches can introduce configuration drift and make environments difficult to reproduce.
-
-Aetheric Forge uses GitOps to ensure applications are:
-
-- Version controlled
-- Auditable
-- Reproducible
-- Recoverable
-- Consistent across environments
-
----
-
-## Application Lifecycle
-
-Applications follow a predictable lifecycle.
+## Delivery chain
 
 ```text
-Create
-   │
-   ▼
-Commit
-   │
-   ▼
-Deploy
-   │
-   ▼
-Operate
-   │
-   ▼
-Update
-   │
-   ▼
-Retire
-```
-
-Git serves as the operational history of the application throughout this lifecycle.
-
----
-
-## Application Components
-
-Most applications consist of several Kubernetes resources.
-
-Common examples include:
-
-```text
-Application
-├── Deployment
-├── Service
-├── Ingress
-├── ConfigMap
-└── Secret
-```
-
-Each component contributes to the overall operation of the workload.
-
----
-
-## Typical Application Structure
-
-A typical application directory may contain:
-
-```text
-application/
-├── deployment.yaml
-├── service.yaml
-├── ingress.yaml
-├── configmap.yaml
-├── secrets.enc.yaml
-└── kustomization.yaml
-```
-
-The exact structure may vary.
-
-The important concept is that the application is described declaratively.
-
-Git contains the desired state.
-
----
-
-## Deployments
-
-Deployments define application workloads.
-
-Responsibilities include:
-
-- Container images
-- Replica counts
-- Resource requirements
-- Environment variables
-- Update strategies
-
-Deployments describe how an application should run.
-
----
-
-## Services
-
-Services provide stable network access to workloads.
-
-Applications are accessed through Services rather than directly through Pods.
-
-Responsibilities include:
-
-- Service discovery
-- Stable addressing
-- Load balancing
-- Internal communication
-
-Services allow workloads to scale without affecting consumers.
-
----
-
-## Ingress
-
-Ingress resources expose applications through DNS hostnames.
-
-Examples include:
-
-```text
-app.example.ca
-api.example.ca
-```
-
-Ingress resources define:
-
-- Hostnames
-- TLS requirements
-- Routing rules
-
-The networking and DNS systems automatically implement these declarations.
-
----
-
-## Secrets
-
-Applications often require sensitive configuration.
-
-Examples include:
-
-- Database credentials
-- API tokens
-- Authentication secrets
-
-These values are typically stored as encrypted manifests.
-
-Example:
-
-```text
-secrets.enc.yaml
-```
-
-Encrypted secrets participate in GitOps workflows while protecting sensitive information.
-
----
-
-## Application Delivery Flow
-
-A typical deployment follows this sequence:
-
-```text
-Application Manifest
-          │
-          ▼
-       Git Commit
-          │
-          ▼
-       Argo CD
-          │
-          ▼
-      Deployment
-          │
-          ▼
-        Service
-          │
-▼
-        Ingress
-           │
-           ├─────────────┬─────────────┐
-           ▼             ▼             ▼
-
-        cert-manager  ExternalDNS   Ingress Controller
-           │             │               │
- ▼             ▼               ▼
-
-        Certificate   DNS Record      Routing Ready
-           │             │               │
-           └─────────────┴───────────────┘
-                   │
-                   ▼
-
-        Application Available
-          ▼
-```
-
-Several platform systems participate automatically.
-
-The application author does not need to manually configure each layer.
-
----
-
-## Relationship to DNS
-
-Applications become discoverable through DNS.
-
-An ingress declaration may result in:
-
-```text
-app.example.ca
-```
-
-being automatically published by ExternalDNS.
-
-The application does not directly manage DNS records.
-
-The platform handles this responsibility.
-
----
-
-## Relationship to PKI
-
-Applications become trusted through the certificate infrastructure.
-
-Ingress resources may automatically trigger certificate issuance.
-
-```text
-Ingress
-    │
-    ▼
-Certificate Request
-    │
-    ▼
-cert-manager
-    │
-    ▼
-Certificate
-```
-
-Applications do not typically manage certificates directly.
-
-The platform provides this capability.
-
----
-
-## Relationship to Networking
-
-Applications consume networking services rather than implementing networking themselves.
-
-The platform provides:
-
-- Routing
-- Load balancing
-- TLS termination
-- Service discovery
-
-Application authors focus on workload behavior rather than networking implementation.
-
----
-
-## Relationship to Secrets
-
-Applications consume secrets generated or managed elsewhere.
-
-```text
-Encrypted Secret
-         │
-         ▼
- Kubernetes Secret
-         │
-         ▼
-    Application
-```
-
-Applications should not contain sensitive values directly in manifests.
-
-The platform provides mechanisms for secure secret management.
-
----
-
-## Self-Healing Applications
-
-Because applications are managed through GitOps, they benefit from reconciliation and self-healing.
-
-If resources are modified or removed unexpectedly:
-
-```text
-Cluster Drift
+Manifest/overlay
       │
-      ▼
-   Argo CD
-      │
-      ▼
-Reconciliation
-      │
-      ▼
-Desired State Restored
+      ├──► workload controller ──► ready Pods
+      ├──► Service ──────────────► endpoints/load balancer
+      ├──► Ingress ──────────────► nginx routing
+      ├──► ExternalDNS ──────────► public or internal record
+      └──► cert-manager ─────────► TLS Secret
 ```
 
-This reduces operational overhead and improves platform consistency.
+A healthy Deployment does not prove that DNS, TLS, or ingress works. Conversely,
+a valid DNS record can point to an unhealthy or unintended load balancer.
 
----
+## Public and private exposure
 
-## Environment Promotion
+An exposed HTTP application must align three declarations:
 
-Applications can move through environments using the same GitOps workflow.
+| Concern | Public | Private |
+| --- | --- | --- |
+| Ingress class | `nginx-public` | `nginx-private` |
+| DNS zone | External domain | Internal domain |
+| Certificate issuer | Public ACME | step-ca internal ACME |
 
-Examples include:
+Public exposure is an explicit design decision. Moving a hostname between zones
+without changing ingress and certificate policy creates a broken or unsafe
+deployment.
 
-```text
-Development
-      │
-      ▼
-Testing
-      │
-      ▼
-Production
-```
+## Protocol services
 
-The promotion process remains consistent because deployments are defined declaratively.
+Non-HTTP services can use ClusterIP for cluster-only access or a private
+LoadBalancer Service for routed clients. In Civo, internal DNS for dedicated
+load balancers uses validated private provider addresses, not the public Service
+status address.
 
----
+Operator-managed services must declare annotations and additional Services in
+the owning custom resource when the operator reconciles those children.
 
-## Failure Recovery
+## Configuration and secrets
 
-Application recovery is simplified because application definitions exist in Git.
+Non-sensitive configuration belongs in manifests or generated values with a
+clear source. Sensitive values belong in SOPS-encrypted manifests or bootstrap
+Secrets according to ownership.
 
-After restoring:
+Applications consume Secrets; they should not generate undocumented credentials
+at startup when reproducible recovery depends on them.
 
-- Kubernetes
-- GitOps
-- Platform services
+## Environment changes
 
-Applications can be redeployed automatically through reconciliation.
+An overlay may change:
 
-The repository remains the authoritative source of truth.
+- Storage class and capacity
+- Resource requests and limits
+- Replicas
+- Ingress class and hostnames
+- Certificate issuer
+- Service type and firewall annotations
+- DNS target and visibility
 
----
+Avoid embedding provider-specific values in shared bases. The Civo overlay owns
+Civo storage classes, firewall IDs, and private-address publication behavior.
 
-## Design Goals
+## Delivery verification
 
-The application delivery architecture is designed to provide:
+Verify in dependency order:
 
-- Declarative deployments
-- Automated reconciliation
-- Consistent environments
-- Secure service exposure
-- Automated DNS integration
-- Automated certificate management
-- Simplified operations
+1. Required CRD and operator are healthy.
+2. Workload resource reports ready.
+3. Service selectors produce EndpointSlices.
+4. Load balancer and firewall match the intended visibility.
+5. DNS resolves to the intended target.
+6. Certificate is ready and trusted by the client.
+7. Ingress routes the hostname to the correct Service.
+8. Authentication and application-level health succeed.
 
-The ultimate goal is simple:
+For private applications, run these checks from a client whose route and DNS
+configuration represent real use.
 
-> Applications should become operational because they were declared, not because they were manually deployed.
+## GitOps boundary
 
----
+Commit the desired application declaration and encrypted secrets. Runtime
+controllers then create dependent objects. Continuous reconciliation applies
+only where an Argo CD Application owns the resource; directly bootstrapped
+resources still require the supported reconciliation workflow.
 
-## Summary
+## Next step
 
-Application delivery brings together every major subsystem within Aetheric Forge.
-
-```text
-GitOps
-    │
-    ▼
-Application Definition
-    │
-    ▼
-Deployment
-    │
-    ▼
-Networking
-    │
-    ▼
-DNS
-    │
-    ▼
-PKI
-    │
-    ▼
-Running Application
-```
-
-Every architectural component contributes to the successful delivery of applications.
-
-This is the primary purpose of the platform.
-
----
-
-## Next Steps
-
-At this point the core architecture of Aetheric Forge has been introduced.
-
-The remaining documentation focuses on operational workflows, platform administration, and environment-specific deployment guidance.
+Continue with the [Platform Component Catalog](10-platform-component-catalog.md).

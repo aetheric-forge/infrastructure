@@ -1,401 +1,122 @@
 # Networking Architecture
 
-The networking layer is responsible for connecting users, services, and applications within an Aetheric Forge environment.
+The v2.0 reference network connects public users, private clients, a Civo
+Kubernetes cluster, and an external home DNS network without treating every
+service as public.
 
-Its primary purpose is to ensure that traffic can be routed safely and predictably to the correct destination.
+## Network domains
 
-Networking works closely with DNS and PKI to provide service discovery, secure communication, and application access.
+| Domain | Purpose |
+| --- | --- |
+| Public internet | Public ingress and cloud-provider APIs |
+| Civo private network | Cluster nodes, gateway, and private load balancers |
+| WireGuard tunnel | Routed connection between Civo and the home router |
+| Home LAN | Private clients and DNS authority |
+| Kubernetes Pod/Service networks | Cluster-internal workload communication |
 
----
+All CIDRs must be non-overlapping.
 
-## Why Networking Matters
+## Ingress classes
 
-Once DNS identifies a service and PKI establishes trust, traffic must still reach the correct application.
+The Civo overlay installs two ingress-nginx controllers:
 
-Networking answers the question:
+| Class | Load balancer | Intended traffic |
+| --- | --- | --- |
+| `nginx-public` | Public Civo load balancer | Explicitly public applications such as Keycloak |
+| `nginx-private` | Civo load balancer with private firewall | Internal web consoles and APIs |
 
-> How does a request reach the intended service?
+An Ingress must choose its class explicitly. DNS visibility and certificate
+issuer must agree with that choice.
 
-```text
-DNS
- │
- ▼
-Where is the service?
+## Non-HTTP services
 
-PKI
- │
- ▼
-Can the service be trusted?
+RabbitMQ, MongoDB, and PostgreSQL use dedicated LoadBalancer Services when
+private clients need protocol-level access. Their internal records target Civo
+private addresses discovered through the provider API.
 
-Networking
- │
- ▼
-How does traffic reach it?
-```
+Redis remains a ClusterIP in the Civo overlay. MinIO's console and S3 API use
+private ingress hostnames rather than separate public service addresses.
 
-Together these systems provide a complete service access model.
-
----
-
-## Design Principles
-
-The networking architecture is built around several principles:
-
-- Services should be reachable through stable hostnames
-- Traffic routing should be automated
-- Internal and public access should remain distinct
-- Applications should not manage networking directly
-- GitOps should define networking behavior
-- Platform services should provide common networking capabilities
-
----
-
-## Traffic Flow
-
-A typical request follows this path:
+## WireGuard topology
 
 ```text
-Client
-   │
-   ▼
-DNS
-   │
-   ▼
-Load Balancer
-   │
-   ▼
-Ingress Controller
-   │
-   ▼
-Service
-   │
-   ▼
-Application
+Home LAN/client
+      │
+      ▼
+Home router: wg-civo (second usable tunnel address)
+      │
+      │ encrypted tunnel
+      ▼
+Civo gateway: wg0 (first usable tunnel address)
+      │
+      ▼
+Civo private network and cluster
 ```
 
-Each layer has a specific responsibility.
+The Civo gateway detects its default VPC interface at runtime. The home setup
+detects the LAN interface used to reach the configured local CIDR. Tunnel peer
+addresses are calculated from the configured IPv4 network rather than assuming
+a `/24` or a particular dotted prefix.
 
----
+## Forwarding and source NAT
 
-## Services
+Routing requires more than a current WireGuard handshake:
 
-Kubernetes Services provide stable network endpoints for workloads.
+- IPv4 forwarding must be enabled on both routing hosts.
+- Forward rules must permit the intended direction and connection state.
+- The WireGuard peer `AllowedIPs` must include the routed networks.
+- Source NAT is required where the destination network lacks a return route to
+  the original source.
+- Persistent `PostUp` and `PostDown` rules must match live firewall behavior.
 
-Applications are not accessed directly.
+The reference gateway masquerades traffic leaving toward the home CIDR so the
+home network can return cluster-originated DNS and RFC2136 traffic without a
+route for every Pod source.
 
-Instead, traffic is routed through Services.
+The home router masquerades LAN and other configured sources toward the Civo
+network where required. Broad, duplicate, or interface-mismatched rules can
+hide routing errors and should not accumulate outside the managed config.
 
-Responsibilities include:
+## Cluster node routes
 
-- Stable addressing
-- Service discovery
-- Load balancing between pods
-- Network abstraction
+The Civo overlay deploys a privileged route agent so cluster nodes route the
+configured home CIDR through the WireGuard gateway's private address. This is
+required for Pod-to-home traffic; a route on the operator workstation alone does
+not affect cluster nodes.
 
-Services allow applications to be replaced or scaled without affecting consumers.
+## Load balancers
 
----
+Civo owns cloud load-balancer allocation. Kubernetes Service status can expose
+the provider's public address even when the platform intends private access.
+Internal DNS therefore uses provider-discovered private addresses.
 
-## Ingress
+The shared local/AWS `dev` path retains MetalLB-oriented resources. MetalLB is
+not part of the Civo reference data path and must not be described as the
+universal platform load balancer.
 
-Ingress resources define how external traffic enters the cluster.
+## Failure boundaries
 
-Examples include:
+Diagnose a private connection in order:
 
-```text
-argocd.int.example.ca
-grafana.int.example.ca
-app.example.ca
-```
+1. Client route to the destination CIDR
+2. Packet arrival on the home LAN interface
+3. Forwarding/NAT from LAN to `wg-civo`
+4. Current WireGuard handshake and packet counters
+5. Forwarding/NAT on the Civo gateway
+6. Civo private route, firewall, and load balancer
+7. Kubernetes Service endpoints and healthy Pods
 
-Ingress resources declare:
+A successful ICMP test does not prove that TCP 443, DNS, or an application port
+is allowed. Capture the specific protocol and endpoint being tested.
 
-- Hostnames
-- Routing rules
-- TLS configuration
-- Backend services
+## Persistence
 
-Ingress resources describe desired behavior.
+Live routes and firewall rules disappear after interface restart or reboot
+unless represented in NetworkManager, WireGuard `PostUp`/`PostDown`, nftables
+configuration, or another host-owned persistent mechanism. Document which
+system owns each rule; do not maintain the same rule independently in several
+places.
 
-They do not process traffic directly.
+## Next step
 
----
-
-## Ingress Controllers
-
-Ingress controllers implement the routing behavior defined by ingress resources.
-
-```text
-Ingress
-    │
-    ▼
-Ingress Controller
-    │
-    ▼
-Application Service
-```
-
-Responsibilities include:
-
-- HTTP routing
-- TLS termination
-- Hostname matching
-- Request forwarding
-
-The ingress controller acts as the primary entry point into the cluster.
-
----
-
-## Internal and Public Access
-
-Aetheric Forge distinguishes between internal and public traffic.
-
-Examples of internal services include:
-
-```text
-argocd.int.example.ca
-grafana.int.example.ca
-```
-
-Examples of public services include:
-
-```text
-example.ca
-api.example.ca
-```
-
-Separate ingress configurations may be used to ensure traffic reaches the appropriate destination.
-
-This separation helps maintain clear security and operational boundaries.
-
----
-
-## Load Balancing
-
-Applications often run multiple replicas.
-
-Load balancing distributes requests across available instances.
-
-```text
-Client Requests
-        │
-        ▼
- Kubernetes Service
-        │
-        ▼
- ┌──────┼──────┐
- ▼      ▼      ▼
-
-Pod A  Pod B  Pod C
-```
-
-This improves:
-
-- Availability
-- Scalability
-- Fault tolerance
-
-Applications can scale without changing client configuration.
-
----
-
-## External Access
-
-In local deployments, external access is typically provided through local networking infrastructure.
-
-In cloud deployments, external access may be provided through cloud load-balancing services.
-
-The implementation differs between deployment models.
-
-The networking architecture remains consistent.
-
----
-
-## MetalLB
-
-Local Kubernetes environments do not normally provide load balancer functionality.
-
-Aetheric Forge uses MetalLB to provide this capability.
-
-```text
-Client
-   │
-   ▼
-MetalLB Address
-   │
-   ▼
-Ingress Controller
-```
-
-MetalLB allows local deployments to behave more like cloud-hosted environments.
-
-This provides a consistent operational experience across deployment models.
-
----
-
-## Relationship to DNS
-
-DNS and networking work together.
-
-DNS provides discovery.
-
-Networking provides connectivity.
-
-```text
-DNS
- │
- ▼
-Hostname
- │
- ▼
-Network Address
- │
- ▼
-Ingress
- │
- ▼
-Application
-```
-
-Without networking, DNS records would have no reachable destination.
-
----
-
-## Relationship to PKI
-
-Networking and PKI also work together.
-
-Networking delivers traffic.
-
-PKI protects traffic.
-
-```text
-Client
-   │
-   ▼
-TLS Connection
-   │
-   ▼
-Ingress
-   │
-   ▼
-Application
-```
-
-Certificates are typically presented at the ingress layer.
-
-This allows secure communication without requiring every application to manage certificates independently.
-
----
-
-## Relationship to GitOps
-
-Networking configuration is managed through GitOps.
-
-Examples include:
-
-- Services
-- Ingress resources
-- Load balancer configuration
-- Routing rules
-
-When networking configuration changes:
-
-```text
-Git Change
-     │
-     ▼
-Argo CD
-     │
-     ▼
-Networking Update
-     │
-     ▼
-Traffic Flow Changes
-```
-
-The desired networking state remains defined in Git.
-
----
-
-## Failure Recovery
-
-Because networking configuration is declarative, it can be recreated through reconciliation.
-
-After restoring:
-
-- Kubernetes
-- Argo CD
-- Networking controllers
-
-The desired networking configuration can be rebuilt automatically.
-
-The authoritative source remains Git rather than manual configuration.
-
----
-
-## Design Goals
-
-The networking architecture is designed to provide:
-
-- Predictable traffic flow
-- Automated routing
-- Clear access boundaries
-- Consistent deployment behavior
-- Scalable service access
-- GitOps-managed configuration
-
-The ultimate goal is simple:
-
-> Applications should become reachable because they were deployed, not because someone manually configured network infrastructure.
-
----
-
-## Summary
-
-Networking provides the connectivity layer of the platform.
-
-DNS answers:
-
-```text
-Where is the service?
-```
-
-PKI answers:
-
-```text
-Can the service be trusted?
-```
-
-Networking answers:
-
-```text
-How does traffic reach it?
-```
-
-Together these systems provide secure, discoverable, and accessible platform services.
-
-```text
-DNS
- │
- ▼
-Discovery
-
-PKI
- │
- ▼
-Trust
-
-Networking
- │
- ▼
-Connectivity
-```
-
----
-
-## Next Steps
-
-Continue with:
-
-- [Secrets Management](08-secrets.md)
+Continue with [Secrets Management](08-secrets.md).

@@ -1,309 +1,116 @@
 # Configuration Management
 
-Configuration determines how an Aetheric Forge deployment behaves.
+Aetheric Forge configuration is divided by lifecycle rather than stored in one
+universal file.
 
-While GitOps manages the desired state of the platform, configuration defines the characteristics of a specific environment before the platform is created.
+## Configuration sources
 
-Examples include:
+| Source | Purpose | Git status |
+| --- | --- | --- |
+| `.env` | Operator inputs and bootstrap credentials | Ignored |
+| Process environment | Provider authentication such as `CIVO_TOKEN` | Not stored |
+| Pulumi programs | Infrastructure declarations | Tracked |
+| Pulumi stack files | Local/backend stack configuration | Ignored in this repository |
+| `.env.pulumi.generated` | Selected Pulumi outputs for later stages | Generated and ignored |
+| Kustomize bases | Reusable platform definitions | Tracked |
+| Cluster overlays | Provider/environment composition and patches | Tracked |
+| SOPS `.enc.yaml` files | Encrypted desired secret state | Tracked |
+| Rendered phase manifests | Apply-time artifacts | Generated and ignored |
 
-- Deployment model
-- Environment name
-- Platform identity
-- Repository credentials
-- Secret management configuration
-- DNS provider configuration
+See the [Configuration Reference](../03-configuration-reference.md) for every
+interactive setting, advanced override, and current input constraint.
 
-Configuration establishes the foundation upon which bootstrap and GitOps operate.
-
----
-
-## Core Principle
-
-Configuration defines _what kind of platform_ will be created.
-
-GitOps defines _what the platform should contain_.
-
-```text
-Configuration
-      │
-      ▼
- Bootstrap
-      │
-      ▼
-   GitOps
-      │
-      ▼
- Platform
-```
-
-Configuration is evaluated before the platform exists.
-
-GitOps operates after the platform exists.
-
----
-
-## Configuration Lifecycle
-
-The configuration process follows a simple workflow:
+## Configuration flow
 
 ```text
-Collect Inputs
-       │
-       ▼
-make configure
-       │
-       ▼
-Generate .env
-       │
-       ▼
-Bootstrap
-       │
-       ▼
-GitOps
+Operator input ──► .env
+                     │
+                     ├──► Pulumi programs ──► cloud resources
+                     │                           │
+                     │                           ▼
+                     └────────────────► .env.pulumi.generated
+                                                 │
+Git bases + environment overlay + generated values
+                         │
+                         ▼
+                  rendered phase manifest
+                         │
+                         ▼
+                     Kubernetes
 ```
 
-The generated configuration becomes the input for bootstrap operations.
+The deployment script replaces explicit placeholders only after rendering an
+overlay and fails if required placeholders remain unresolved.
 
----
+## Naming and environment identity
 
-## Configuration Sources
+`ORG_NAME`, `SYSTEM_NAME`, and `ENVIRONMENT` form cloud resource and kubeconfig
+names. `BASE_DOMAIN` derives the external and internal domain inputs. Provider
+overlays select storage classes, ingress behavior, firewall annotations, and
+network integration.
 
-Aetheric Forge uses several sources of configuration.
+The Civo v2 reference is the `dev` overlay. Some service bootstrap values still
+contain reference-environment hostnames, so changing `BASE_DOMAIN` alone does
+not yet retarget every component.
 
-### User Input
+## Provider configuration
 
-User-supplied configuration includes:
+### Civo
 
-- Platform name
-- Environment name
-- Deployment model
-- Repository locations
-- Credential locations
-
-These values are collected during configuration.
-
----
-
-### Credential Inputs
-
-Some configuration values reference externally generated credentials.
-
-Examples include:
-
-- AGE private key paths
-- Repository SSH private key paths
-- RFC2136 TSIG credentials
-- External DNS provider API tokens
-
-The platform consumes these credentials but does not generate them automatically.
-
----
-
-### Generated Configuration
-
-The configuration process produces a local environment file:
-
-```text
-.env
-```
-
-This file contains the values required by bootstrap tooling and deployment workflows.
-
-The `.env` file becomes the authoritative local configuration source for the deployment.
-
----
-
-## Deployment Models
-
-Configuration selects the deployment model.
-
-Currently supported models include:
-
-### Local
-
-Local deployments use:
-
-- k3s
-- Local BIND9
-- RFC2136 DNS updates
-- Local infrastructure
-
-This model is intended for:
-
-- Learning
-- Development
-- Testing
-- Small laboratory environments
-
----
+Civo inputs select region, node size/count, node-pool label, private-network
+CIDR, optional Kubernetes version, and WireGuard gateway size. The API token is
+supplied through the process environment.
 
 ### AWS
 
-AWS deployments use:
+AWS nested inputs describe region, VPC, EKS version, node architecture and
+scaling, and public API access. AWS credentials use the normal SDK chain. The
+AWS path remains implemented but is not the fully exercised v2 reference.
 
-- Amazon EKS
-- Cloud infrastructure
-- Managed networking resources
-- Cloud-based platform services
+### Local
 
-This model is intended for:
+Local mode uses an existing kubeconfig and the shared `dev` overlay. Host,
+LoadBalancer, routing, and authoritative DNS configuration remain
+operator-owned.
 
-- Integration testing
-- Production deployments
-- Cloud-native operation
+## Generated output
 
----
+Pulumi exports values such as network IDs, firewall IDs, gateway addresses, and
+kubeconfig. `generate-env.sh` excludes the kubeconfig and writes other outputs
+to `.env.pulumi.generated` using uppercase names.
 
-## Platform Identity
+Generated output is a transport between stages, not an authoritative file to
+edit. Correct the Pulumi declaration or input and regenerate it.
 
-Every deployment has an identity.
+## Secrets in configuration
 
-Common identity values include:
+`.env` contains bootstrap secret values and paths, but it is not committed.
+Bootstrap creates initial Kubernetes Secrets and uses SOPS for encrypted
+desired-state Secrets. Provider tokens, private keys, and age identities remain
+outside Git.
 
-```text
-Platform Name
-Environment Name
-Deployment Model
-```
+Configuration examples must use placeholders rather than real credentials.
+Encrypted ciphertext may be committed only in the expected `.enc.yaml` form.
 
-Examples:
+## Change rules
 
-```text
-Platform: aetheric-forge
-Environment: dev
-Model: local
-```
+- Preview Pulumi changes before applying infrastructure configuration.
+- Render and inspect overlays before applying Kubernetes configuration.
+- Change operator-created child resources through the owning custom resource.
+- Preserve existing encrypted service credentials during ordinary upgrades.
+- Do not edit generated output to conceal a mismatch in its source.
+- Validate domain and CIDR inputs across every dependent system.
 
-or
+## Current constraints
 
-```text
-Platform: aetheric-forge
-Environment: production
-Model: aws
-```
+- `WIREGUARD__LOCAL_CIDRS` currently accepts one IPv4 CIDR despite its plural
+  name.
+- The WireGuard tunnel is IPv4 and requires at least two usable addresses.
+- Civo private addresses must be rediscovered after load-balancer replacement.
+- Not every reference hostname is parameterized yet.
+- Local and AWS paths have not received the same end-to-end v2 validation as
+  Civo.
 
-These values influence naming, resource generation, and deployment behavior.
+## Next step
 
----
-
-## Secret References
-
-Configuration generally stores references to secrets rather than the secrets themselves whenever possible.
-
-Examples:
-
-```text
-AGE Private Key Path
-SSH Private Key Path
-```
-
-The platform uses these references during bootstrap.
-
-This approach reduces duplication and simplifies credential management.
-
----
-
-## Deployment Isolation
-
-Each Aetheric Forge deployment should maintain its own working directory and configuration.
-
-A typical deployment consists of:
-
-```text
-repository/
-├── .env
-├── scripts/
-├── clusters/
-└── platform/
-```
-
-The `.env` file defines the identity and configuration of that deployment.
-
-Examples might include:
-
-- Development environments
-- Laboratory environments
-- Testing environments
-- Production environments
-
-Each deployment maintains its own repository clone and configuration.
-
-This approach simplifies operations and reduces the risk of accidentally applying configuration intended for one environment to another.
-
-A deployment should be treated as an independent platform instance with its own lifecycle.
-
----
-
-## Relationship to GitOps
-
-Configuration and GitOps serve different purposes.
-
-Configuration answers:
-
-> What environment am I creating?
-
-GitOps answers:
-
-> What should exist inside that environment?
-
-The two systems complement each other but operate at different stages of the platform lifecycle.
-
----
-
-## Configuration Changes
-
-Configuration changes generally occur when:
-
-- Creating a new environment
-- Changing deployment models
-- Rotating credentials
-- Updating repository access
-- Modifying DNS provider integrations
-
-Routine platform operations should not require frequent configuration changes.
-
-Most operational changes belong in GitOps.
-
----
-
-## Design Goals
-
-The configuration system is designed to provide:
-
-- Consistent deployment workflows
-- Environment reproducibility
-- Clear separation of concerns
-- Simple bootstrap operations
-- Portable environment definitions
-
-Configuration should be predictable, understandable, and easy to recreate.
-
----
-
-## Summary
-
-Configuration defines the identity and foundational characteristics of an Aetheric Forge deployment.
-
-Bootstrap consumes configuration to create the platform.
-
-GitOps then assumes responsibility for ongoing platform management.
-
-```text
-Configuration
-      ↓
- Bootstrap
-      ↓
-   GitOps
-      ↓
- Platform Operations
-```
-
-Understanding this progression is essential to understanding how Aetheric Forge environments are created and maintained.
-
----
-
-## Next Steps
-
-Continue with:
-
-- [DNS Architecture](04-dns.md)
+Continue with [PKI Architecture](06-pki.md).

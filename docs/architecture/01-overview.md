@@ -1,226 +1,134 @@
 # Architecture Overview
 
-Aetheric Forge is a GitOps platform designed to provide a reproducible, self-managing Kubernetes foundation.
+Aetheric Forge Infrastructure builds a Kubernetes platform in layers with an
+explicit owner for each kind of state. The v2.0 reference environment is the
+Civo `dev` deployment; local k3s and AWS use related but different substrate and
+networking implementations.
 
-Rather than focusing on individual technologies, Aetheric Forge organizes infrastructure around a clear ownership model.
-
-Understanding these ownership boundaries is the key to understanding the platform.
-
----
-
-## Core Philosophy
-
-The platform is built around a simple principle:
-
-> Bootstrap installs the minimum required foundation. GitOps manages everything else.
-
-The bootstrap process establishes a functioning control plane.
-
-Once that control plane is operational, Argo CD becomes responsible for deploying, reconciling, and maintaining the platform.
-
----
-
-## Architectural Layers
-
-The platform can be viewed as a series of layers.
+## Architectural layers
 
 ```text
-┌─────────────────────────────┐
-│      Applications           │
-├─────────────────────────────┤
-│      Platform Services      │
-├─────────────────────────────┤
-│         GitOps              │
-├─────────────────────────────┤
-│       Kubernetes            │
-├─────────────────────────────┤
-│     Infrastructure          │
-└─────────────────────────────┘
+Applications and clients
+          │
+          ▼
+Shared platform services
+          │
+          ▼
+Controllers and operators
+          │
+          ▼
+Kubernetes cluster
+          │
+          ▼
+Cloud or local infrastructure
 ```
 
-Each layer provides services to the layer above it.
+### Infrastructure
 
----
+Infrastructure supplies compute, networks, firewalls, load balancers, and
+storage. Pulumi creates the Civo and AWS infrastructure. A local deployment
+uses an existing operator-managed host and k3s cluster.
 
-## Infrastructure Layer
+### Kubernetes
 
-The infrastructure layer provides the resources required to run Kubernetes.
+The repository supports:
 
-Examples include:
+- Civo managed k3s as the v2.0 reference
+- An existing local k3s cluster
+- Amazon EKS as the retained AWS path
 
-- Local hardware
-- Virtual machines
-- Cloud infrastructure
-- Networking resources
-- Persistent storage
+Kubernetes owns scheduling, Service networking, storage attachment, and the
+runtime objects created by controllers.
 
-Infrastructure creation is outside the scope of GitOps.
+### Controllers and operators
 
-Infrastructure must exist before Kubernetes can operate.
+Controllers provide shared control-plane behavior:
 
----
+- Public and private ingress-nginx
+- Public and internal ExternalDNS
+- cert-manager and step-ca
+- Velero
+- MinIO, CloudNativePG, MongoDB Community, Keycloak, and RabbitMQ operators
 
-## Kubernetes Layer
+### Shared services
 
-Kubernetes provides the execution environment for all platform services.
+The development platform includes Argo CD, Keycloak, MinIO, RabbitMQ,
+PostgreSQL, MongoDB, and Redis. Their desired definitions live under
+`platform/` and are assembled by environment overlays under `clusters/`.
 
-Responsibilities include:
-
-- Scheduling workloads
-- Service discovery
-- Storage orchestration
-- Network connectivity
-- Resource management
-
-Aetheric Forge currently supports:
-
-- k3s (local development)
-- Amazon EKS (cloud deployment)
-
----
-
-## GitOps Layer
-
-The GitOps layer is the heart of the platform.
-
-Argo CD continuously reconciles the desired state stored in Git with the actual state of the cluster.
+## Reference traffic paths
 
 ```text
-Git Repository
-       │
-       ▼
-    Argo CD
-       │
-       ▼
- Kubernetes
+Internet ──► public Civo load balancer ──► nginx-public ──► public ingress
+
+Private client ──► private network/WireGuard
+                         │
+                         ├──► private Civo load balancer ──► nginx-private
+                         └──► dedicated private service load balancers
+
+Cluster ──► WireGuard gateway ──► home DNS network
+                                      │
+                         ┌────────────┴────────────┐
+                         ▼                         ▼
+                   Pi-hole :53                BIND :5335
+                  client resolver      authority and RFC2136
 ```
 
-Changes are made through Git.
+Public DNS is published through Cloudflare. Internal records are published to
+BIND using authenticated RFC2136 updates. Pi-hole answers ordinary client
+queries and forwards the internal zone to BIND.
 
-Git becomes the authoritative source of truth for platform configuration.
+Private certificates are issued by step-ca through cert-manager. Public
+certificates use the public ACME issuer. Internal DNS-01 checks and updates go
+directly to BIND on port 5335 to avoid resolver negative caching.
 
----
+## Ownership model
 
-## Platform Services Layer
+| Owner | State |
+| --- | --- |
+| Pulumi | Cloud networks, compute, clusters, firewalls, and gateway resources |
+| Bootstrap scripts | Initial access, generated values, staged manifest application, and trust wiring |
+| Version-controlled manifests | Desired controller, operator, and service definitions |
+| Runtime controllers | Pods, endpoints, load-balancer assignments, DNS records, and certificates |
+| External operators | Cloud accounts, DNS zones, home routing, trust stores, and recovery keys |
 
-Platform services provide the operational capabilities required by applications.
+The owner determines where a change belongs. For example, a Civo firewall is
+changed in Pulumi, an ingress hostname in its manifest, and an issued
+Certificate is repaired by fixing its Certificate or issuer declaration.
 
-Examples include:
+## Bootstrap sequence
 
-- Ingress controllers
-- DNS automation
-- Certificate management
-- Internal certificate authorities
-- Load balancing
-- Secret management
+The reference bootstrap proceeds in dependency order:
 
-These services are deployed and managed through GitOps.
+1. Foundation Pulumi project
+2. Civo network, cluster, firewalls, and WireGuard gateway
+3. Kubeconfig and bootstrap secrets
+4. WireGuard connection to the home network
+5. Core controllers
+6. Provider and platform configuration
+7. Operators and CRDs
+8. Shared services and private-address discovery
+9. step-ca trust wiring and validation
 
----
+The Civo service phase uses two passes. It first creates private load balancers
+without publishing unsafe targets, discovers their private addresses, then
+reapplies their owning resources with internal DNS publication enabled.
 
-## Applications Layer
+## Design boundaries
 
-Applications represent the workloads operated by platform users.
+- Civo `dev` is the fully exercised v2.0 environment.
+- Internal DNS and the home-side WireGuard router are external dependencies.
+- Private Civo load-balancer discovery runs during deployment, not continuously.
+- `test` and `prod` manifests are development assets, not complete supported
+  environments.
+- SOPS-encrypted manifests may be tracked; plaintext secrets and generated
+  local state may not.
+- Clean-room disaster recovery is not yet automated end to end.
 
-Examples include:
+## Next steps
 
-- Web applications
-- APIs
-- Databases
-- Internal services
-- Educational workloads
-
-Applications are deployed through GitOps using the same mechanisms as platform services.
-
----
-
-## Ownership Model
-
-One of the most important concepts in Aetheric Forge is ownership.
-
-Every resource should have a clearly defined owner.
-
-### Bootstrap-Owned
-
-Bootstrap creates resources required before GitOps can function.
-
-Examples:
-
-- Repository credentials
-- Initial secrets
-- Environment configuration
-- Cluster access configuration
-
-Bootstrap ownership ends once GitOps becomes operational.
-
----
-
-### GitOps-Owned
-
-GitOps manages the ongoing lifecycle of platform resources.
-
-Examples:
-
-- Applications
-- Platform services
-- Certificates
-- DNS records
-- Ingress configuration
-
-GitOps continuously reconciles these resources.
-
-Manual modification is discouraged.
-
----
-
-## Control Plane Services
-
-Several platform services form the operational control plane.
-
-```text
-                Git
-                 │
-                 ▼
-              Argo CD
-                 │
- ┌───────────────┼───────────────┐
- ▼               ▼               ▼
-DNS             PKI          Networking
- │               │               │
-BIND         step-ca       MetalLB
-ExternalDNS Cert-Manager   Ingress
-```
-
-These services work together to provide:
-
-- Automated deployment
-- Automated DNS management
-- Automated certificate issuance
-- Automated ingress configuration
-
----
-
-## Design Goals
-
-Aetheric Forge was designed to support:
-
-- Reproducible deployments
-- Educational environments
-- Small organizational platforms
-- Self-hosted infrastructure
-- Incremental learning
-- Minimal operational overhead
-
-The platform favors simplicity, transparency, and repeatability over maximum flexibility.
-
----
-
-## Next Steps
-
-The remaining architecture documents explore each major subsystem in greater detail:
-
-- [GitOps](02-bootstrap-ownership.md)
-- [Networking](07-networking.md)
+- [Bootstrap Ownership](02-bootstrap-ownership.md)
+- [GitOps](03-gitops.md)
 - [DNS](04-dns.md)
 - [PKI](06-pki.md)
-- [Configuration Management](05-configuration.md)
+- [Networking](07-networking.md)
