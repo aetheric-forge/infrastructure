@@ -93,8 +93,11 @@ net.ipv4.ip_forward=1
 EOF
 sysctl --system
 
-# NAT for VPC access (private interface)
-iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+# NAT for VPC access through the host's default interface. Interface names vary
+# between cloud images, so discover it instead of assuming eth0.
+VPC_INTERFACE=$(ip route show default | awk 'NR == 1 {print $5}')
+test -n "$VPC_INTERFACE"
+iptables -t nat -A POSTROUTING -o "$VPC_INTERFACE" -j MASQUERADE
 
 # Persist iptables
 yum install -y iptables-services || true

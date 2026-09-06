@@ -8,6 +8,9 @@ ROOT = Path(__file__).resolve().parents[2]
 CONFIGURE = (ROOT / "scripts/configure.sh").read_text()
 CREATE = (ROOT / "scripts/create.sh").read_text()
 AWS_WIREGUARD = (ROOT / "scripts/wireguard/setup.sh").read_text()
+FOUNDATION_WIREGUARD = (
+    ROOT / "scripts/pulumi/foundation/wireguard.py"
+).read_text()
 CLUSTER_MAIN = (ROOT / "scripts/pulumi/cluster/__main__.py").read_text()
 CLUSTER = (ROOT / "scripts/pulumi/cluster/kubernetes.py").read_text()
 STEP_CA = (ROOT / "platform/core/step-ca/base/deployment.yaml").read_text()
@@ -59,6 +62,12 @@ class BootstrapConfigurationTests(unittest.TestCase):
         self.assertIn('PostUp = ', AWS_WIREGUARD)
         self.assertIn('PostDown = ', AWS_WIREGUARD)
         self.assertNotIn('ens5', AWS_WIREGUARD)
+
+    def test_aws_gateway_bootstrap_discovers_vpc_interface(self):
+        self.assertIn("VPC_INTERFACE=$(ip route show default", FOUNDATION_WIREGUARD)
+        self.assertIn('test -n "$VPC_INTERFACE"', FOUNDATION_WIREGUARD)
+        self.assertIn('-o "$VPC_INTERFACE"', FOUNDATION_WIREGUARD)
+        self.assertNotIn('-o eth0', FOUNDATION_WIREGUARD)
 
     def test_civo_gateway_honors_wireguard_enablement(self):
         self.assertIn(
