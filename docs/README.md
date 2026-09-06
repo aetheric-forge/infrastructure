@@ -16,13 +16,14 @@ Read these documents in order when evaluating or deploying the platform:
 4. [Configuration Reference](03-configuration-reference.md) — `.env` inputs,
    provider credentials, generated values, and current constraints
 5. [Quick Start](01-quickstart.md) — abbreviated deployment path
-6. [Bootstrap Runbook](bootstrap-runbook.md) — complete bootstrap sequence and
-   verification
+6. [Bootstrap Runbook](bootstrap-runbook.md) — clean bootstrap stages,
+   checkpoints, recovery, and verification
+7. [Upgrade Runbook](upgrade-runbook.md) — existing-environment safeguards,
+   field adoption, private DNS rediscovery, and upgrade validation
 
-The bootstrap runbook is still being aligned with the v2.0 Civo reference
-workflow. During that work, the quick start,
-[v2.0.0 release notes](release-notes/v2.0.0.md), and repository implementation
-remain authoritative.
+The quick start and runbooks describe the v2.0 Civo reference workflow. The
+[v2.0.0 release notes](release-notes/v2.0.0.md) define its release scope and
+known limitations.
 
 ## Architecture
 

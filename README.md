@@ -104,11 +104,11 @@ For the current bootstrap sequence, read:
 3. [Configuration Reference](docs/03-configuration-reference.md)
 4. [Quick Start](docs/01-quickstart.md)
 5. [Bootstrap Runbook](docs/bootstrap-runbook.md)
+6. [Upgrade Runbook](docs/upgrade-runbook.md)
 
-The bootstrap runbook is still being revised for the v2.0 Civo workflow. Until
-that work is complete, use the quick start together with the
-[v2.0.0 release notes](docs/release-notes/v2.0.0.md) and implementation as the
-authoritative description of the reference environment.
+The quick start and runbooks document the v2.0 Civo workflow. The
+[v2.0.0 release notes](docs/release-notes/v2.0.0.md) define the release scope,
+upgrade considerations, and known limitations.
 
 ## Configuration and secrets
 
