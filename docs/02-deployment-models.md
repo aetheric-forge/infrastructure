@@ -1,174 +1,176 @@
 # Deployment Models
 
-Aetheric Forge supports multiple deployment models, each designed for a different stage of learning, development, and operation.
+Aetheric Forge Infrastructure contains several deployment paths, but they do
+not have equal scope or validation. In v2.0, the Civo development environment
+is the reference deployment.
 
-Before proceeding with installation, review the available deployment models and select the one that best matches your objectives.
+Choose a model according to what you need to operate, not simply where you want
+to run containers.
 
----
+## Model summary
 
-## Choosing a Deployment Model
+| Model | Infrastructure | Kubernetes | Platform bootstrap | v2.0 status |
+| --- | --- | --- | --- | --- |
+| Civo development | Created by Pulumi | Civo managed k3s | Civo `dev` overlay | Reference and fully exercised |
+| Local development | Supplied by the operator | Existing local k3s | Shared `dev` overlay | Supported, not fully revalidated for v2.0 |
+| AWS development | Created by Pulumi | Amazon EKS | Shared `dev` overlay | Supported legacy cloud path |
+| Docker Compose | Supplied by the operator | Not used | Not used | Separate application-development stack |
 
-Use the following guidelines:
+The repository also contains `test` and `prod` manifests. They are not complete
+v2.0 reference environments and should not be presented or operated as such
+without additional validation.
 
-| Goal                                | Recommended Model |
-| ----------------------------------- | ----------------- |
-| Learn GitOps and platform concepts  | Local Development |
-| Develop and test platform changes   | Local Development |
-| Validate cloud deployment workflows | AWS Development   |
-| Operate a production environment    | Production        |
+## Civo development
 
-Most users should begin with Local Development before deploying to cloud infrastructure.
+Civo is the recommended model for deploying the complete v2.0 development
+platform.
 
----
+Pulumi creates:
 
-## Local Development
+- A dedicated Civo private network
+- A managed k3s cluster and node pool
+- Cluster and private load-balancer firewalls
+- A WireGuard gateway when WireGuard is enabled
 
-Local Development provides a complete Aetheric Forge environment on local hardware using k3s.
+The Civo-specific `dev` overlay then deploys the platform in four layers:
 
-This model is intended for:
+1. Core controllers
+2. Platform configuration
+3. Operators and their custom resources
+4. Shared platform services
 
-- Learning Kubernetes fundamentals
-- Exploring GitOps workflows
-- Platform development
-- Functional testing
-- Educational environments
-- Small laboratory deployments
+### Networking model
 
-### Characteristics
+The reference environment uses separate public and private ingress-nginx
+controllers. Public applications use the public ingress load balancer. Internal
+web applications and the MinIO S3 endpoint use the private ingress load
+balancer.
 
-- Single-node deployment
-- k3s Kubernetes distribution
-- Local RFC2136 DNS authority
-- Local BIND9 server
-- Minimal infrastructure requirements
-- Fast deployment and teardown
+Private non-HTTP services receive dedicated Civo load balancers. During
+deployment, the bootstrap workflow discovers their private addresses and
+publishes those addresses through internal DNS. Kubernetes Service status may
+contain a publicly routable address and is not treated as the internal DNS
+target.
 
-### Advantages
+The Civo VPC reaches the home DNS and private network through WireGuard. This
+route is part of the reference architecture rather than an optional
+administrative convenience: internal DNS updates, private ACME validation, and
+access from the home network depend on it.
 
-- No cloud costs
-- Rapid iteration
-- Simple troubleshooting
-- Ideal for experimentation
+### Operational boundaries
 
-### Limitations
+- The exercised environment is `clusters/single/civo/dev`.
+- Private load-balancer address discovery occurs during deployment; it is not a
+  continuously running controller.
+- Replacing a load balancer requires the affected deployment stage to be rerun
+  so its private DNS target can be rediscovered.
+- The internal DNS service is external to the cluster in the reference
+  environment.
+- Clean-room disaster recovery is not yet automated end to end.
 
-- Not highly available
-- Limited scalability
-- Not intended for production workloads
+For the private service publication workflow, see
+[Civo dev private service DNS](../clusters/single/civo/dev/README.md).
 
-### Documentation
+## Local development with k3s
 
-- Local Installation
-- k3s Installation
-- BIND9 Installation
-- Local Bootstrap
+The local model applies the shared `dev` overlay to an existing k3s cluster. It
+is useful for platform development, laboratories, and environments where the
+operator already owns the host and network.
 
----
+The repository does not provision the local machine or install k3s. The
+operator must provide:
 
-## AWS Development
+- A working k3s cluster and kubeconfig
+- LoadBalancer support suitable for the local network
+- An authoritative internal DNS service with RFC2136 updates
+- The routes, firewall policy, and trust configuration required by that network
 
-AWS Development deploys Aetheric Forge into Amazon EKS using infrastructure managed through Pulumi.
+The shared overlay includes MetalLB-oriented configuration that is not used by
+the Civo reference environment.
 
-This model is intended for:
+### Operational boundaries
 
-- Infrastructure validation
-- Platform integration testing
-- Cloud-native development
-- Environment promotion testing
+- Local host provisioning is outside Pulumi's scope.
+- Network addresses and DNS delegation depend on the operator's LAN.
+- The local path has not received the same complete v2.0 validation as Civo.
+- WireGuard should be configured only when the local topology requires it; it
+  is not needed merely to reach a cluster on the same host or LAN.
 
-### Characteristics
+See [Local k3s](local/k3s.md) and [Local BIND9](local/bind9.md) for the existing
+host preparation notes. Those guides are scheduled for a v2.0 accuracy pass.
 
-- Amazon EKS
-- Pulumi-managed infrastructure
-- GitOps-managed platform services
-- WireGuard administrative access
-- Public and private DNS integration
+## AWS development with EKS
 
-### Advantages
+The AWS model provisions an AWS network foundation and Amazon EKS cluster with
+Pulumi. It retains the original cloud deployment path that predates the Civo
+reference environment.
 
-- Mirrors production architecture
-- Validates cloud deployment workflows
-- Supports realistic testing scenarios
+The foundation project can create:
 
-### Limitations
+- A VPC and subnets
+- Internal DNS infrastructure
+- A WireGuard gateway and its security group when enabled
 
-- AWS costs apply
-- Additional operational complexity
-- Requires cloud account management
+The cluster project creates EKS resources and installs AWS-specific supporting
+components such as the EBS CSI driver and cluster autoscaler. Platform
+bootstrap uses the shared `dev` overlay rather than the Civo-specific overlay.
 
-### Documentation
+### Operational boundaries
 
-- AWS Prerequisites
-- Infrastructure Provisioning
-- WireGuard Configuration
-- AWS Bootstrap
+- AWS remains implemented but is not the reference environment for v2.0.
+- AWS-specific credentials, DNS ownership, routing, and IAM configuration are
+  required.
+- Operators should run a clean preview and deployment validation before relying
+  on the path for a new environment.
+- Civo-specific private load-balancer discovery and service-field adoption do
+  not apply to AWS.
 
----
+## Docker Compose development
 
-## Production
+The Docker Compose project is not a Kubernetes deployment model and does not
+provision cloud infrastructure. It runs shared application dependencies for
+local Aetheric Forge and Black Circuit development.
 
-Production deployments provide a complete operational GitOps platform suitable for organizational workloads.
+The stack includes local instances of:
 
-Production environments emphasize stability, security, reproducibility, and operational simplicity.
+- Keycloak
+- MinIO
+- MongoDB
+- PostgreSQL
+- RabbitMQ
+- Redis
+- Aetheric Forge and Black Circuit web applications
 
-### Characteristics
+Use this model when working on applications without needing the Kubernetes
+control plane, GitOps reconciliation, cloud load balancers, or the private
+network architecture.
 
-- Cloud-hosted Kubernetes
-- Automated GitOps reconciliation
-- Internal and public DNS separation
-- Automated certificate management
-- Controlled administrative access
-- Infrastructure-as-Code provisioning
+See the [Docker development guide](../docker/README.md).
 
-### Recommended Use Cases
+## Test and production manifests
 
-- Small organizations
-- Educational institutions
-- Research environments
-- Community infrastructure
-- Self-hosted platform operations
+The repository contains `clusters/single/test` and `clusters/single/prod`
+content, but neither is declared as a complete supported v2.0 deployment model.
 
-### Operational Requirements
+- `test` contains bootstrap and GitOps overlays useful for platform testing.
+- `prod` contains initial production-oriented namespace and overlay structure.
 
-Production deployments should include:
+Treat these as development assets. Before promoting either to an operational
+environment, define and validate its infrastructure, networking, DNS, PKI,
+secrets, backup, monitoring, and recovery requirements.
 
-- Backup and recovery procedures
-- Monitoring and alerting
-- Secret management processes
-- Operational documentation
-- Change management workflows
+## Choosing a model
 
-### Documentation
+Use the following defaults:
 
-- Production Architecture
-- Operations Guide
-- Disaster Recovery
-- Security and Access Control
+| Goal | Recommended model |
+| --- | --- |
+| Deploy the complete v2.0 development platform | Civo development |
+| Develop or study platform manifests on owned hardware | Local k3s |
+| Maintain or evaluate the existing AWS path | AWS development |
+| Run application dependencies without Kubernetes | Docker Compose |
+| Operate a production platform | Define and validate a production design first |
 
----
-
-## Migration Path
-
-Aetheric Forge is designed to support a progressive learning and adoption path.
-
-A typical journey follows:
-
-```text
-Local Development
-        ↓
-AWS Development
-        ↓
-Production
-```
-
-Users are encouraged to become comfortable with local deployment and GitOps workflows before operating cloud-hosted environments.
-
----
-
-## Next Steps
-
-Once you have selected a deployment model, continue with the appropriate installation and bootstrap documentation.
-
-For most users, the recommended next step is:
-
-- Local Development Installation
+After selecting a model, continue to [Prerequisites](00-prerequisites.md) and
+the [Quick Start](01-quickstart.md). Both guides identify the Civo path as the
+v2.0 reference and call out provider-specific requirements.
