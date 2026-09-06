@@ -37,6 +37,7 @@ Install the following before running the repository workflow:
 | SOPS and age | Decrypting and creating encrypted manifests |
 | KSOPS | Allowing Kustomize to render SOPS-encrypted resources |
 | jq | Processing Pulumi and Kubernetes JSON output |
+| DNS utilities (`dig`) | Verifying resolver and authoritative DNS access |
 | WireGuard tools | Creating keys and configuring the local tunnel |
 | OpenSSL | Generating the private step-ca root when one is not supplied |
 
@@ -56,6 +57,7 @@ sops --version
 age --version
 ksops --help
 jq --version
+dig -v
 ssh -V
 wg --version
 openssl version

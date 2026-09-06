@@ -19,9 +19,9 @@ Read these documents in order when evaluating or deploying the platform:
 6. [Bootstrap Runbook](bootstrap-runbook.md) — complete bootstrap sequence and
    verification
 
-The prerequisites, deployment-model, quick-start, and bootstrap documents are
-being aligned with the v2.0 Civo reference workflow. During that work, the
-[v2.0.0 release notes](release-notes/v2.0.0.md) and repository implementation
+The bootstrap runbook is still being aligned with the v2.0 Civo reference
+workflow. During that work, the quick start,
+[v2.0.0 release notes](release-notes/v2.0.0.md), and repository implementation
 remain authoritative.
 
 ## Architecture

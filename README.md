@@ -105,10 +105,10 @@ For the current bootstrap sequence, read:
 4. [Quick Start](docs/01-quickstart.md)
 5. [Bootstrap Runbook](docs/bootstrap-runbook.md)
 
-The quick start and bootstrap runbook are being revised for the v2.0 Civo
-workflow. Until that work is complete, treat the
-[v2.0.0 release notes](docs/release-notes/v2.0.0.md) and the implementation as
-the authoritative description of the reference environment.
+The bootstrap runbook is still being revised for the v2.0 Civo workflow. Until
+that work is complete, use the quick start together with the
+[v2.0.0 release notes](docs/release-notes/v2.0.0.md) and implementation as the
+authoritative description of the reference environment.
 
 ## Configuration and secrets
 
