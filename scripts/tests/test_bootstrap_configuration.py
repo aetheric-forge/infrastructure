@@ -8,6 +8,9 @@ CREATE = (ROOT / "scripts/create.sh").read_text()
 AWS_WIREGUARD = (ROOT / "scripts/wireguard/setup.sh").read_text()
 CLUSTER_MAIN = (ROOT / "scripts/pulumi/cluster/__main__.py").read_text()
 CLUSTER = (ROOT / "scripts/pulumi/cluster/kubernetes.py").read_text()
+STEP_CA = (ROOT / "platform/core/step-ca/base/deployment.yaml").read_text()
+CERT_MANAGER = (ROOT / "platform/core/cert-manager/base/kustomization.yaml").read_text()
+GENERATE_VALUES = (ROOT / "scripts/generate-values.sh").read_text()
 
 
 class BootstrapConfigurationTests(unittest.TestCase):
@@ -45,11 +48,34 @@ class BootstrapConfigurationTests(unittest.TestCase):
         self.assertIn('$AWS__VPC_CIDR', AWS_WIREGUARD)
         self.assertIn('$WIREGUARD__LOCAL_CIDRS', AWS_WIREGUARD)
 
+    def test_aws_wireguard_discovers_and_persists_vpc_interface(self):
+        self.assertIn("VPC_INTERFACE=\\$(ip route show default", AWS_WIREGUARD)
+        self.assertIn('test -n "\\$VPC_INTERFACE"', AWS_WIREGUARD)
+        self.assertIn('PostUp = ', AWS_WIREGUARD)
+        self.assertIn('PostDown = ', AWS_WIREGUARD)
+        self.assertNotIn('ens5', AWS_WIREGUARD)
+
     def test_civo_gateway_honors_wireguard_enablement(self):
         self.assertIn(
             'if os.getenv("WIREGUARD__ENABLED", "false").lower() == "true":',
             CLUSTER,
         )
+
+    def test_internal_dns_host_is_not_embedded_in_shared_components(self):
+        self.assertIn('--resolver=INT_DNS_HOST_PLACEHOLDER:5335', STEP_CA)
+        self.assertIn(
+            '--dns01-recursive-nameservers=INT_DNS_HOST_PLACEHOLDER:5335',
+            CERT_MANAGER,
+        )
+        self.assertNotIn('192.168.1.1', STEP_CA + CERT_MANAGER)
+        self.assertIn(
+            'replace_civo_placeholder "$rendered" INT_DNS_HOST_PLACEHOLDER INT_DNS_HOST',
+            CREATE,
+        )
+
+    def test_external_dns_exclusion_uses_configured_domain(self):
+        self.assertIn('--exclude-domains=${INTERNAL_DOMAIN}', GENERATE_VALUES)
+        self.assertNotIn('--exclude-domains=int.aethericforge.ca', GENERATE_VALUES)
 
 
 if __name__ == "__main__":

@@ -86,7 +86,7 @@ txtOwnerId: external
 policy: sync
 
 extraArgs:
-  - --exclude-domains=int.aethericforge.ca
+  - --exclude-domains=${INTERNAL_DOMAIN}
 
 serviceAccount:
   create: true

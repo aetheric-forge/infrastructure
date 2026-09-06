@@ -86,11 +86,15 @@ sudo systemctl enable wg-quick@wg0
 sudo systemctl restart wg-quick@wg0
 
 ssh "ec2-user@$HOST" <<EOF
+VPC_INTERFACE=\$(ip route show default | awk 'NR == 1 {print \$5}')
+test -n "\$VPC_INTERFACE"
 sudo tee /etc/wireguard/wg0.conf > /dev/null <<EOC
 [Interface]
 PrivateKey = \$(sudo cat /etc/wireguard/private.key)
 Address = ${TUNNEL_PREFIX}.1/24
 ListenPort = 51820
+PostUp = iptables -A FORWARD -i wg0 -o \${VPC_INTERFACE} -j ACCEPT; iptables -A FORWARD -i \${VPC_INTERFACE} -o wg0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT; iptables -t nat -A POSTROUTING -s $TUNNEL_CIDR -o \${VPC_INTERFACE} -j MASQUERADE
+PostDown = iptables -D FORWARD -i wg0 -o \${VPC_INTERFACE} -j ACCEPT; iptables -D FORWARD -i \${VPC_INTERFACE} -o wg0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT; iptables -t nat -D POSTROUTING -s $TUNNEL_CIDR -o \${VPC_INTERFACE} -j MASQUERADE
 
 [Peer]
 PublicKey = $LOCAL_PUB
@@ -99,9 +103,6 @@ EOC
 
 sudo systemctl enable wg-quick@wg0
 sudo systemctl restart wg-quick@wg0
-sudo iptables -t nat -A POSTROUTING -s $TUNNEL_CIDR -o ens5 -j MASQUERADE
-sudo iptables -A FORWARD -i wg0 -o ens5 -j ACCEPT
-sudo iptables -A FORWARD -i ens5 -o wg0 -m state --state RELATED,ESTABLISHED -j ACCEPT
 
 EOF
 

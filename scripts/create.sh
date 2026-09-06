@@ -229,13 +229,16 @@ render_overlay() {
 		"$rendered" \
 		"$label"
 
+	# Values shared by every deployment model are substituted after rendering so
+	# reusable bases do not embed one installation's domains or DNS address.
+	replace_civo_placeholder "$rendered" INT_DNS_HOST_PLACEHOLDER INT_DNS_HOST
+	replace_civo_placeholder "$rendered" INTERNAL_DOMAIN_PLACEHOLDER INTERNAL_DOMAIN
+	replace_civo_placeholder "$rendered" EXTERNAL_DOMAIN_PLACEHOLDER EXTERNAL_DOMAIN
+	replace_civo_placeholder "$rendered" ENVIRONMENT_PLACEHOLDER ENVIRONMENT
+
 	if [[ "$CLOUD" == "civo" ]]; then
 		# Require only settings actually referenced by this deployment stage.
 		replace_civo_placeholder "$rendered" WIREGUARD_PRIVATE_IP_PLACEHOLDER WIREGUARD_PRIVATE_IP
-		replace_civo_placeholder "$rendered" INT_DNS_HOST_PLACEHOLDER INT_DNS_HOST
-		replace_civo_placeholder "$rendered" INTERNAL_DOMAIN_PLACEHOLDER INTERNAL_DOMAIN
-		replace_civo_placeholder "$rendered" EXTERNAL_DOMAIN_PLACEHOLDER EXTERNAL_DOMAIN
-		replace_civo_placeholder "$rendered" ENVIRONMENT_PLACEHOLDER ENVIRONMENT
 		replace_civo_placeholder "$rendered" WIREGUARD_LOCAL_CIDR_PLACEHOLDER WIREGUARD__LOCAL_CIDRS
 		replace_civo_placeholder "$rendered" CIVO_PRIVATE_LB_FIREWALL_ID_PLACEHOLDER PRIVATE_LB_FIREWALL_ID
 		if [[ -n "${CIVO_PRIVATE_LB_IP:-}" ]]; then

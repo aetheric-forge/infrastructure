@@ -82,7 +82,7 @@ class PrivateDnsTests(unittest.TestCase):
     def test_cert_manager_checks_dns01_through_bind(self):
         values = CERT_MANAGER_KUSTOMIZATION['helmCharts'][0]['valuesInline']
         self.assertIn(
-            '--dns01-recursive-nameservers=192.168.1.1:5335',
+            '--dns01-recursive-nameservers=INT_DNS_HOST_PLACEHOLDER:5335',
             values['extraArgs'],
         )
         self.assertIn('--dns01-recursive-nameservers-only', values['extraArgs'])
