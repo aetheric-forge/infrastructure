@@ -1,99 +1,135 @@
-# Aetheric Forge GitOps Bootstrap
+# Aetheric Forge Infrastructure
 
-Aetheric Forge GitOps Bootstrap provides a deterministic foundation for building and operating Kubernetes clusters using GitOps principles.
+Aetheric Forge Infrastructure provisions and bootstraps the Kubernetes platform
+used by Aetheric Forge. It combines infrastructure as code, Kubernetes
+manifests, and GitOps reconciliation into a reproducible platform foundation.
 
-The project establishes the minimum control-plane services required to bootstrap and manage a cluster through Argo CD while maintaining clear ownership boundaries between infrastructure provisioning, bootstrap operations, and GitOps-managed workloads.
+The repository owns the path from infrastructure provisioning through the
+initial Argo CD bootstrap. After bootstrap, Argo CD reconciles the platform's
+controllers, configuration, operators, and shared services from Git.
 
-## Rationale
+## Current release
 
-Building and operating Kubernetes platforms often requires assembling multiple foundational services before GitOps workflows can be established. This project provides a curated bootstrap layer that enables reproducible cluster deployment while preserving clear separation between infrastructure provisioning, platform bootstrap, and ongoing GitOps-managed operations.
+The current release is **v2.0.0**. Civo Kubernetes is the reference deployment
+for the development platform in this release.
 
-The goal is to reduce the complexity of establishing a production-ready control plane while maintaining deterministic rebuilds, operational transparency, and recoverability.
+See the [v2.0.0 release notes](docs/release-notes/v2.0.0.md) for the complete
+feature set, upgrade considerations, validation performed, and known
+limitations.
 
-## Core Capabilities
+## What the platform provides
 
-- Kubernetes infrastructure provisioning with Pulumi
-- GitOps control plane deployment using Argo CD
-- Automated DNS management for internal and public domains
-- Internal PKI and ACME services using step-ca
-- Ingress and load balancing support
-- WireGuard-based private administration access
-- Declarative application and platform reconciliation
+- Pulumi-managed Kubernetes infrastructure for Civo and AWS
+- Support for an existing local k3s cluster
+- Argo CD bootstrap and GitOps reconciliation
+- Public and private ingress-nginx controllers
+- Public DNS through Cloudflare and internal DNS through RFC2136/BIND
+- Private PKI and ACME certificate lifecycle management with step-ca and
+  cert-manager
+- WireGuard connectivity between cloud and private networks
+- Keycloak identity and SSO integration
+- Shared data and messaging services including MinIO, RabbitMQ, PostgreSQL,
+  MongoDB, and Redis
+- Velero backup integration
+- A separate Docker Compose stack for local application development
 
-## Design Principles
+## Deployment models
 
-- Deterministic cluster rebuilds
-- Minimal manual intervention
-- Explicit ownership boundaries
-- Reproducible environments
-- GitOps-first operations
-- Clean teardown and recovery
+| Model | Status in v2.0 | Intended use |
+| --- | --- | --- |
+| Civo Kubernetes | Reference and fully exercised | Hosted development platform |
+| Local k3s | Supported | Local development and laboratory deployments |
+| AWS EKS | Supported legacy cloud path | AWS-based development environments |
+| Docker Compose | Separate development stack | Running shared application services locally |
 
-## Project Status
+The Civo `dev` overlay is the release reference. Local k3s and AWS assets remain
+available, but they have not received the same end-to-end v2.0 validation. See
+[Deployment Models](docs/02-deployment-models.md) for their current boundaries.
 
-Current Release: **v0.8.0**
-
-The platform currently provides a functional GitOps bootstrap layer including infrastructure provisioning, DNS, PKI, networking, ingress, WireGuard administration access, and Argo CD-based reconciliation.
-
-Current development efforts are focused on expanding platform identity integration and completing the application services layer.
-
-Upcoming milestones include:
-
-- v0.8.1 — Keycloak integration and platform identity completion
-- v0.9.0 — Application services and reference platform workloads
-
-## Architecture
-
-The bootstrap process establishes a minimal operational control plane.
-
-```text
-Git Repository
-      │
-      ▼
-   Argo CD
-      │
- ┌────┼────┐
- ▼    ▼    ▼
-DNS  PKI  Networking
- │    │       │
-BIND step-ca MetalLB
-```
-
-Bootstrap installs foundational services only. Ongoing configuration and platform management are performed through GitOps reconciliation.
-
-## Documentation
-
-Project documentation is located in the `docs/` directory.
-
-Key references:
-
-- Architecture Guide
-- Operations Guide
-- WireGuard Operations
-- GitHub and Argo CD Bootstrap
-- Environment Configuration
-- Release Notes
-
-## Releases
-
-Release notes are maintained under:
+## Architecture at a glance
 
 ```text
-docs/release-notes/
+                         Git repository
+                                │
+                                ▼
+                             Argo CD
+                                │
+                 ┌──────────────┼──────────────┐
+                 ▼              ▼              ▼
+             Controllers    Operators     Shared services
+
+Internet ──► Public ingress ──► Public applications
+
+Private clients ──► WireGuard ──► Private ingress and service load balancers
+                         │
+                         └──► Home DNS network
+                                  │
+                    ┌─────────────┴─────────────┐
+                    ▼                           ▼
+             Pi-hole resolver             BIND/RFC2136
+                 port 53                    port 5335
+                    │                           ▲
+                    └── internal zone ──────────┘
+                                                ▲
+                                  ExternalDNS and cert-manager
 ```
 
-Git tags are considered the authoritative source for released versions.
+Infrastructure and bootstrap scripts establish the cluster, access path, and
+minimum control plane. GitOps then owns the desired platform state. Runtime
+controllers own generated resources such as load balancer assignments, DNS
+records, and issued certificates.
 
-## Quick Start
+## Repository layout
 
-1. Review prerequisites.
-2. Provision infrastructure using Pulumi.
-3. Establish WireGuard connectivity.
-4. Deploy platform manifests.
-5. Validate Argo CD reconciliation.
+| Path | Purpose |
+| --- | --- |
+| `scripts/` | Configuration, provisioning, bootstrap, validation, and teardown |
+| `scripts/pulumi/` | Cloud infrastructure and Kubernetes cluster provisioning |
+| `clusters/` | Deployment-model and environment overlays |
+| `platform/` | Reusable controllers, configuration, operators, and services |
+| `apps/` | Example and platform-consumer applications |
+| `docs/` | Architecture, deployment, operations, and release documentation |
+| `docker/` | Local Docker Compose development stack |
 
-Detailed deployment instructions are available in the project documentation.
+## Getting started
+
+Start with the [documentation index](docs/README.md). It identifies the
+reference path, supporting architecture material, local-development guides,
+and the documents that are still being aligned for v2.0.
+
+For the current bootstrap sequence, read:
+
+1. [Prerequisites](docs/00-prerequisites.md)
+2. [Deployment Models](docs/02-deployment-models.md)
+3. [Quick Start](docs/01-quickstart.md)
+4. [Bootstrap Runbook](docs/bootstrap-runbook.md)
+
+The quick start and bootstrap runbook are being revised for the v2.0 Civo
+workflow. Until that work is complete, treat the
+[v2.0.0 release notes](docs/release-notes/v2.0.0.md) and the implementation as
+the authoritative description of the reference environment.
+
+## Configuration and secrets
+
+Local configuration, generated Pulumi output, credentials, and decrypted
+secret material must not be committed. SOPS-encrypted `.enc.yaml` manifests are
+intentionally tracked and are the only encrypted secret material expected in
+Git.
+
+Run the repository configuration workflow to create local inputs:
+
+```bash
+make configure
+```
+
+Provider credentials such as the Civo token remain in the operator's local
+environment.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for ownership, reproducibility, testing,
+and secret-handling expectations.
 
 ## License
 
-See repository licensing information for details.
+See [LICENSE.md](LICENSE.md).
