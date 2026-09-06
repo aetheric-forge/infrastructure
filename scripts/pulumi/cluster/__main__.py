@@ -21,7 +21,7 @@ print(f"Using cloud environment: {cloud}")
 cluster = create_cluster()
 
 if cloud == "aws":
-    region = must("AWS_REGION")
+    region = must("AWS__REGION")
     from autoscaler import install_autoscaler
     from csi import install_ebs_csi
 

@@ -188,7 +188,7 @@ deploy_cluster() {
 }
 
 setup_wireguard() {
-	if [[ "${WIREGUARD_ENABLED:-}" != "true" ]]; then
+	if [[ "${WIREGUARD__ENABLED:-}" != "true" ]]; then
 		log "🌀 Wireguard disabled."
 		return 0
 	fi

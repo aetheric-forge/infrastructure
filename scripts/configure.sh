@@ -41,6 +41,7 @@ prompt_optional() {
 
 	local value
 	read -rp "$text: " value
+	echo "$value"
 }
 
 TMP=$(mktemp)
@@ -51,7 +52,7 @@ echo "CLOUD=$CLOUD" >>"$TMP"
 if [ "$CLOUD" == "aws" ]; then
 	# --- AWS ---
 	AWS__REGION=$(prompt "AWS__REGION" "AWS region" "ca-west-1")
-	echo "AWS__REGION=$AWS_REGION" >>"$TMP"
+	echo "AWS__REGION=$AWS__REGION" >>"$TMP"
 
 	AWS__VPC_CIDR=$(prompt "AWS__VPC_CIDR" "AWS VPC CIDR (e.g. 10.42.0.0/16)" "10.42.0.0/16")
 	echo "AWS__VPC_CIDR=$AWS__VPC_CIDR" >>"$TMP"
@@ -66,7 +67,7 @@ if [ "$CLOUD" == "aws" ]; then
 	AWS__NODE_DESIRED_SIZE=$(prompt "AWS__NODE_DESIRED_SIZE" "Node desired size" "2")
 	echo "AWS__NODE_DESIRED_SIZE=$AWS__NODE_DESIRED_SIZE" >>"$TMP"
 
-	AWS_NODE_MIN_SIZE=$(prompt "AWS__NODE_MIN_SIZE" "Node min size" "2")
+	AWS__NODE_MIN_SIZE=$(prompt "AWS__NODE_MIN_SIZE" "Node min size" "2")
 	echo "AWS__NODE_MIN_SIZE=$AWS__NODE_MIN_SIZE" >>"$TMP"
 
 	AWS__NODE_MAX_SIZE=$(prompt "AWS__NODE_MAX_SIZE" "Node max size" "4")
@@ -162,7 +163,7 @@ echo "EXT_DNS_TSIG_KEY=$EXT_DNS_TSIG_KEY" >>"$TMP"
 CERT_MGR_TSIG_KEY=$(prompt "CERT_MGR_TSIG_KEY" "cert-manager RFC2136 TSIG key")
 echo "CERT_MGR_TSIG_KEY=$CERT_MGR_TSIG_KEY" >>"$TMP"
 
-CF_API_KEY=$(prompt "CF_API_TOKEN" "CloudFlare API token")
+CF_API_KEY=$(prompt "CF_API_KEY" "Cloudflare API token")
 echo "CF_API_KEY=$CF_API_KEY" >>"$TMP"
 
 STEP_CA__CERT_FILE=$(prompt_optional "STEP_CA__CERT_FILE" "Step CA root certificate file (blank to generate)")
@@ -172,7 +173,8 @@ if [ -n "$STEP_CA__CERT_FILE" ]; then
 	STEP_CA__KEY_FILE=$(prompt "STEP_CA__KEY_FILE" "Step CA root certificate key file (required)")
 
 	if [ -z "$STEP_CA__KEY_FILE" ]; then
-		die "STEP_CA__KEY_FILE is required when STEP_CA__CERT_FILE is set"
+		echo "STEP_CA__KEY_FILE is required when STEP_CA__CERT_FILE is set" >&2
+		exit 1
 	fi
 fi
 

@@ -10,13 +10,15 @@ source "$ROOT_DIR/.env"
 source "$ROOT_DIR/.env.pulumi.generated"
 set +a
 
-if [[ "${WIREGUARD_ENABLED:-false}" != "true" ]]; then
+if [[ "${WIREGUARD__ENABLED:-false}" != "true" ]]; then
 	echo "WireGuard disabled, skipping"
 	exit 0
 fi
 
 HOST=$WIREGUARD_PUBLIC_IP
 SG=$WIREGUARD_SG_ID
+TUNNEL_CIDR="${WIREGUARD__TUNNEL_CIDR:?Missing WireGuard tunnel CIDR}"
+TUNNEL_PREFIX="${TUNNEL_CIDR%.*}"
 
 echo "🌐 Opening temporary SSH access"
 
@@ -71,12 +73,12 @@ echo "⚙️ Building configs"
 sudo tee "/etc/wireguard/wg0.conf" >/dev/null <<EOF
 [Interface]
 PrivateKey = $LOCAL_PRIV
-Address = 10.200.10.2/24
+Address = ${TUNNEL_PREFIX}.2/24
 
 [Peer]
 PublicKey = $REMOTE_PUB
 Endpoint = $WIREGUARD_PUBLIC_IP:51820
-AllowedIPs = $AWS_VPC_CIDR,10.200.10.1/32
+AllowedIPs = $AWS__VPC_CIDR,${TUNNEL_PREFIX}.1/32
 PersistentKeepalive = 25
 EOF
 
@@ -87,17 +89,17 @@ ssh "ec2-user@$HOST" <<EOF
 sudo tee /etc/wireguard/wg0.conf > /dev/null <<EOC
 [Interface]
 PrivateKey = \$(sudo cat /etc/wireguard/private.key)
-Address = 10.200.10.1/24
+Address = ${TUNNEL_PREFIX}.1/24
 ListenPort = 51820
 
 [Peer]
 PublicKey = $LOCAL_PUB
-AllowedIPs = $WIREGUARD_LOCAL_CIDRS,10.200.10.2/32
+AllowedIPs = $WIREGUARD__LOCAL_CIDRS,${TUNNEL_PREFIX}.2/32
 EOC
 
 sudo systemctl enable wg-quick@wg0
 sudo systemctl restart wg-quick@wg0
-sudo iptables -t nat -A POSTROUTING -s 10.200.10.0/24 -o ens5 -j MASQUERADE
+sudo iptables -t nat -A POSTROUTING -s $TUNNEL_CIDR -o ens5 -j MASQUERADE
 sudo iptables -A FORWARD -i wg0 -o ens5 -j ACCEPT
 sudo iptables -A FORWARD -i ens5 -o wg0 -m state --state RELATED,ESTABLISHED -j ACCEPT
 
@@ -109,7 +111,7 @@ sudo wg-quick up "$WG_DIR/wg0.conf" || true
 
 echo "🔍 Verifying tunnel"
 
-ping -c 2 10.200.10.1 >/dev/null
+ping -c 2 "${TUNNEL_PREFIX}.1" >/dev/null
 
 echo "🔒 Closing temporary SSH access"
 

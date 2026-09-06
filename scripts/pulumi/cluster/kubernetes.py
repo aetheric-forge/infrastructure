@@ -28,18 +28,18 @@ if cloud == "aws":
     vpc_id = must("VPC_ID")
     private_subnet_ids = must("PRIVATE_SUBNET_IDS").split(",")
     internal_zone_id = must("INTERNAL_ZONE_ID")
-    node_min = int(os.getenv("NODE_MIN_SIZE", "1"))
-    node_max = int(os.getenv("NODE_MAX_SIZE", "1"))
-    node_desired = int(os.getenv("NODE_DESIRED_SIZE", "1"))
+    node_min = int(os.getenv("AWS__NODE_MIN_SIZE", "1"))
+    node_max = int(os.getenv("AWS__NODE_MAX_SIZE", "1"))
+    node_desired = int(os.getenv("AWS__NODE_DESIRED_SIZE", "1"))
 
-    node_arch = os.getenv("NODE_ARCH", "arm")
+    node_arch = os.getenv("AWS__NODE_ARCH", "arm64").lower()
 
-    if node_arch == "arm":
+    if node_arch in {"arm", "arm64", "aarch64"}:
         instance_types = ["t4g.small"]
     else:
         instance_types = ["t3.small"]
 
-k8s_version = os.getenv("K8S_VERSION", "1.34")
+k8s_version = os.getenv("AWS__K8S_VERSION", "1.34")
 
 def create_civo_cluster():
     region = os.getenv("CIVO_REGION", "NYC1").upper()
@@ -90,7 +90,8 @@ def create_civo_cluster():
 
     pulumi.export("private_lb_firewall_id", private_lb_firewall.id)
 
-    create_civo_wireguard_gateway(network, region, network_cidr)
+    if os.getenv("WIREGUARD__ENABLED", "false").lower() == "true":
+        create_civo_wireguard_gateway(network, region, network_cidr)
 
     args = {
         "name": cluster_name,
