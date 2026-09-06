@@ -25,6 +25,9 @@ COREDNS = yaml.safe_load(
 )
 WIREGUARD_SETUP = (ROOT / 'scripts/wireguard/setup-civo.sh').read_text()
 PULUMI_CLUSTER = (ROOT / 'scripts/pulumi/cluster/kubernetes.py').read_text()
+CERT_MANAGER_KUSTOMIZATION = yaml.safe_load(
+    (ROOT / 'platform/core/cert-manager/base/kustomization.yaml').read_text()
+)
 
 
 def function(name):
@@ -61,6 +64,14 @@ def service_specs(resources):
 
 
 class PrivateDnsTests(unittest.TestCase):
+    def test_cert_manager_checks_dns01_through_bind(self):
+        values = CERT_MANAGER_KUSTOMIZATION['helmCharts'][0]['valuesInline']
+        self.assertIn(
+            '--dns01-recursive-nameservers=192.168.1.1:5335',
+            values['extraArgs'],
+        )
+        self.assertIn('--dns01-recursive-nameservers-only', values['extraArgs'])
+
     def test_gateway_masquerades_home_bound_traffic(self):
         self.assertIn(
             'iptables -t nat -A POSTROUTING -d ${HOME_CIDR} -o wg0 -j MASQUERADE',
