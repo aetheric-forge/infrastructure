@@ -219,6 +219,7 @@ render_overlay() {
 		sed -i "s/CIVO_AMQP_PRIVATE_IP_PLACEHOLDER/${CIVO_AMQP_PRIVATE_IP:-pending.invalid}/g" "$rendered"
 		sed -i "s/CIVO_MONGO_PRIVATE_IP_PLACEHOLDER/${CIVO_MONGO_PRIVATE_IP:-pending.invalid}/g" "$rendered"
 		sed -i "s/CIVO_DB_PRIVATE_IP_PLACEHOLDER/${CIVO_DB_PRIVATE_IP:-pending.invalid}/g" "$rendered"
+		sed -i "s/CIVO_REDIS_PRIVATE_IP_PLACEHOLDER/${CIVO_REDIS_PRIVATE_IP:-pending.invalid}/g" "$rendered"
 		if [[ -n "${CIVO_PUBLIC_LB_IP:-}" ]]; then
 			sed -i "s/CIVO_PUBLIC_LB_IP_PLACEHOLDER/${CIVO_PUBLIC_LB_IP}/g" "$rendered"
 		fi
@@ -235,19 +236,20 @@ deploy_platform_services() {
 	if [[ "$CLOUD" == "civo" ]]; then
 		# Provision first; do not let ExternalDNS publish public Service status IPs.
 		export CIVO_SERVICE_DNS_CONTROLLER=awaiting-private-ip
-		unset CIVO_AMQP_PRIVATE_IP CIVO_MONGO_PRIVATE_IP CIVO_DB_PRIVATE_IP
+		unset CIVO_AMQP_PRIVATE_IP CIVO_MONGO_PRIVATE_IP CIVO_DB_PRIVATE_IP CIVO_REDIS_PRIVATE_IP
 	fi
 	render_overlay "$CLUSTER_DEPLOYMENT_ROOT/40-platform-services" "platform-services"
 	if [[ "$CLOUD" == "civo" ]]; then
-		log "Discovering private addresses for RabbitMQ, MongoDB, and PostgreSQL..."
+		log "Discovering private addresses for RabbitMQ, MongoDB, PostgreSQL, and Redis..."
 		CIVO_AMQP_PRIVATE_IP=$(civo_private_service_ip rabbitmq rabbitmq) || fail "RabbitMQ private address discovery failed"
 		CIVO_MONGO_PRIVATE_IP=$(civo_private_service_ip forge-mongo forge-mongo-lb) || fail "MongoDB private address discovery failed"
 		CIVO_DB_PRIVATE_IP=$(civo_private_service_ip forge-db forge-db-dev-lb) || fail "PostgreSQL private address discovery failed"
-		export CIVO_AMQP_PRIVATE_IP CIVO_MONGO_PRIVATE_IP CIVO_DB_PRIVATE_IP
+		CIVO_REDIS_PRIVATE_IP=$(civo_private_service_ip redis redis) || fail "Redis private address discovery failed"
+		export CIVO_AMQP_PRIVATE_IP CIVO_MONGO_PRIVATE_IP CIVO_DB_PRIVATE_IP CIVO_REDIS_PRIVATE_IP
 		export CIVO_SERVICE_DNS_CONTROLLER=dns-controller
 		# Re-render the owning RabbitMQ/CNPG resources too, so operators retain targets.
 		render_overlay "$CLUSTER_DEPLOYMENT_ROOT/40-platform-services" "platform-services"
-		log "Private DNS targets: AMQP=$CIVO_AMQP_PRIVATE_IP MongoDB=$CIVO_MONGO_PRIVATE_IP PostgreSQL=$CIVO_DB_PRIVATE_IP S3=$CIVO_PRIVATE_LB_IP"
+		log "Private DNS targets: AMQP=$CIVO_AMQP_PRIVATE_IP MongoDB=$CIVO_MONGO_PRIVATE_IP PostgreSQL=$CIVO_DB_PRIVATE_IP Redis=$CIVO_REDIS_PRIVATE_IP S3=$CIVO_PRIVATE_LB_IP"
 	fi
 }
 

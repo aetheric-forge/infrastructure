@@ -30,6 +30,7 @@ def patched_resources():
         'forge-mongo/overlays/dev/service.yaml',
         'forge-db/overlays/dev/cnpg-cluster.yaml',
         'minio/overlays/dev/ingress-api.yaml',
+        'redis/overlays/dev/service.yaml',
     ]
     resources = []
     for path in paths:
@@ -43,12 +44,13 @@ def patched_resources():
 
 
 def service_specs(resources):
-    rabbit, mongo, db, _ = resources
+    rabbit, mongo, db, _, redis = resources
     template = db['spec']['managed']['services']['additional'][0]['serviceTemplate']
     return [
         (rabbit['spec']['service']['type'], rabbit['spec']['service']['annotations']),
         (mongo['spec']['type'], mongo['metadata']['annotations']),
         (template['spec']['type'], template['metadata']['annotations']),
+        (redis['spec']['type'], redis['metadata']['annotations']),
     ]
 
 
@@ -101,6 +103,7 @@ civo_private_service_ip() {
     rabbitmq) echo 10.60.0.12 ;;
     forge-mongo) if [[ "$FAIL_DISCOVERY" == 1 ]]; then return 1; fi; echo 10.60.0.13 ;;
     forge-db) echo 10.60.0.14 ;;
+    redis) echo 10.60.0.15 ;;
   esac
 }
 count=0
@@ -117,7 +120,7 @@ deploy_platform_services
         self.assertEqual(len(applied), 2)
         for _, annotations in service_specs(applied[0]):
             self.assertEqual(annotations[DNS + 'controller'], 'awaiting-private-ip')
-        for (_, annotations), ip in zip(service_specs(applied[1]), ['10.60.0.12', '10.60.0.13', '10.60.0.14']):
+        for (_, annotations), ip in zip(service_specs(applied[1]), ['10.60.0.12', '10.60.0.13', '10.60.0.14', '10.60.0.15']):
             self.assertEqual(annotations[DNS + 'target'], ip)
             self.assertEqual(annotations[DNS + 'controller'], 'dns-controller')
             self.assertEqual(annotations['kubernetes.civo.com/firewall-id'], 'private-firewall')
