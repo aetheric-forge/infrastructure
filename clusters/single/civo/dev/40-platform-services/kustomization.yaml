@@ -150,11 +150,17 @@ patches:
       kind: Service
       name: redis
     patch: |-
-      - op: replace
-        path: /spec/type
-        value: ClusterIP
       - op: remove
         path: /metadata/annotations/metallb.io~1address-pool
+      - op: add
+        path: /metadata/annotations/kubernetes.civo.com~1firewall-id
+        value: CIVO_PRIVATE_LB_FIREWALL_ID_PLACEHOLDER
+      - op: add
+        path: /metadata/annotations/external-dns.alpha.kubernetes.io~1controller
+        value: CIVO_SERVICE_DNS_CONTROLLER_PLACEHOLDER
+      - op: add
+        path: /metadata/annotations/external-dns.alpha.kubernetes.io~1target
+        value: CIVO_REDIS_PRIVATE_IP_PLACEHOLDER
   - target:
       version: v1
       kind: Service
