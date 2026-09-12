@@ -1,0 +1,18 @@
+[req]
+distinguished_name = req_distinguished_name
+x509_extensions = v3_req
+prompt = no
+
+[req_distinguished_name]
+CN = int.aethericforge.ca
+
+[v3_req]
+keyUsage = critical, digitalSignature, keyEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = rabbitmq-dev.int.aethericforge.ca
+DNS.2 = console-dev.int.aethericforge.ca
+DNS.3 = s3-dev.int.aethericforge.ca
+DNS.4 = *.int.aethericforge.ca

@@ -19,6 +19,11 @@ warn() {
 	echo "[destroy][warn] $*" >&2
 }
 
+fail() {
+	echo "[destroy][error] $*" >&2
+	exit 1
+}
+
 pause_for_operator() {
 	local message="$1"
 
