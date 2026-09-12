@@ -145,9 +145,21 @@ services:
     - --console-address
     - :9001
     container_name: dev-minio
+    extra_hosts:
+    - sso.aethericforge.ca:host-gateway
+    - sso-dev.aethericforge.ca:host-gateway
     environment:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in .env}
       MINIO_ROOT_USER: forge-campus
+      MINIO_BROWSER_REDIRECT_URL: https://console-dev.int.aethericforge.ca
+      MINIO_IDENTITY_OPENID_CLAIM_NAME: groups
+      MINIO_IDENTITY_OPENID_CLIENT_ID: minio
+      MINIO_IDENTITY_OPENID_CLIENT_SECRET: ${MINIO_IDENTITY_OPENID_CLIENT_SECRET:?set MINIO_IDENTITY_OPENID_CLIENT_SECRET
+        in .env}
+      MINIO_IDENTITY_OPENID_CONFIG_URL: https://sso.aethericforge.ca/realms/int.aethericforge.ca/.well-known/openid-configuration
+      MINIO_IDENTITY_OPENID_DISPLAY_NAME: MinIO
+      MINIO_IDENTITY_OPENID_SCOPES: openid profile email groups
+      MINIO_SERVER_URL: https://s3-dev.int.aethericforge.ca
     healthcheck:
       interval: 10s
       retries: 10
