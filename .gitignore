@@ -79,6 +79,10 @@ backups/
 .vscode/
 
 root_ca.*
+docker/nginx/certs/*.key
+docker/nginx/certs/*.crt
+docker/step-ca/secrets/*
+!docker/step-ca/secrets/README.md
 scripts/pulumi/cluster/gitops.yaml
 scripts/pulumi/cluster/platform-config.yaml
 scripts/pulumi/cluster/platform-core.yaml

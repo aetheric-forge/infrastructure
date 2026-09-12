@@ -162,6 +162,8 @@ services:
     networks:
     - dev-network
     ports:
+    - ${LAN_BIND_IP:-127.0.0.1}:9000:9000
+    - ${LAN_BIND_IP:-127.0.0.1}:9001:9001
     - 127.0.0.1:9000:9000
     - 127.0.0.1:9001:9001
     restart: unless-stopped
@@ -208,7 +210,7 @@ services:
     networks:
     - dev-network
     ports:
-    - 127.0.0.1:27017:27017
+    - ${LAN_BIND_IP:-127.0.0.1}:27017:27017
     restart: unless-stopped
     volumes:
     - dev-mongodb:/data/db
@@ -236,11 +238,49 @@ services:
     networks:
     - dev-network
     ports:
-    - 127.0.0.1:5432:5432
+    - ${LAN_BIND_IP:-127.0.0.1}:5432:5432
     restart: unless-stopped
     volumes:
     - dev-postgresql:/var/lib/postgresql/data
     - ./postgresql/init:/docker-entrypoint-initdb.d:ro
+  step-ca:
+    image: smallstep/step-ca:0.29.0
+    container_name: dev-step-ca
+    user: root
+    entrypoint:
+    - /bin/sh
+    - /entrypoint/entrypoint.sh
+    environment:
+      STEPPATH: /home/step
+      STEP_CA_NAME: Aetheric Forge Internal PKI (dev)
+      STEP_CA_DNS: ca-dev.int.aethericforge.ca,dev-step-ca,localhost,127.0.0.1
+      STEP_CA_PROVISIONER: docker-dev
+    healthcheck:
+      interval: 10s
+      retries: 10
+      start_period: 10s
+      test:
+      - CMD
+      - step
+      - ca
+      - health
+      - --ca-url
+      - https://127.0.0.1:9000
+      - --root
+      - /run/secrets/step-ca-root-ca/root_ca.crt
+      timeout: 5s
+    networks:
+    - dev-network
+    ports:
+    - 127.0.0.1:9010:9000
+    restart: unless-stopped
+    volumes:
+    - dev-step-ca:/home/step
+    - ./step-ca/entrypoint.sh:/entrypoint/entrypoint.sh:ro
+    - ./step-ca/secrets/password:/run/secrets/step-ca/password:ro
+    - ./step-ca/secrets/provisioner_password:/run/secrets/step-ca/provisioner_password:ro
+    - ../platform/core/step-ca/certs/dev/root_ca.crt:/run/secrets/step-ca-root-ca/root_ca.crt:ro
+    - ../platform/core/step-ca/certs/dev/root_ca.key:/run/secrets/step-ca-root-ca/root_ca.key:ro
   rabbitmq:
     container_name: dev-rabbitmq
     environment:
@@ -261,7 +301,8 @@ services:
     networks:
     - dev-network
     ports:
-    - 127.0.0.1:5672:5672
+    - ${LAN_BIND_IP:-127.0.0.1}:5672:5672
+    - ${LAN_BIND_IP:-127.0.0.1}:15672:15672
     - 127.0.0.1:15672:15672
     restart: unless-stopped
     volumes:
@@ -288,7 +329,7 @@ services:
     networks:
     - dev-network
     ports:
-    - 127.0.0.1:6379:6379
+    - ${LAN_BIND_IP:-127.0.0.1}:6379:6379
     restart: unless-stopped
     volumes:
     - dev-redis:/data
@@ -310,3 +351,5 @@ volumes:
     name: dev-rabbitmq
   dev-redis:
     name: dev-redis
+  dev-step-ca:
+    name: dev-step-ca
