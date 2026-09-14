@@ -65,6 +65,40 @@ services:
     restart: unless-stopped
     volumes:
     - dev-aethericforge-data-protection:/root/.aspnet/DataProtection-Keys
+  blackcircuit-admin:
+    build:
+      context: ../../blackcircuit-admin
+      dockerfile: docker/Dockerfile
+    container_name: blackcircuit-admin
+    depends_on:
+      keycloak-bootstrap-blackcircuit:
+        condition: service_completed_successfully
+      mongodb:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+      Keycloak__Authority: https://sso.aethericforge.ca
+      Keycloak__ClientId: blackcircuit-admin
+      Keycloak__ClientSecret: ${KEYCLOAK_BLACKCIRCUIT_ADMIN_CLIENT_SECRET:?set KEYCLOAK_BLACKCIRCUIT_ADMIN_CLIENT_SECRET
+        in .env}
+      Keycloak__Realm: int.blackcircuit.ca
+      MongoDb__AuthenticationDatabase: blackcircuit
+      MongoDb__DatabaseName: blackcircuit
+      MongoDb__DirectConnection: "true"
+      MongoDb__Host: dev-mongodb
+      MongoDb__Password: ${MONGO_BLACKCIRCUIT_ADMIN_PASSWORD:?set MONGO_BLACKCIRCUIT_ADMIN_PASSWORD
+        in .env}
+      MongoDb__Port: 27017
+      MongoDb__Username: blackcircuit-admin
+    extra_hosts:
+    - sso.aethericforge.ca:host-gateway
+    image: blackcircuit-admin:dev
+    networks:
+    - dev-network
+    ports:
+    - 127.0.0.1:5102:8080
+    restart: unless-stopped
   blackcircuit-web:
     build:
       context: ../../blackcircuit-web
@@ -138,6 +172,25 @@ services:
     restart: "no"
     volumes:
     - ./keycloak/bootstrap.sh:/bootstrap/bootstrap.sh:ro
+  keycloak-bootstrap-blackcircuit:
+    container_name: dev-keycloak-bootstrap-blackcircuit
+    depends_on:
+      keycloak:
+        condition: service_healthy
+    entrypoint:
+    - /bin/bash
+    - /bootstrap/bootstrap-blackcircuit.sh
+    environment:
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?set KEYCLOAK_ADMIN_PASSWORD
+        in .env}
+      KEYCLOAK_BLACKCIRCUIT_ADMIN_CLIENT_SECRET: ${KEYCLOAK_BLACKCIRCUIT_ADMIN_CLIENT_SECRET:?set
+        KEYCLOAK_BLACKCIRCUIT_ADMIN_CLIENT_SECRET in .env}
+    image: quay.io/keycloak/keycloak:26.1.0
+    networks:
+    - dev-network
+    restart: "no"
+    volumes:
+    - ./keycloak/bootstrap-blackcircuit.sh:/bootstrap/bootstrap-blackcircuit.sh:ro
   keycloak-bootstrap-minio:
     container_name: dev-keycloak-bootstrap-minio
     depends_on:
@@ -224,6 +277,12 @@ services:
   mongodb:
     container_name: dev-mongodb
     environment:
+      MONGO_BLACKCIRCUIT_ADMIN_PASSWORD: ${MONGO_BLACKCIRCUIT_ADMIN_PASSWORD:?set MONGO_BLACKCIRCUIT_ADMIN_PASSWORD
+        in .env}
+      MONGO_BLACKCIRCUIT_ADMIN_USERNAME: blackcircuit-admin
+      MONGO_BLACKCIRCUIT_WEB_PASSWORD: ${MONGO_BLACKCIRCUIT_WEB_PASSWORD:?set MONGO_BLACKCIRCUIT_WEB_PASSWORD
+        in .env}
+      MONGO_BLACKCIRCUIT_WEB_USERNAME: blackcircuit-web
       MONGO_FORGE_CAMPUS_PASSWORD: ${MONGO_FORGE_CAMPUS_PASSWORD:?set MONGO_FORGE_CAMPUS_PASSWORD
         in .env}
       MONGO_FORGE_CAMPUS_USERNAME: forge-campus
