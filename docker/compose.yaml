@@ -138,6 +138,25 @@ services:
     restart: "no"
     volumes:
     - ./keycloak/bootstrap.sh:/bootstrap/bootstrap.sh:ro
+  keycloak-bootstrap-minio:
+    container_name: dev-keycloak-bootstrap-minio
+    depends_on:
+      keycloak:
+        condition: service_healthy
+    entrypoint:
+    - /bin/bash
+    - /bootstrap/bootstrap-minio.sh
+    environment:
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?set KEYCLOAK_ADMIN_PASSWORD
+        in .env}
+      MINIO_IDENTITY_OPENID_CLIENT_SECRET: ${MINIO_IDENTITY_OPENID_CLIENT_SECRET:?set
+        MINIO_IDENTITY_OPENID_CLIENT_SECRET in .env}
+    image: quay.io/keycloak/keycloak:26.1.0
+    networks:
+    - dev-network
+    restart: "no"
+    volumes:
+    - ./keycloak/bootstrap-minio.sh:/bootstrap/bootstrap-minio.sh:ro
   minio:
     command:
     - server
@@ -145,6 +164,9 @@ services:
     - --console-address
     - :9001
     container_name: dev-minio
+    depends_on:
+      keycloak-bootstrap-minio:
+        condition: service_completed_successfully
     extra_hosts:
     - sso.aethericforge.ca:host-gateway
     - sso-dev.aethericforge.ca:host-gateway
