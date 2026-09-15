@@ -9,11 +9,9 @@ client=blackcircuit-admin
 "$kcadm" config credentials --server "$server" --realm master \
     --user platform-admin --password "$KEYCLOAK_ADMIN_PASSWORD"
 
-# This realm is expected to already exist (created outside this repo) — fail loudly
-# rather than silently creating a differently-configured one if it's missing.
 if ! "$kcadm" get "realms/$realm" >/dev/null 2>&1; then
-    echo "Realm '$realm' does not exist. Expected it to already be provisioned." >&2
-    exit 1
+    "$kcadm" create realms -s "realm=$realm" -s enabled=true \
+        -s registrationAllowed=true -s verifyEmail=false
 fi
 
 client_id=$("$kcadm" get clients -r "$realm" -q "clientId=$client" \
