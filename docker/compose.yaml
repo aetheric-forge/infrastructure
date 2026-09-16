@@ -3,6 +3,48 @@ networks:
     driver: bridge
     name: dev-network
 services:
+  aetheric-admin:
+    build:
+      context: ../../aetheric-admin
+      dockerfile: Dockerfile
+    container_name: aetheric-admin
+    depends_on:
+      keycloak-bootstrap-aetheric-admin:
+        condition: service_completed_successfully
+      mongodb:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+      Keycloak__Authority: https://sso.aethericforge.ca
+      Keycloak__ClientId: aetheric-admin
+      Keycloak__ClientSecret: ${KEYCLOAK_AETHERIC_ADMIN_CLIENT_SECRET:?set KEYCLOAK_AETHERIC_ADMIN_CLIENT_SECRET
+        in .env}
+      Keycloak__Realm: int.aethericforge.ca
+      Maintenance__MongoDb__AuthenticationDatabase: maintenance
+      Maintenance__MongoDb__DatabaseName: maintenance
+      Maintenance__MongoDb__DirectConnection: "true"
+      Maintenance__MongoDb__Host: dev-mongodb
+      Maintenance__MongoDb__Password: ${MONGO_MAINTENANCE_PASSWORD:?set MONGO_MAINTENANCE_PASSWORD
+        in .env}
+      Maintenance__MongoDb__Port: 27017
+      Maintenance__MongoDb__Username: maintenance
+      Membership__MongoDb__AuthenticationDatabase: aetheric-membership
+      Membership__MongoDb__DatabaseName: aetheric-membership
+      Membership__MongoDb__DirectConnection: "true"
+      Membership__MongoDb__Host: dev-mongodb
+      Membership__MongoDb__Password: ${MONGO_AETHERIC_MEMBERSHIP_ADMIN_PASSWORD:?set
+        MONGO_AETHERIC_MEMBERSHIP_ADMIN_PASSWORD in .env}
+      Membership__MongoDb__Port: 27017
+      Membership__MongoDb__Username: aetheric-membership-admin
+    extra_hosts:
+    - sso.aethericforge.ca:host-gateway
+    image: aetheric-admin:dev
+    networks:
+    - dev-network
+    ports:
+    - 127.0.0.1:5103:8080
+    restart: unless-stopped
   aethericforge-web:
     build:
       context: ../../aetheric-web
@@ -30,6 +72,14 @@ services:
       Keycloak__ClientSecret: ${KEYCLOAK_CLIENT_SECRET:?set KEYCLOAK_CLIENT_SECRET
         in .env}
       Keycloak__Realm: aethericforge.ca
+      Membership__MongoDb__AuthenticationDatabase: aetheric-membership
+      Membership__MongoDb__DatabaseName: aetheric-membership
+      Membership__MongoDb__DirectConnection: "true"
+      Membership__MongoDb__Host: dev-mongodb
+      Membership__MongoDb__Password: ${MONGO_AETHERIC_MEMBERSHIP_WEB_PASSWORD:?set
+        MONGO_AETHERIC_MEMBERSHIP_WEB_PASSWORD in .env}
+      Membership__MongoDb__Port: 27017
+      Membership__MongoDb__Username: aetheric-membership-web
       MongoDb__AuthenticationDatabase: forge-campus
       MongoDb__AuthenticationMechanism: SCRAM-SHA-256
       MongoDb__DatabaseName: forge-campus
@@ -138,6 +188,25 @@ services:
     restart: "no"
     volumes:
     - ./keycloak/bootstrap.sh:/bootstrap/bootstrap.sh:ro
+  keycloak-bootstrap-aetheric-admin:
+    container_name: dev-keycloak-bootstrap-aetheric-admin
+    depends_on:
+      keycloak:
+        condition: service_healthy
+    entrypoint:
+    - /bin/bash
+    - /bootstrap/bootstrap-aetheric-admin.sh
+    environment:
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?set KEYCLOAK_ADMIN_PASSWORD
+        in .env}
+      KEYCLOAK_AETHERIC_ADMIN_CLIENT_SECRET: ${KEYCLOAK_AETHERIC_ADMIN_CLIENT_SECRET:?set
+        KEYCLOAK_AETHERIC_ADMIN_CLIENT_SECRET in .env}
+    image: quay.io/keycloak/keycloak:26.1.0
+    networks:
+    - dev-network
+    restart: "no"
+    volumes:
+    - ./keycloak/bootstrap-aetheric-admin.sh:/bootstrap/bootstrap-aetheric-admin.sh:ro
   keycloak-bootstrap-minio:
     container_name: dev-keycloak-bootstrap-minio
     depends_on:
@@ -224,12 +293,21 @@ services:
   mongodb:
     container_name: dev-mongodb
     environment:
+      MONGO_AETHERIC_MEMBERSHIP_ADMIN_PASSWORD: ${MONGO_AETHERIC_MEMBERSHIP_ADMIN_PASSWORD:?set
+        MONGO_AETHERIC_MEMBERSHIP_ADMIN_PASSWORD in .env}
+      MONGO_AETHERIC_MEMBERSHIP_ADMIN_USERNAME: aetheric-membership-admin
+      MONGO_AETHERIC_MEMBERSHIP_WEB_PASSWORD: ${MONGO_AETHERIC_MEMBERSHIP_WEB_PASSWORD:?set
+        MONGO_AETHERIC_MEMBERSHIP_WEB_PASSWORD in .env}
+      MONGO_AETHERIC_MEMBERSHIP_WEB_USERNAME: aetheric-membership-web
       MONGO_FORGE_CAMPUS_PASSWORD: ${MONGO_FORGE_CAMPUS_PASSWORD:?set MONGO_FORGE_CAMPUS_PASSWORD
         in .env}
       MONGO_FORGE_CAMPUS_USERNAME: forge-campus
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ADMIN_PASSWORD:?set MONGO_ADMIN_PASSWORD
         in .env}
       MONGO_INITDB_ROOT_USERNAME: platform-admin
+      MONGO_MAINTENANCE_PASSWORD: ${MONGO_MAINTENANCE_PASSWORD:?set MONGO_MAINTENANCE_PASSWORD
+        in .env}
+      MONGO_MAINTENANCE_USERNAME: maintenance
     healthcheck:
       interval: 10s
       retries: 10
