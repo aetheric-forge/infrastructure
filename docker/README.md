@@ -25,12 +25,18 @@ docker-compose -p dev config --quiet
 docker-compose -p dev up -d --build
 ```
 
-These services are bound to loopback:
+Every service binds to loopback by default:
 
 - Keycloak: `http://127.0.0.1:8080`
 - MinIO API and console: `http://127.0.0.1:9000` and `http://127.0.0.1:9001`
 - RabbitMQ management: `http://127.0.0.1:15672`
 - Postgres: `127.0.0.1:5432`, MongoDB: `127.0.0.1:27017`, Redis: `127.0.0.1:6379`
+- step-ca: `127.0.0.1:9010`
+
+Set `LAN_BIND_IP` in `.env` to the host's LAN address to expose all of the
+above on the LAN instead (e.g. `LAN_BIND_IP=192.168.1.10`) - every port binds
+through `${LAN_BIND_IP:-127.0.0.1}`, so this one variable controls all of
+them together. Leave it unset to keep everything loopback-only.
 
 Database and broker initialization runs only when their named data volumes are
 empty. Changing `.env` passwords later does not rewrite credentials stored in

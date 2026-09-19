@@ -37,7 +37,7 @@ services:
     networks:
     - dev-network
     ports:
-    - 127.0.0.1:8080:8080
+    - ${LAN_BIND_IP:-127.0.0.1}:8080:8080
     restart: unless-stopped
     volumes:
     - dev-keycloak:/opt/keycloak/data
@@ -118,8 +118,6 @@ services:
     ports:
     - ${LAN_BIND_IP:-127.0.0.1}:9000:9000
     - ${LAN_BIND_IP:-127.0.0.1}:9001:9001
-    - 127.0.0.1:9000:9000
-    - 127.0.0.1:9001:9001
     restart: unless-stopped
     volumes:
     - dev-minio:/data
@@ -203,7 +201,7 @@ services:
     networks:
     - dev-network
     ports:
-    - 127.0.0.1:9010:9000
+    - ${LAN_BIND_IP:-127.0.0.1}:9010:9000
     restart: unless-stopped
     volumes:
     - dev-step-ca:/home/step
@@ -233,7 +231,6 @@ services:
     ports:
     - ${LAN_BIND_IP:-127.0.0.1}:5672:5672
     - ${LAN_BIND_IP:-127.0.0.1}:15672:15672
-    - 127.0.0.1:15672:15672
     restart: unless-stopped
     volumes:
     - dev-rabbitmq:/var/lib/rabbitmq
