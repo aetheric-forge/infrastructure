@@ -28,4 +28,3 @@ SQL
 }
 
 create_role_and_database keycloak keycloak "$KEYCLOAK_DB_PASSWORD"
-create_role_and_database forge-campus forge-campus "$FORGE_CAMPUS_POSTGRES_PASSWORD"

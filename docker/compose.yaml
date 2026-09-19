@@ -9,7 +9,7 @@ services:
       dockerfile: Dockerfile
     container_name: aetheric-admin
     depends_on:
-      keycloak-bootstrap-aetheric-admin:
+      keycloak-bootstrap-internal:
         condition: service_completed_successfully
       mongodb:
         condition: service_healthy
@@ -53,8 +53,8 @@ services:
     depends_on:
       keycloak-bootstrap:
         condition: service_completed_successfully
-      minio-bootstrap:
-        condition: service_completed_successfully
+      minio:
+        condition: service_healthy
       mongodb:
         condition: service_healthy
       rabbitmq:
@@ -188,44 +188,25 @@ services:
     restart: "no"
     volumes:
     - ./keycloak/bootstrap.sh:/bootstrap/bootstrap.sh:ro
-  keycloak-bootstrap-aetheric-admin:
-    container_name: dev-keycloak-bootstrap-aetheric-admin
+  keycloak-bootstrap-internal:
+    container_name: dev-keycloak-bootstrap-internal
     depends_on:
       keycloak:
         condition: service_healthy
     entrypoint:
     - /bin/bash
-    - /bootstrap/bootstrap-aetheric-admin.sh
+    - /bootstrap/bootstrap-internal.sh
     environment:
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?set KEYCLOAK_ADMIN_PASSWORD
         in .env}
-      KEYCLOAK_AETHERIC_ADMIN_CLIENT_SECRET: ${KEYCLOAK_AETHERIC_ADMIN_CLIENT_SECRET:?set
-        KEYCLOAK_AETHERIC_ADMIN_CLIENT_SECRET in .env}
+      KEYCLOAK_INTERNAL_PROVISIONER_CLIENT_SECRET: ${KEYCLOAK_INTERNAL_PROVISIONER_CLIENT_SECRET:?set
+        KEYCLOAK_INTERNAL_PROVISIONER_CLIENT_SECRET in .env}
     image: quay.io/keycloak/keycloak:26.1.0
     networks:
     - dev-network
     restart: "no"
     volumes:
-    - ./keycloak/bootstrap-aetheric-admin.sh:/bootstrap/bootstrap-aetheric-admin.sh:ro
-  keycloak-bootstrap-minio:
-    container_name: dev-keycloak-bootstrap-minio
-    depends_on:
-      keycloak:
-        condition: service_healthy
-    entrypoint:
-    - /bin/bash
-    - /bootstrap/bootstrap-minio.sh
-    environment:
-      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?set KEYCLOAK_ADMIN_PASSWORD
-        in .env}
-      MINIO_IDENTITY_OPENID_CLIENT_SECRET: ${MINIO_IDENTITY_OPENID_CLIENT_SECRET:?set
-        MINIO_IDENTITY_OPENID_CLIENT_SECRET in .env}
-    image: quay.io/keycloak/keycloak:26.1.0
-    networks:
-    - dev-network
-    restart: "no"
-    volumes:
-    - ./keycloak/bootstrap-minio.sh:/bootstrap/bootstrap-minio.sh:ro
+    - ./keycloak/bootstrap-internal.sh:/bootstrap/bootstrap-internal.sh:ro
   minio:
     command:
     - server
@@ -234,7 +215,7 @@ services:
     - :9001
     container_name: dev-minio
     depends_on:
-      keycloak-bootstrap-minio:
+      keycloak-bootstrap-internal:
         condition: service_completed_successfully
     extra_hosts:
     - sso.aethericforge.ca:host-gateway
@@ -272,24 +253,6 @@ services:
     restart: unless-stopped
     volumes:
     - dev-minio:/data
-  minio-bootstrap:
-    command:
-    - |
-      mc alias set dev http://dev-minio:9000 forge-campus "$${MINIO_ROOT_PASSWORD}"
-      mc mb --ignore-existing dev/forge-campus-archive
-    container_name: dev-minio-bootstrap
-    depends_on:
-      minio:
-        condition: service_healthy
-    entrypoint:
-    - /bin/sh
-    - -ec
-    environment:
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in .env}
-    image: quay.io/minio/mc:RELEASE.2025-04-08T15-39-49Z
-    networks:
-    - dev-network
-    restart: "no"
   mongodb:
     container_name: dev-mongodb
     environment:
@@ -331,8 +294,6 @@ services:
   postgresql:
     container_name: dev-postgresql
     environment:
-      FORGE_CAMPUS_POSTGRES_PASSWORD: ${FORGE_CAMPUS_POSTGRES_PASSWORD:?set FORGE_CAMPUS_POSTGRES_PASSWORD
-        in .env}
       KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?set KEYCLOAK_DB_PASSWORD in .env}
       POSTGRES_DB: postgres
       POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:?set POSTGRES_ADMIN_PASSWORD in
