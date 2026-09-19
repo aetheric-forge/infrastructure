@@ -17,26 +17,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
       Keycloak__Authority: https://sso.aethericforge.ca
-      Keycloak__ClientId: aetheric-admin
-      Keycloak__ClientSecret: ${KEYCLOAK_AETHERIC_ADMIN_CLIENT_SECRET:?set KEYCLOAK_AETHERIC_ADMIN_CLIENT_SECRET
-        in .env}
       Keycloak__Realm: int.aethericforge.ca
-      Maintenance__MongoDb__AuthenticationDatabase: maintenance
-      Maintenance__MongoDb__DatabaseName: maintenance
-      Maintenance__MongoDb__DirectConnection: "true"
-      Maintenance__MongoDb__Host: dev-mongodb
-      Maintenance__MongoDb__Password: ${MONGO_MAINTENANCE_PASSWORD:?set MONGO_MAINTENANCE_PASSWORD
-        in .env}
-      Maintenance__MongoDb__Port: 27017
-      Maintenance__MongoDb__Username: maintenance
-      Membership__MongoDb__AuthenticationDatabase: aetheric-membership
-      Membership__MongoDb__DatabaseName: aetheric-membership
-      Membership__MongoDb__DirectConnection: "true"
-      Membership__MongoDb__Host: dev-mongodb
-      Membership__MongoDb__Password: ${MONGO_AETHERIC_MEMBERSHIP_ADMIN_PASSWORD:?set
-        MONGO_AETHERIC_MEMBERSHIP_ADMIN_PASSWORD in .env}
-      Membership__MongoDb__Port: 27017
-      Membership__MongoDb__Username: aetheric-membership-admin
     extra_hosts:
     - sso.aethericforge.ca:host-gateway
     image: aetheric-admin:dev
@@ -68,43 +49,7 @@ services:
       Keycloak__AdminClientSecret: ${KEYCLOAK_PROVISIONER_CLIENT_SECRET:?set KEYCLOAK_PROVISIONER_CLIENT_SECRET
         in .env}
       Keycloak__Authority: https://sso.aethericforge.ca
-      Keycloak__ClientId: forge-campus
-      Keycloak__ClientSecret: ${KEYCLOAK_CLIENT_SECRET:?set KEYCLOAK_CLIENT_SECRET
-        in .env}
       Keycloak__Realm: aethericforge.ca
-      Membership__MongoDb__AuthenticationDatabase: aetheric-membership
-      Membership__MongoDb__DatabaseName: aetheric-membership
-      Membership__MongoDb__DirectConnection: "true"
-      Membership__MongoDb__Host: dev-mongodb
-      Membership__MongoDb__Password: ${MONGO_AETHERIC_MEMBERSHIP_WEB_PASSWORD:?set
-        MONGO_AETHERIC_MEMBERSHIP_WEB_PASSWORD in .env}
-      Membership__MongoDb__Port: 27017
-      Membership__MongoDb__Username: aetheric-membership-web
-      MongoDb__AuthenticationDatabase: forge-campus
-      MongoDb__AuthenticationMechanism: SCRAM-SHA-256
-      MongoDb__DatabaseName: forge-campus
-      MongoDb__DirectConnection: "true"
-      MongoDb__Host: dev-mongodb
-      MongoDb__Password: ${MONGO_FORGE_CAMPUS_PASSWORD:?set MONGO_FORGE_CAMPUS_PASSWORD
-        in .env}
-      MongoDb__Port: 27017
-      MongoDb__Username: forge-campus
-      RabbitMq__Host: dev-rabbitmq
-      RabbitMq__Password: ${RABBITMQ_PASSWORD:?set RABBITMQ_PASSWORD in .env}
-      RabbitMq__Port: 5672
-      RabbitMq__Ssl: "false"
-      RabbitMq__Username: forge-campus
-      RabbitMq__VirtualHost: forge-campus
-      Redis__Database: 0
-      Redis__Host: dev-redis
-      Redis__Password: ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
-      Redis__Port: 6379
-      Redis__Ssl: "false"
-      S3__AccessKey: forge-campus
-      S3__AuthenticationRegion: us-east-1
-      S3__ForcePathStyle: "true"
-      S3__SecretKey: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in .env}
-      S3__ServiceUrl: http://dev-minio:9000
     extra_hosts:
     - sso.aethericforge.ca:host-gateway
     image: aethericforge-web:dev
@@ -178,8 +123,6 @@ services:
     environment:
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?set KEYCLOAK_ADMIN_PASSWORD
         in .env}
-      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET:?set KEYCLOAK_CLIENT_SECRET
-        in .env}
       KEYCLOAK_PROVISIONER_CLIENT_SECRET: ${KEYCLOAK_PROVISIONER_CLIENT_SECRET:?set
         KEYCLOAK_PROVISIONER_CLIENT_SECRET in .env}
     image: quay.io/keycloak/keycloak:26.1.0
@@ -222,12 +165,10 @@ services:
     - sso-dev.aethericforge.ca:host-gateway
     environment:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in .env}
-      MINIO_ROOT_USER: forge-campus
+      MINIO_ROOT_USER: platform-admin
       MINIO_BROWSER_REDIRECT_URL: https://console-dev.int.aethericforge.ca
       MINIO_IDENTITY_OPENID_CLAIM_NAME: groups
       MINIO_IDENTITY_OPENID_CLIENT_ID: minio
-      MINIO_IDENTITY_OPENID_CLIENT_SECRET: ${MINIO_IDENTITY_OPENID_CLIENT_SECRET:?set MINIO_IDENTITY_OPENID_CLIENT_SECRET
-        in .env}
       MINIO_IDENTITY_OPENID_CONFIG_URL: https://sso.aethericforge.ca/realms/int.aethericforge.ca/.well-known/openid-configuration
       MINIO_IDENTITY_OPENID_DISPLAY_NAME: MinIO
       MINIO_IDENTITY_OPENID_SCOPES: openid profile email groups
@@ -256,21 +197,9 @@ services:
   mongodb:
     container_name: dev-mongodb
     environment:
-      MONGO_AETHERIC_MEMBERSHIP_ADMIN_PASSWORD: ${MONGO_AETHERIC_MEMBERSHIP_ADMIN_PASSWORD:?set
-        MONGO_AETHERIC_MEMBERSHIP_ADMIN_PASSWORD in .env}
-      MONGO_AETHERIC_MEMBERSHIP_ADMIN_USERNAME: aetheric-membership-admin
-      MONGO_AETHERIC_MEMBERSHIP_WEB_PASSWORD: ${MONGO_AETHERIC_MEMBERSHIP_WEB_PASSWORD:?set
-        MONGO_AETHERIC_MEMBERSHIP_WEB_PASSWORD in .env}
-      MONGO_AETHERIC_MEMBERSHIP_WEB_USERNAME: aetheric-membership-web
-      MONGO_FORGE_CAMPUS_PASSWORD: ${MONGO_FORGE_CAMPUS_PASSWORD:?set MONGO_FORGE_CAMPUS_PASSWORD
-        in .env}
-      MONGO_FORGE_CAMPUS_USERNAME: forge-campus
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ADMIN_PASSWORD:?set MONGO_ADMIN_PASSWORD
         in .env}
       MONGO_INITDB_ROOT_USERNAME: platform-admin
-      MONGO_MAINTENANCE_PASSWORD: ${MONGO_MAINTENANCE_PASSWORD:?set MONGO_MAINTENANCE_PASSWORD
-        in .env}
-      MONGO_MAINTENANCE_USERNAME: maintenance
     healthcheck:
       interval: 10s
       retries: 10
@@ -358,8 +287,7 @@ services:
     container_name: dev-rabbitmq
     environment:
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?set RABBITMQ_PASSWORD in .env}
-      RABBITMQ_DEFAULT_USER: forge-campus
-      RABBITMQ_DEFAULT_VHOST: forge-campus
+      RABBITMQ_DEFAULT_USER: platform-admin
     healthcheck:
       interval: 10s
       retries: 12

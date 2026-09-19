@@ -50,21 +50,35 @@ This stack only creates root-level infrastructure access:
   `internal-provisioner`) with broad `realm-management` permissions
   (`docker/keycloak/bootstrap.sh`, `docker/keycloak/bootstrap-internal.sh`).
 
-It deliberately does **not** create any scoped, per-app resource: the
-`forge-campus`/`aetheric-admin`/`minio` Keycloak clients, the `forge-admins`/
-`minio-admins` groups, the `groups` client scope, per-app MongoDB users
-(`forge-campus`, `maintenance`, `aetheric-membership-*`), or the
-`forge-campus-archive` S3 bucket. Those are the responsibility of
-aetheric-provisioning, using the root credentials above - this stack hands
-off to it rather than creating app-scoped resources itself.
+It deliberately does **not** create, or even name, any scoped per-app
+resource - not the `forge-campus`/`aetheric-admin`/`minio` Keycloak clients,
+the `forge-admins`/`minio-admins` groups, the `groups` client scope, the
+per-app MongoDB users and databases (`forge-campus`, `maintenance`,
+`aetheric-membership-*`), the `forge-campus` RabbitMQ vhost/user, or the
+`forge-campus-archive` S3 bucket and its access credentials. `aetheric-admin`
+and `aethericforge-web` correspondingly carry **no** static config for any of
+these in `compose.yaml` - no client ID, no database name, no username, no
+password. Deciding what these resources are called and creating them
+end-to-end is entirely aetheric-provisioning's responsibility, using the root
+credentials above; this stack does not pre-agree on identities for it to fill
+in secrets for.
+
+MinIO's and RabbitMQ's root users are named `platform-admin`, matching
+Postgres/MongoDB/Keycloak - not `forge-campus`, which previously conflated
+the root identity with the (now removed) scoped app identity of the same
+name.
 
 **Until aetheric-provisioning has resource providers for Mongo, Keycloak
-clients, and S3** (Postgres has no application consumer yet), those scoped
-resources must be created manually before the apps that need them will
-connect successfully. The now-removed `bootstrap-aetheric-admin.sh`,
-`bootstrap-minio.sh`, `10-forge-campus.js`, and `30-aetheric-admin.js` (see
-git history) are a reasonable manual reference for what each app currently
-expects to exist.
+clients, RabbitMQ, and S3** (Postgres has no application consumer yet),
+`aetheric-admin` and `aethericforge-web` will start but cannot fully
+function - they have no client ID, database, vhost, or bucket to connect to.
+The now-removed `bootstrap-aetheric-admin.sh`, `bootstrap-minio.sh`,
+`10-forge-campus.js`, and `30-aetheric-admin.js` (see git history) describe
+what each app used to expect and are a reference for creating the same
+resources by hand in the meantime, but the compose-level config that named
+them for the apps is gone - manual creation now also means manually adding
+the resulting config back to each app's environment block until
+aetheric-provisioning can do it instead.
 
 ## Host NGINX and TLS
 
