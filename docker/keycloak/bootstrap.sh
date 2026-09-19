@@ -38,15 +38,11 @@ else
         "${provisioner_args[@]}"
 fi
 
-# Broad realm-management grant - this client is the provisioner's root credential for this
-# realm, so it needs enough to create/manage the clients, groups, and users that used to be
-# created by this script directly (forge-campus, forge-admins, ...).
+# realm-admin is realm-management's composite admin role - covers clients, groups, users, and
+# realm settings in one grant. This client is the provisioner's root credential for this realm,
+# so it needs the full set to create/manage everything that used to be created by this script
+# directly (forge-campus, forge-admins, ...).
 "$kcadm" add-roles -r "$realm" \
     --uusername "service-account-$provisioner_client" \
     --cclientid realm-management \
-    --rolename manage-clients \
-    --rolename view-clients \
-    --rolename manage-users \
-    --rolename query-users \
-    --rolename view-users \
-    --rolename manage-realm
+    --rolename realm-admin

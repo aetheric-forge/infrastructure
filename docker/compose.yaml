@@ -3,77 +3,6 @@ networks:
     driver: bridge
     name: dev-network
 services:
-  aetheric-admin:
-    build:
-      context: ../../aetheric-admin
-      dockerfile: Dockerfile
-    container_name: aetheric-admin
-    depends_on:
-      keycloak-bootstrap-internal:
-        condition: service_completed_successfully
-      mongodb:
-        condition: service_healthy
-    environment:
-      ASPNETCORE_ENVIRONMENT: Production
-      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
-      Keycloak__Authority: https://sso.aethericforge.ca
-      Keycloak__Realm: int.aethericforge.ca
-    extra_hosts:
-    - sso.aethericforge.ca:host-gateway
-    image: aetheric-admin:dev
-    networks:
-    - dev-network
-    ports:
-    - 127.0.0.1:5103:8080
-    restart: unless-stopped
-  aethericforge-web:
-    build:
-      context: ../../aetheric-web
-      dockerfile: docker/Dockerfile
-    container_name: aethericforge-web
-    depends_on:
-      keycloak-bootstrap:
-        condition: service_completed_successfully
-      minio:
-        condition: service_healthy
-      mongodb:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    environment:
-      ASPNETCORE_ENVIRONMENT: Production
-      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
-      Keycloak__AdminClientId: forge-campus-provisioner
-      Keycloak__AdminClientSecret: ${KEYCLOAK_PROVISIONER_CLIENT_SECRET:?set KEYCLOAK_PROVISIONER_CLIENT_SECRET
-        in .env}
-      Keycloak__Authority: https://sso.aethericforge.ca
-      Keycloak__Realm: aethericforge.ca
-    extra_hosts:
-    - sso.aethericforge.ca:host-gateway
-    image: aethericforge-web:dev
-    networks:
-    - dev-network
-    ports:
-    - 127.0.0.1:5100:8080
-    restart: unless-stopped
-    volumes:
-    - dev-aethericforge-data-protection:/root/.aspnet/DataProtection-Keys
-  blackcircuit-web:
-    build:
-      context: ../../blackcircuit-web
-      dockerfile: docker/Dockerfile
-    container_name: blackcircuit-web
-    environment:
-      ASPNETCORE_ENVIRONMENT: Production
-      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
-    image: blackcircuit-web:dev
-    networks:
-    - dev-network
-    ports:
-    - 127.0.0.1:5101:8080
-    restart: unless-stopped
   keycloak:
     command:
     - start-dev
@@ -336,8 +265,6 @@ services:
     - dev-redis:/data
 version: "2.4"
 volumes:
-  dev-aethericforge-data-protection:
-    name: dev-aethericforge-data-protection
   dev-keycloak:
     name: dev-keycloak
   dev-minio:
