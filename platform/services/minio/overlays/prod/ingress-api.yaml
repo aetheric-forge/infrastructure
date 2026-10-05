@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: s3.int.blackcircuit.ca
+    cert-manager.io/cluster-issuer: step-ca-int-acme
+    nginx.ingress.kubernetes.io/backend-protocol: HTTPS
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+  name: minio-api
+  namespace: minio
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: s3.int.blackcircuit.ca
+    http:
+      paths:
+      - backend:
+          service:
+            name: minio
+            port:
+              number: 443
+        path: /
+        pathType: Prefix
+  tls:
+  - hosts:
+    - s3.int.blackcircuit.ca
+    secretName: minio-api-tls

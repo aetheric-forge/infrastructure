@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../../../../platform/core/ingress-nginx/overlays/prod
+  - ../../../../../platform/core/external-dns/overlays/prod
+  - ../../../../../platform/core/step-ca/overlays/prod
+  - ../../../../../platform/core/cert-manager/overlays/prod
+  - ../../../../../platform/core/velero/overlays/prod
+  - kube-dns.yaml
+

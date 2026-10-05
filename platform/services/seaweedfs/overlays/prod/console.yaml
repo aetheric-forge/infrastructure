@@ -1,0 +1,55 @@
+# oauth2-proxy settings for the web console (sidecar in the admin pod).
+# Keycloak objects come from scripts/keycloak/bootstrap-seaweedfs-console.sh.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: seaweedfs-console
+  namespace: seaweedfs
+data:
+  OAUTH2_PROXY_OIDC_ISSUER_URL: https://sso.blackcircuit.ca/realms/int.blackcircuit.ca
+  OAUTH2_PROXY_CLIENT_ID: seaweedfs-console
+  OAUTH2_PROXY_REDIRECT_URL: https://console.int.blackcircuit.ca/oauth2/callback
+  OAUTH2_PROXY_ALLOWED_GROUPS: seaweedfs-admins
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: seaweedfs-console
+  namespace: seaweedfs
+spec:
+  selector:
+    app.kubernetes.io/name: seaweedfs
+    app.kubernetes.io/instance: seaweedfs
+    app.kubernetes.io/component: admin
+  ports:
+    - name: http
+      port: 4180
+      targetPort: oauth2-proxy
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: console.int.blackcircuit.ca
+    cert-manager.io/cluster-issuer: step-ca-int-acme
+    # oauth2-proxy's session cookies overflow nginx's default header buffer.
+    nginx.ingress.kubernetes.io/proxy-buffer-size: 16k
+  name: seaweedfs-console
+  namespace: seaweedfs
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: console.int.blackcircuit.ca
+    http:
+      paths:
+      - backend:
+          service:
+            name: seaweedfs-console
+            port:
+              number: 4180
+        path: /
+        pathType: Prefix
+  tls:
+  - hosts:
+    - console.int.blackcircuit.ca
+    secretName: seaweedfs-console-tls

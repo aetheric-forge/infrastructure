@@ -1,6 +1,6 @@
 import pulumi
 import pulumi_aws as aws
-from config import Config, AWSConfig, prefix
+from config import Config, prefix
 from network import Network
 
 
@@ -10,6 +10,10 @@ class Dns:
 
 
 def create_dns(cfg: Config, network: Network) -> Dns:
+    return create_aws_dns(cfg, network)
+
+
+def create_aws_dns(cfg: Config, network: Network) -> Dns:
     aws_cfg = cfg.aws
     if aws_cfg is None:
         raise Exception("required AWS configuration is missing. Run make configure.")
@@ -29,3 +33,4 @@ def create_dns(cfg: Config, network: Network) -> Dns:
     )
 
     return Dns(internal)
+

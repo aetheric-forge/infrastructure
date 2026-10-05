@@ -79,6 +79,8 @@ backups/
 .vscode/
 
 root_ca.*
+# step-ca root private key; only the SOPS-encrypted step-ca-secrets.enc.yaml is committed.
+root_ca_key.*
 docker/nginx/certs/*.key
 docker/nginx/certs/*.crt
 docker/step-ca/secrets/*

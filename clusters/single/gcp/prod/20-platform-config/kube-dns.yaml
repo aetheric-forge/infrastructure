@@ -1,0 +1,13 @@
+# GKE runs kube-dns, not CoreDNS. Send the internal zone straight to BIND
+# (over the WireGuard route) so pods can resolve ExternalDNS records and
+# cert-manager/step-ca can see DNS-01 challenge TXT records.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kube-dns
+  namespace: kube-system
+  labels:
+    addonmanager.kubernetes.io/mode: EnsureExists
+data:
+  stubDomains: |
+    {"INTERNAL_DOMAIN_PLACEHOLDER": ["INT_DNS_HOST_PLACEHOLDER:5335"]}

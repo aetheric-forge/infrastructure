@@ -13,7 +13,7 @@ sources:
   - ingress
 
 domainFilters:
-  - aethericforge.ca
+  - blackcircuit.ca
 
 registry: txt
 txtOwnerId: external

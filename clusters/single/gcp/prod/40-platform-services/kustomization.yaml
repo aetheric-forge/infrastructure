@@ -1,0 +1,142 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../../../../platform/services/argocd/overlays/prod
+  - ../../../../../platform/services/forge-db/overlays/prod
+  - ../../../../../platform/services/forge-keycloak/overlays/prod
+  - ../../../../../platform/services/forge-mongo/overlays/prod
+  - ../../../../../platform/services/seaweedfs/overlays/prod
+  - ../../../../../platform/services/redis/overlays/prod
+  - ../../../../../platform/services/rabbitmq/overlays/prod
+
+patches:
+  - target:
+      group: networking.k8s.io
+      version: v1
+      kind: Ingress
+    patch: |-
+      - op: replace
+        path: /spec/ingressClassName
+        value: nginx-private
+  - target:
+      group: apps
+      version: v1
+      kind: StatefulSet
+      name: redis
+    patch: |-
+      - op: replace
+        path: /spec/volumeClaimTemplates/0/spec/storageClassName
+        value: standard-rwo
+  - target:
+      group: rabbitmq.com
+      version: v1beta1
+      kind: RabbitmqCluster
+      name: rabbitmq
+    patch: |-
+      - op: replace
+        path: /spec/persistence/storageClassName
+        value: standard-rwo
+      - op: remove
+        path: /spec/service/annotations/metallb.io~1address-pool
+      - op: add
+        path: /spec/service/annotations/networking.gke.io~1load-balancer-type
+        value: Internal
+  - target:
+      group: mongodbcommunity.mongodb.com
+      version: v1
+      kind: MongoDBCommunity
+      name: forge-mongo
+    patch: |-
+      - op: add
+        path: /spec/statefulSet/spec/volumeClaimTemplates/0/spec/storageClassName
+        value: standard-rwo
+      - op: add
+        path: /spec/statefulSet/spec/template
+        value:
+          spec:
+            containers:
+              - name: mongod
+                resources:
+                  requests:
+                    cpu: 100m
+                    memory: 256Mi
+                  limits:
+                    cpu: 500m
+                    memory: 512Mi
+              - name: mongodb-agent
+                resources:
+                  requests:
+                    cpu: 100m
+                    memory: 256Mi
+                  limits:
+                    cpu: 500m
+                    memory: 512Mi
+  - target:
+      group: k8s.keycloak.org
+      version: v2alpha1
+      kind: Keycloak
+      name: forge-keycloak
+    patch: |-
+      - op: add
+        path: /spec/resources
+        value:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+          limits:
+            cpu: 750m
+            memory: 1Gi
+      - op: replace
+        path: /spec/db/host
+        value: forge-db-rw.forge-db.svc.cluster.local
+  - target:
+      group: networking.k8s.io
+      version: v1
+      kind: Ingress
+      name: keycloak-public
+    patch: |-
+      - op: replace
+        path: /metadata/annotations/cert-manager.io~1cluster-issuer
+        value: le-prod
+      - op: replace
+        path: /spec/ingressClassName
+        value: nginx-public
+      # No host rewrite/add needed here: forge-keycloak/overlays/prod's own
+      # ingress.yaml already uses the bare canonical sso.blackcircuit.ca —
+      # unlike the aethericforge.ca dev tier, blackcircuit.ca has no sibling
+      # dev/test environment to disambiguate from.
+  - target:
+      version: v1
+      kind: Service
+      name: redis
+    patch: |-
+      - op: remove
+        path: /metadata/annotations/metallb.io~1address-pool
+      - op: add
+        path: /metadata/annotations/networking.gke.io~1load-balancer-type
+        value: Internal
+  - target:
+      version: v1
+      kind: Service
+      name: forge-mongo-lb
+    patch: |-
+      - op: remove
+        path: /metadata/annotations/metallb.io~1address-pool
+      - op: add
+        path: /metadata/annotations/networking.gke.io~1load-balancer-type
+        value: Internal
+  - target:
+      group: postgresql.cnpg.io
+      version: v1
+      kind: Cluster
+      name: forge-db
+    patch: |-
+      - op: remove
+        path: /spec/managed/services/additional/0/serviceTemplate/metadata/annotations/metallb.io~1address-pool
+      - op: add
+        path: /spec/managed/services/additional/0/serviceTemplate/metadata/annotations/networking.gke.io~1load-balancer-type
+        value: Internal
+  # No argocd-server Ingress patch needed: platform/services/argocd/overlays/prod's
+  # own ingress.yaml never had a metallb.io/address-pool annotation to strip
+  # (it already sets ingressClassName: nginx-private directly).

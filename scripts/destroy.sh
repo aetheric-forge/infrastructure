@@ -72,6 +72,9 @@ teardown_foundation() {
 				--association-id "$ASSOC_ID"
 		fi
 	fi
+	# GCP: the reserved static address is a plain pulumi_gcp.compute.Address
+	# resource (no separate association resource to detach first), so
+	# `pulumi destroy` below releases it in dependency order on its own.
 	cd "$FOUNDATION_DIR" && pulumi destroy -y || true
 	cd "$ROOT_DIR"
 	pause_for_operator "[destroy] WireGuard foundation resources are destroyed. Confirm local DNS is stable, then press Enter to finish..."

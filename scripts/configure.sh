@@ -4,7 +4,22 @@ set -euo pipefail
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/paths.sh"
 
 ENV_FILE="$ROOT_DIR/.env"
-MY_IP=$(curl ifconfig.me)
+# Force IPv4: plain `curl ifconfig.me` returns v6 on a dual-stack/v6-only
+# host, and every /32 CIDR below assumes an IPv4 address. Outbound IPv4
+# still works fine behind CGNAT even with no public IPv4 for inbound.
+MY_IP=$(curl -4s https://ifconfig.me || true)
+MY_IP_SUFFIX="/32"
+if [[ -z "$MY_IP" ]]; then
+	MY_IP=$(curl -6s https://ifconfig.me || true)
+	MY_IP_SUFFIX="/128"
+	if [[ -n "$MY_IP" ]]; then
+		echo "⚠️  No IPv4 egress detected (checked via curl -4) — falling back to this host's public IPv6 address."
+		echo "    Defaults below will use /128 (this exact address). If your ISP rotates the host portion"
+		echo "    (SLAAC privacy extensions), widen the WireGuard access CIDR to your ISP's /64 by hand instead."
+	else
+		echo "⚠️  Could not detect a public IPv4 or IPv6 address — you'll need to enter access CIDRs below by hand."
+	fi
+fi
 
 echo "⚡ Aetheric Forge Configuration"
 
@@ -45,7 +60,7 @@ prompt_optional() {
 
 TMP=$(mktemp)
 
-CLOUD=$(prompt "CLOUD" "Cloud type (aws/civo/local)" "local")
+CLOUD=$(prompt "CLOUD" "Cloud type (aws/civo/gcp/local)" "local")
 echo "CLOUD=$CLOUD" >>"$TMP"
 
 if [ "$CLOUD" == "aws" ]; then
@@ -76,7 +91,7 @@ if [ "$CLOUD" == "aws" ]; then
 	echo "AWS__CLUSTER_PUBLIC_ACCESS=$AWS__CLUSTER_PUBLIC_ACCESS" >>"$TMP"
 
 	if [ "$AWS__CLUSTER_PUBLIC_ACCESS" = "true" ]; then
-		AWS__KUBE_API_PUBLIC_ACCESS_CIDRS="$MY_IP/32"
+		AWS__KUBE_API_PUBLIC_ACCESS_CIDRS="$MY_IP$MY_IP_SUFFIX"
 		echo "AWS__KUBE_API_PUBLIC_ACCESS_CIDRS=$AWS__KUBE_API_PUBLIC_ACCESS_CIDRS" >>"$TMP"
 	fi
 fi
@@ -96,6 +111,45 @@ if [ "$CLOUD" == "civo" ]; then
 
 	CIVO_NETWORK_CIDR=$(prompt "CIVO_NETWORK_CIDR" "Civo private network CIDR" "10.60.0.0/24")
 	echo "CIVO_NETWORK_CIDR=$CIVO_NETWORK_CIDR" >>"$TMP"
+fi
+
+if [ "$CLOUD" == "gcp" ]; then
+	# --- GCP ---
+	GCP_PROJECT=$(prompt "GCP_PROJECT" "GCP project ID")
+	echo "GCP_PROJECT=$GCP_PROJECT" >>"$TMP"
+	echo "GCP__PROJECT=$GCP_PROJECT" >>"$TMP"
+
+	GCP_REGION=$(prompt "GCP_REGION" "GCP region" "northamerica-northeast2")
+	echo "GCP_REGION=$GCP_REGION" >>"$TMP"
+	echo "GCP__REGION=$GCP_REGION" >>"$TMP"
+
+	GCP_ZONE=$(prompt "GCP_ZONE" "GCP zone" "${GCP_REGION}-a")
+	echo "GCP_ZONE=$GCP_ZONE" >>"$TMP"
+	echo "GCP__ZONE=$GCP_ZONE" >>"$TMP"
+
+	GCP_VPC_CIDR=$(prompt "GCP_VPC_CIDR" "GCP VPC CIDR (e.g. 10.44.0.0/16)" "10.44.0.0/16")
+	echo "GCP_VPC_CIDR=$GCP_VPC_CIDR" >>"$TMP"
+	echo "GCP__VPC_CIDR=$GCP_VPC_CIDR" >>"$TMP"
+
+	K8S_VERSION=$(prompt "K8S_VERSION" "Kubernetes version" "latest")
+	echo "K8S_VERSION=$K8S_VERSION" >>"$TMP"
+	echo "GCP__K8S_VERSION=$K8S_VERSION" >>"$TMP"
+
+	GCP_NODE_MACHINE_TYPE=$(prompt "GCP_NODE_MACHINE_TYPE" "GCP node machine type" "e2-standard-4")
+	echo "GCP_NODE_MACHINE_TYPE=$GCP_NODE_MACHINE_TYPE" >>"$TMP"
+	echo "GCP__MACHINE_TYPE=$GCP_NODE_MACHINE_TYPE" >>"$TMP"
+
+	NODE_DESIRED_SIZE=$(prompt "NODE_DESIRED_SIZE" "Node desired size" "2")
+	echo "NODE_DESIRED_SIZE=$NODE_DESIRED_SIZE" >>"$TMP"
+	echo "GCP__NODE_DESIRED=$NODE_DESIRED_SIZE" >>"$TMP"
+
+	NODE_MIN_SIZE=$(prompt "NODE_MIN_SIZE" "Node min size" "1")
+	echo "NODE_MIN_SIZE=$NODE_MIN_SIZE" >>"$TMP"
+	echo "GCP__NODE_MIN=$NODE_MIN_SIZE" >>"$TMP"
+
+	NODE_MAX_SIZE=$(prompt "NODE_MAX_SIZE" "Node max size" "4")
+	echo "NODE_MAX_SIZE=$NODE_MAX_SIZE" >>"$TMP"
+	echo "GCP__NODE_MAX=$NODE_MAX_SIZE" >>"$TMP"
 fi
 
 # --- Core ---
@@ -130,13 +184,14 @@ if [[ "$WIREGUARD__ENABLED" == "true" ]]; then
 
 	WG_CIDR_DEFAULT="10.200.10.0/24"
 	[[ "$CLOUD" == "civo" ]] && WG_CIDR_DEFAULT="10.200.20.0/24"
+	[[ "$CLOUD" == "gcp" ]] && WG_CIDR_DEFAULT="10.200.30.0/24"
 	WG_CIDR=$(prompt "WIREGUARD_TUNNEL_CIDR" "WireGuard tunnel CIDR" "$WG_CIDR_DEFAULT")
 	echo "WIREGUARD__TUNNEL_CIDR=$WG_CIDR" >>"$TMP"
 
 	WG_SSH_PUBLIC_KEY_FILE=$(prompt "WIREGUARD_SSH_PUBLIC_KEY_FILE" "Wireguard SSH public key file" "$HOME/.ssh/id_ed25519.pub")
 	echo "WIREGUARD__SSH_PUBLIC_KEY_FILE=$WG_SSH_PUBLIC_KEY_FILE" >>$TMP
 
-	WG_ACCESS_CIDRS=$(prompt "WIREGUARD_ACCESS_CIDRS" "Wireguard access CIDR(s)" "$MY_IP/32")
+	WG_ACCESS_CIDRS=$(prompt "WIREGUARD_ACCESS_CIDRS" "Wireguard access CIDR(s)" "$MY_IP$MY_IP_SUFFIX")
 	echo "WIREGUARD__ACCESS_CIDRS=$WG_ACCESS_CIDRS" >>$TMP
 
 	WG_LOCAL_CIDRS=$(prompt "WIREGUARD_LOCAL_CIDRS" "Local network CIDR(s)" "192.168.1.0/24")
@@ -155,6 +210,9 @@ echo "SOPS_AGE_KEY=$SOPS_AGE_KEY" >>"$TMP"
 
 INT_DNS_HOST=$(prompt "INT_DNS_HOST" "Internal RFC2136 DNS server" "localhost")
 echo "INT_DNS_HOST=$INT_DNS_HOST" >>"$TMP"
+
+EXT_DNS_TSIG_KEY_NAME=$(prompt "EXT_DNS_TSIG_KEY_NAME" "external-dns RFC2136 TSIG key name (as named in BIND)" "external-dns-${ENVIRONMENT}-key")
+echo "EXT_DNS_TSIG_KEY_NAME=$EXT_DNS_TSIG_KEY_NAME" >>"$TMP"
 
 EXT_DNS_TSIG_KEY=$(prompt "EXT_DNS_TSIG_KEY" "external-dns RFC2136 TSIG key")
 echo "EXT_DNS_TSIG_KEY=$EXT_DNS_TSIG_KEY" >>"$TMP"

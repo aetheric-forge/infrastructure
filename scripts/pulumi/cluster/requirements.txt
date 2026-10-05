@@ -4,3 +4,4 @@ pulumi-eks
 pulumi-command
 pulumi-kubernetes
 pulumi-civo>=2.4.8,<3.0.0
+pulumi-gcp>=8.0.0,<9.0.0

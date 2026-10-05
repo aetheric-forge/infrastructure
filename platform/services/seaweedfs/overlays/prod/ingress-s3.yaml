@@ -1,0 +1,28 @@
+# S3 API only. The master/filer web UIs have no auth and stay unexposed; the
+# web console is console.yaml, behind Keycloak.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: s3.int.blackcircuit.ca
+    cert-manager.io/cluster-issuer: step-ca-int-acme
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+  name: seaweedfs-s3
+  namespace: seaweedfs
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: s3.int.blackcircuit.ca
+    http:
+      paths:
+      - backend:
+          service:
+            name: seaweedfs-all-in-one
+            port:
+              number: 8333
+        path: /
+        pathType: Prefix
+  tls:
+  - hosts:
+    - s3.int.blackcircuit.ca
+    secretName: seaweedfs-s3-tls
