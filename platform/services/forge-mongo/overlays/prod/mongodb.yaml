@@ -24,6 +24,25 @@ spec:
           db: admin
       scramCredentialsSecretName: forge-mongo-admin-scram
 
+    - name: blackcircuit-admin
+      db: blackcircuit
+      passwordSecretRef:
+        name: blackcircuit-admin-mongo-password
+        key: password
+      roles:
+        - name: readWrite
+          db: blackcircuit
+      scramCredentialsSecretName: blackcircuit-admin-scram
+    - name: blackcircuit-web
+      db: blackcircuit
+      passwordSecretRef:
+        name: blackcircuit-web-mongo-password
+        key: password
+      roles:
+        - name: read
+          db: blackcircuit
+      scramCredentialsSecretName: blackcircuit-web-scram
+
   statefulSet:
     spec:
       volumeClaimTemplates:
