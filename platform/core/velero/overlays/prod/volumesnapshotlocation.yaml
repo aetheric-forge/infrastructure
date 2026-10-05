@@ -1,0 +1,11 @@
+# VolumeSnapshotLocation
+#
+# Enabled when a snapshot-capable storage backend is available.
+#
+# Examples:
+# - AWS EBS CSI
+# - Azure Disk CSI
+# - Ceph RBD CSI
+# - NetApp CSI
+#
+# Not currently enabled for local-path storage.

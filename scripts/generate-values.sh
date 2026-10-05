@@ -47,7 +47,7 @@ extraArgs:
   - --rfc2136-port=5335
   - --rfc2136-zone=${INTERNAL_DOMAIN}
   - --rfc2136-tsig-secret-alg=hmac-sha256
-  - --rfc2136-tsig-keyname=external-dns-${ENVIRONMENT}-key
+  - --rfc2136-tsig-keyname=${EXT_DNS_TSIG_KEY_NAME:-external-dns-${ENVIRONMENT}-key}
   - --rfc2136-tsig-axfr
 
 env:
@@ -111,6 +111,9 @@ patches:
       value: ${INTERNAL_ZONE_ID}
 EOF
 else
+	# Civo and GCP both resolve the internal ACME DNS01 challenge via the same
+	# home-network rfc2136 recursive DNS server as the base manifest already
+	# points at — nothing cloud-specific to patch here.
 	cat >>"$CM_DIR/kustomization.yaml" <<EOF
 patches: []
 EOF

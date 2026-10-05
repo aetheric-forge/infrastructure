@@ -10,7 +10,7 @@ source "$ROOT_DIR/.env"
 source "$ROOT_DIR/.env.pulumi.generated"
 set +a
 
-if [[ "${WIREGUARD_ENABLED:-false}" != "true" ]]; then
+if [[ "${WIREGUARD__ENABLED:-false}" != "true" ]]; then
 	echo "WireGuard disabled, skipping"
 	exit 0
 fi

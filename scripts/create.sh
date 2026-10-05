@@ -17,6 +17,8 @@ source "$ROOT_DIR/.env"
 CLUSTER_DEPLOYMENT_ROOT="$ROOT_DIR/clusters/single/$ENVIRONMENT"
 if [[ "$CLOUD" == "civo" ]]; then
 	CLUSTER_DEPLOYMENT_ROOT="$ROOT_DIR/clusters/single/civo/$ENVIRONMENT"
+elif [[ "$CLOUD" == "gcp" ]]; then
+	CLUSTER_DEPLOYMENT_ROOT="$ROOT_DIR/clusters/single/gcp/$ENVIRONMENT"
 fi
 
 ########################################
@@ -171,7 +173,7 @@ deploy_cluster() {
 }
 
 setup_wireguard() {
-	if [[ "${WIREGUARD_ENABLED:-}" != "true" ]]; then
+	if [[ "${WIREGUARD__ENABLED:-}" != "true" ]]; then
 		log "🌀 Wireguard disabled."
 		return 0
 	fi
@@ -179,6 +181,8 @@ setup_wireguard() {
 	log "🔑 Binding keys to unseen gates..."
 	if [[ "$CLOUD" == "civo" ]]; then
 		"$SCRIPTS_DIR"/wireguard/setup-civo.sh
+	elif [[ "$CLOUD" == "gcp" ]]; then
+		"$SCRIPTS_DIR"/wireguard/setup-gcp.sh
 	else
 		"$SCRIPTS_DIR"/wireguard/setup.sh
 	fi
@@ -199,16 +203,22 @@ render_overlay() {
 		"$rendered" \
 		"$label"
 
+	# These four are cloud-agnostic placeholders (used by GCP's tree too,
+	# not just Civo's) — must be substituted regardless of $CLOUD, or the
+	# unresolved-placeholder check below fails for every non-Civo cloud
+	# that uses them.
+	[[ -n "${INT_DNS_HOST:-}" ]] || fail "Missing internal DNS host"
+	sed -i "s/INT_DNS_HOST_PLACEHOLDER/${INT_DNS_HOST}/g" "$rendered"
+	sed -i "s/INTERNAL_DOMAIN_PLACEHOLDER/${INTERNAL_DOMAIN}/g" "$rendered"
+	sed -i "s/EXTERNAL_DOMAIN_PLACEHOLDER/${EXTERNAL_DOMAIN}/g" "$rendered"
+	sed -i "s/EXT_DNS_TSIG_KEY_NAME_PLACEHOLDER/${EXT_DNS_TSIG_KEY_NAME:-external-dns-${ENVIRONMENT}-key}/g" "$rendered"
+	sed -i "s/ENVIRONMENT_PLACEHOLDER/${ENVIRONMENT}/g" "$rendered"
+
 	if [[ "$CLOUD" == "civo" ]]; then
 		[[ -n "${WIREGUARD_PRIVATE_IP:-}" ]] || fail "Missing Civo WireGuard private IP"
-		[[ -n "${INT_DNS_HOST:-}" ]] || fail "Missing internal DNS host"
 		[[ -n "${WIREGUARD__LOCAL_CIDRS:-}" ]] || fail "Missing local network CIDR"
 		[[ -n "${PRIVATE_LB_FIREWALL_ID:-}" ]] || fail "Missing Civo private load-balancer firewall ID"
 		sed -i "s/WIREGUARD_PRIVATE_IP_PLACEHOLDER/${WIREGUARD_PRIVATE_IP}/g" "$rendered"
-		sed -i "s/INT_DNS_HOST_PLACEHOLDER/${INT_DNS_HOST}/g" "$rendered"
-		sed -i "s/INTERNAL_DOMAIN_PLACEHOLDER/${INTERNAL_DOMAIN}/g" "$rendered"
-		sed -i "s/EXTERNAL_DOMAIN_PLACEHOLDER/${EXTERNAL_DOMAIN}/g" "$rendered"
-		sed -i "s/ENVIRONMENT_PLACEHOLDER/${ENVIRONMENT}/g" "$rendered"
 		sed -i "s|WIREGUARD_LOCAL_CIDR_PLACEHOLDER|${WIREGUARD__LOCAL_CIDRS}|g" "$rendered"
 		sed -i "s/CIVO_PRIVATE_LB_FIREWALL_ID_PLACEHOLDER/${PRIVATE_LB_FIREWALL_ID}/g" "$rendered"
 		if [[ -n "${CIVO_PRIVATE_LB_IP:-}" ]]; then
@@ -263,7 +273,7 @@ deploy_platform_bootstrap() {
 	kubectl get ns argocd >/dev/null 2>&1 || kubectl create ns argocd
 	kubectl get ns external-dns >/dev/null 2>&1 || kubectl create ns external-dns
 	kubectl get ns cert-manager >/dev/null 2>&1 || kubectl create ns cert-manager
-	if [[ "$CLOUD" != "civo" ]]; then
+	if [[ "$CLOUD" != "civo" && "$CLOUD" != "gcp" ]]; then
 		kubectl get ns metallb-system >/dev/null 2>&1 || kubectl create ns metallb-system
 	fi
 	kubectl get ns step-ca >/dev/null 2>&1 || kubectl create ns step-ca
@@ -280,7 +290,7 @@ deploy_platform_bootstrap() {
 		discover_civo_private_ingress_ip
 	fi
 
-	if [[ "$CLOUD" != "civo" ]]; then
+	if [[ "$CLOUD" != "civo" && "$CLOUD" != "gcp" ]]; then
 		log "Waiting for metallb CRDs..."
 		for crd in ipaddresspools.metallb.io l2advertisements.metallb.io; do
 			until kubectl get crd "$crd" >/dev/null 2>&1; do
@@ -324,13 +334,20 @@ deploy_platform_bootstrap() {
 
 	log "Waiting for operator CRDs..."
 
+	local crds=(
+		crd/keycloaks.k8s.keycloak.org
+		crd/rabbitmqclusters.rabbitmq.com
+		crd/clusters.postgresql.cnpg.io
+		crd/mongodbcommunity.mongodbcommunity.mongodb.com
+	)
+	# Clusters that moved to SeaweedFS no longer deploy the MinIO operator.
+	if grep -q 'platform/operators/minio' "$CLUSTER_DEPLOYMENT_ROOT/30-platform-operators/kustomization.yaml"; then
+		crds+=(crd/tenants.minio.min.io)
+	fi
+
 	kubectl wait \
 		--for=condition=Established \
-		crd/keycloaks.k8s.keycloak.org \
-		crd/rabbitmqclusters.rabbitmq.com \
-		crd/clusters.postgresql.cnpg.io \
-		crd/tenants.minio.min.io \
-		crd/mongodbcommunity.mongodbcommunity.mongodb.com \
+		"${crds[@]}" \
 		--timeout=120s ||
 		fail "Operator CRDs failed"
 
@@ -426,27 +443,81 @@ verify() {
 # Main
 ########################################
 
+stage_order() {
+	if [[ "$CLOUD" == "civo" ]]; then
+		# Civo's gateway is created inside the cluster stack itself, so it
+		# doesn't exist yet until deploy_cluster has run.
+		echo foundation cluster wireguard platform step-ca verify
+	else
+		# GCP's gateway (like AWS's) is created in the foundation stack, and
+		# deploy_cluster's own kubectl-based steps need the tunnel already
+		# routing to the private control-plane endpoint — so the tunnel must
+		# come up first, not after.
+		echo foundation wireguard cluster platform step-ca verify
+	fi
+}
+
+# Stages after the cluster need its Pulumi outputs and render into
+# CLUSTER_DIR; when run on their own, deploy_cluster hasn't set that up.
+load_cluster_outputs() {
+	[[ -r "$ROOT_DIR/.env.pulumi.generated" ]] || fail "Missing .env.pulumi.generated; refresh cluster outputs first"
+	set -a
+	source "$ROOT_DIR/.env.pulumi.generated"
+	set +a
+	cd "$CLUSTER_DIR" || fail "Missing cluster dir"
+}
+
+run_stage() {
+	case "$1" in
+		foundation) deploy_foundation ;;
+		wireguard) setup_wireguard ;;
+		cluster) deploy_cluster ;;
+		platform)
+			load_cluster_outputs
+			deploy_platform_bootstrap
+			;;
+		step-ca)
+			load_cluster_outputs
+			bootstrap_step_ca_trust
+			;;
+		verify) verify ;;
+		*) fail "Unknown stage: $1 (stages: $(stage_order))" ;;
+	esac
+}
+
+run_from() {
+	local start="$1" stage started=""
+
+	[[ " $(stage_order) " == *" $start "* ]] || fail "Unknown stage: $start (stages: $(stage_order))"
+	for stage in $(stage_order); do
+		[[ "$stage" == "$start" ]] && started=1
+		if [[ -n "$started" ]]; then
+			run_stage "$stage"
+		fi
+	done
+
+	log "Forge is online 🔥"
+}
+
 main() {
 	log "✨ Let there be infrastructure."
 	sleep 0.5
 	echo "🌌 Spinning up the universe..."
 
-	deploy_foundation
-	if [[ "$CLOUD" == "civo" ]]; then
-		deploy_cluster
-		setup_wireguard
-	else
-		setup_wireguard
-		deploy_cluster
-	fi
-	deploy_platform_bootstrap
-	bootstrap_step_ca_trust
-	verify
-
-	log "Forge is online 🔥"
+	run_from foundation
 }
 
+usage="Usage: $0 [--only STAGE | --from STAGE | --platform-services]  (stages: $(stage_order))"
+
 case "${1:-}" in
+	--only)
+		[[ -n "${2:-}" ]] || fail "$usage"
+		run_stage "$2"
+		;;
+	--from)
+		[[ -n "${2:-}" ]] || fail "$usage"
+		run_from "$2"
+		;;
 	--platform-services)
 		# Reconcile an existing cluster without rerunning Pulumi or bootstrap.
 		[[ -r "$ROOT_DIR/.env.pulumi.generated" ]] || fail "Missing .env.pulumi.generated; refresh cluster outputs first"
@@ -460,5 +531,5 @@ case "${1:-}" in
 		deploy_platform_services
 		;;
 	"") main ;;
-	*) fail "Usage: $0 [--platform-services]" ;;
+	*) fail "$usage" ;;
 esac

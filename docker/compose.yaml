@@ -21,7 +21,7 @@ services:
       KC_DB_URL_PORT: 5432
       KC_DB_USERNAME: keycloak
       KC_HEALTH_ENABLED: "true"
-      KC_HOSTNAME: https://sso.aethericforge.ca
+#      KC_HOSTNAME: https://sso.aethericforge.ca
       KC_HTTP_ENABLED: "true"
       KC_PROXY_HEADERS: xforwarded
     healthcheck:

@@ -15,6 +15,7 @@ STEP_CA_NAMESPACE="step-ca"
 RABBITMQ_NAMESPACE="rabbitmq"
 FORGE_MONGO_NAMESPACE="forge-mongo"
 REDIS_NAMESPACE="redis"
+SEAWEEDFS_NAMESPACE="seaweedfs"
 
 function require_env() {
 	for name in "$@"; do
@@ -294,6 +295,10 @@ function distribute_step_ca_certificates() {
 		local namespace=${target%%:*}
 		local out_file=${target#*:}
 
+		if [[ "$namespace" == "$MINIO_NAMESPACE" ]] && uses_seaweedfs; then
+			continue
+		fi
+
 		local filename="ca.crt"
 		if [ "$namespace" == "minio" ]; then
 			filename="public.crt"
@@ -308,8 +313,15 @@ function distribute_step_ca_certificates() {
 function render_velero_bsl() {
 	local cert_file=$1
 	local ca_cert
+	local s3_url="https://s3-dev.int.aethericforge.ca"
+	local region="minio"
 
 	ca_cert=$(base64 -w0 <"$cert_file")
+
+	if uses_seaweedfs; then
+		s3_url="https://s3.${INTERNAL_DOMAIN}"
+		region="us-east-1"
+	fi
 
 	cat <<EOF >"$ROOT_DIR/platform/core/velero/overlays/$ENVIRONMENT/backupstoragelocation.yaml"
 apiVersion: velero.io/v1
@@ -331,11 +343,81 @@ spec:
     key: cloud
 
   config:
-    region: minio
+    region: $region
     s3ForcePathStyle: "true"
-    s3Url: https://s3-dev.int.aethericforge.ca
+    s3Url: $s3_url
 
 EOF
+}
+
+# True when this cluster's services stage deploys SeaweedFS instead of MinIO.
+function uses_seaweedfs() {
+	local deployment_root="$ROOT_DIR/clusters/single/$ENVIRONMENT"
+	if [[ "${CLOUD:-}" == "civo" || "${CLOUD:-}" == "gcp" ]]; then
+		deployment_root="$ROOT_DIR/clusters/single/$CLOUD/$ENVIRONMENT"
+	fi
+
+	grep -q 'platform/services/seaweedfs' "$deployment_root/40-platform-services/kustomization.yaml" 2>/dev/null
+}
+
+function sops_string_data() {
+	local file=$1
+	local key=$2
+
+	SOPS_AGE_KEY_FILE="${SOPS_AGE_KEY/#\~/$HOME}" \
+		sops --decrypt --extract "[\"stringData\"][\"$key\"]" "$file"
+}
+
+# SeaweedFS only accepts credentials declared in its S3 config, so its
+# identities are built from the keys Velero and CNPG were already given.
+# Must run after create_velero_secret and create_forge_db_secrets.
+function create_seaweedfs_secret() {
+	local velero_file="$ROOT_DIR/platform/core/velero/secrets/$ENVIRONMENT/cloud-credentials.enc.yaml"
+	local forge_db_file="$ROOT_DIR/platform/services/forge-db/secrets/$ENVIRONMENT/forge-db-backup-s3.enc.yaml"
+	local out_file="$ROOT_DIR/platform/services/seaweedfs/secrets/$ENVIRONMENT/seaweedfs-s3-config.enc.yaml"
+	local velero_ini velero_key velero_secret forge_db_key forge_db_secret config
+
+	if secret_exists "$SEAWEEDFS_NAMESPACE" "seaweedfs-s3-config" && [[ -f "$out_file" ]]; then
+		echo "[Forge] ${SEAWEEDFS_NAMESPACE}/seaweedfs-s3-config already exists; skipping"
+		return
+	fi
+
+	velero_ini=$(sops_string_data "$velero_file" cloud)
+	velero_key=$(sed -n 's/^aws_access_key_id=//p' <<<"$velero_ini")
+	velero_secret=$(sed -n 's/^aws_secret_access_key=//p' <<<"$velero_ini")
+	forge_db_key=$(sops_string_data "$forge_db_file" access-key-id)
+	forge_db_secret=$(sops_string_data "$forge_db_file" secret-access-key)
+
+	config=$(
+		jq -n \
+			--arg admin_key "$(rand_alnum 16)" --arg admin_secret "$(rand_alnum 32)" \
+			--arg velero_key "$velero_key" --arg velero_secret "$velero_secret" \
+			--arg forge_db_key "$forge_db_key" --arg forge_db_secret "$forge_db_secret" \
+			'def bucket($b): ["Read", "List", "Tagging", "Write"] | map(. + ":" + $b);
+			{identities: [
+				{name: "admin", credentials: [{accessKey: $admin_key, secretKey: $admin_secret}],
+				 actions: ["Admin", "Read", "List", "Tagging", "Write"]},
+				{name: "velero", credentials: [{accessKey: $velero_key, secretKey: $velero_secret}],
+				 actions: bucket("velero")},
+				{name: "forge-db", credentials: [{accessKey: $forge_db_key, secretKey: $forge_db_secret}],
+				 actions: bucket("forge-db")}
+			]}' | sed 's/^/    /'
+	)
+
+	create_sops_secret "$SEAWEEDFS_NAMESPACE" "seaweedfs-s3-config" "$out_file" \
+		"$(opaque_secret "$SEAWEEDFS_NAMESPACE" "seaweedfs-s3-config" "  seaweedfs_s3_config: |
+$config")"
+}
+
+# Keys are oauth2-proxy's env var names; the sidecar loads them with envFrom.
+# The client secret is also registered in Keycloak by
+# scripts/keycloak/bootstrap-seaweedfs-console.sh, which reads it back from
+# the cluster.
+function create_seaweedfs_console_secret() {
+	create_sops_secret "$SEAWEEDFS_NAMESPACE" "seaweedfs-console-oauth" \
+		"$ROOT_DIR/platform/services/seaweedfs/secrets/$ENVIRONMENT/seaweedfs-console-oauth.enc.yaml" \
+		"$(opaque_secret "$SEAWEEDFS_NAMESPACE" "seaweedfs-console-oauth" "  OAUTH2_PROXY_CLIENT_SECRET: $(rand_alnum 32)
+  OAUTH2_PROXY_COOKIE_SECRET: $(rand_alnum 32)")"
 }
 
 function create_minio_secret() {
@@ -475,10 +557,16 @@ EOF
 }
 
 function create_gitops_artifacts() {
-	create_minio_secret
+	if ! uses_seaweedfs; then
+		create_minio_secret
+	fi
 	create_velero_secret
 	render_velero_bsl "$CERT_FILE"
 	create_forge_db_secrets
+	if uses_seaweedfs; then
+		create_seaweedfs_secret
+		create_seaweedfs_console_secret
+	fi
 	create_keycloak_secrets
 	create_argocd_secrets
 	create_mongo_secrets

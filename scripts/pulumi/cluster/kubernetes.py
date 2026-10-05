@@ -1,3 +1,4 @@
+import math
 import os
 from pathlib import Path
 import pulumi
@@ -5,6 +6,7 @@ import json
 import pulumi_aws as aws
 import pulumi_eks as eks
 import pulumi_civo as civo
+import pulumi_gcp as gcp
 
 def must(name: str) -> str:
     v = os.getenv(name)
@@ -21,7 +23,7 @@ cluster_name = f"{org_name}-{system_name}-{environment}"
 
 cloud = os.getenv("CLOUD", "local")
 
-if cloud not in {"local", "aws", "civo"}:
+if cloud not in {"local", "aws", "civo", "gcp"}:
     raise ValueError(f"Unsupported cloud provider: {cloud}")
 
 if cloud == "aws":
@@ -38,6 +40,19 @@ if cloud == "aws":
         instance_types = ["t4g.small"]
     else:
         instance_types = ["t3.small"]
+
+if cloud == "gcp":
+    gcp_project = must("GCP_PROJECT")
+    gcp_region = must("GCP_REGION")
+    network_name = must("NETWORK_NAME")
+    subnetwork_name = must("SUBNETWORK_NAME")
+    pods_range_name = must("PODS_RANGE_NAME")
+    services_range_name = must("SERVICES_RANGE_NAME")
+    gcp_node_min = int(os.getenv("NODE_MIN_SIZE", "1"))
+    gcp_node_max = int(os.getenv("NODE_MAX_SIZE", "1"))
+    gcp_node_desired = int(os.getenv("NODE_DESIRED_SIZE", "1"))
+    gcp_machine_type = os.getenv("GCP_NODE_MACHINE_TYPE", "e2-medium")
+    gcp_vpc_cidr = must("GCP_VPC_CIDR")
 
 k8s_version = os.getenv("K8S_VERSION", "1.34")
 
@@ -392,4 +407,153 @@ def create_cluster():
     if cloud == "civo":
         return create_civo_cluster()
 
+    if cloud == "gcp":
+        return create_gcp_cluster()
+
     return None
+
+
+# The GKE master's private endpoint lives in its own peered range, separate
+# from the VPC subnet CIDR — the WireGuard gateway's NAT/routing needs to
+# know this too, so it's exported (see __main__.py) rather than just used
+# here.
+GCP_MASTER_IPV4_CIDR = "172.16.0.0/28"
+
+# A regional node pool lands in every zone of the region; GCP regions have 3.
+GCP_REGION_ZONE_COUNT = 3
+
+
+def create_gcp_cluster():
+    cluster = gcp.container.Cluster(
+        cluster_name,
+        name=cluster_name,
+        project=gcp_project,
+        location=gcp_region,
+        network=network_name,
+        subnetwork=subnetwork_name,
+        # The "remove_default_node_pool stalls 20-30min" flakiness we were
+        # routing around turned out not to be the real issue — the actual
+        # cause of every stuck create was the CPUS_ALL_REGIONS project quota
+        # silently rejecting requests before an operation even existed. Now
+        # that quota is raised, go back to actually removing the default
+        # pool so its cores go to the real "-ng" pool instead of sitting
+        # idle on a permanent e2-small.
+        remove_default_node_pool=True,
+        initial_node_count=1,
+        min_master_version=k8s_version,
+        networking_mode="VPC_NATIVE",
+        # Defaults true on recent provider versions and silently blocks
+        # `pulumi destroy`/`scripts/destroy.sh` with no indication why —
+        # this is still an actively-iterated environment, not one where
+        # that protection is wanted yet.
+        deletion_protection=False,
+        ip_allocation_policy=gcp.container.ClusterIpAllocationPolicyArgs(
+            cluster_secondary_range_name=pods_range_name,
+            services_secondary_range_name=services_range_name,
+        ),
+        private_cluster_config=gcp.container.ClusterPrivateClusterConfigArgs(
+            enable_private_nodes=True,
+            enable_private_endpoint=True,
+            master_ipv4_cidr_block=GCP_MASTER_IPV4_CIDR,
+        ),
+        # GCP requires this to be explicitly enabled whenever the private
+        # endpoint is enabled — without it, nothing (not even in-VPC
+        # traffic) can reach the control plane at all. Scoped to the VPC
+        # CIDR, which is as far as any access ever reaches anyway: the
+        # WireGuard gateway NATs tunnel traffic to its own VPC-internal
+        # address before it gets this far, and there's no public endpoint.
+        master_authorized_networks_config=gcp.container.ClusterMasterAuthorizedNetworksConfigArgs(
+            private_endpoint_enforcement_enabled=True,
+            cidr_blocks=[
+                gcp.container.ClusterMasterAuthorizedNetworksConfigCidrBlockArgs(
+                    cidr_block=gcp_vpc_cidr,
+                    display_name="vpc",
+                ),
+            ],
+        ),
+        workload_identity_config=gcp.container.ClusterWorkloadIdentityConfigArgs(
+            workload_pool=f"{gcp_project}.svc.id.goog",
+        ),
+    )
+
+    # GKE treats initial/min/max node counts on a regional pool as per-zone,
+    # so NODE_DESIRED_SIZE=3 used to mean 9 nodes (and a 36-vCPU quota
+    # check). The NODE_* settings are cluster-wide totals: autoscaling uses
+    # the total_* limits, and the initial count is spread across zones.
+    initial_per_zone = max(1, math.ceil(gcp_node_desired / GCP_REGION_ZONE_COUNT))
+    initial_total = initial_per_zone * GCP_REGION_ZONE_COUNT
+    if not gcp_node_min <= initial_total <= gcp_node_max:
+        raise ValueError(
+            f"NODE_DESIRED_SIZE={gcp_node_desired} starts {initial_total} nodes "
+            f"({initial_per_zone} per zone x {GCP_REGION_ZONE_COUNT} zones), outside "
+            f"NODE_MIN_SIZE={gcp_node_min}..NODE_MAX_SIZE={gcp_node_max}"
+        )
+
+    gcp.container.NodePool(
+        f"{cluster_name}-ng",
+        name=f"{cluster_name}-ng",
+        project=gcp_project,
+        location=gcp_region,
+        cluster=cluster.name,
+        autoscaling=gcp.container.NodePoolAutoscalingArgs(
+            total_min_node_count=gcp_node_min,
+            total_max_node_count=gcp_node_max,
+        ),
+        initial_node_count=initial_per_zone,
+        node_config=gcp.container.NodePoolNodeConfigArgs(
+            machine_type=gcp_machine_type,
+            # pd-ssd (GKE's default) counts against the regional
+            # SSD_TOTAL_GB quota, which is easy to exceed on a fresh
+            # project even for a single small node; pd-balanced doesn't.
+            disk_type="pd-balanced",
+            disk_size_gb=int(os.getenv("GCP_NODE_DISK_SIZE_GB", "50")),
+            oauth_scopes=["https://www.googleapis.com/auth/cloud-platform"],
+            workload_metadata_config=gcp.container.NodePoolNodeConfigWorkloadMetadataConfigArgs(
+                mode="GKE_METADATA",
+            ),
+        ),
+        # Quota rejections come back as retryable 429s, so the provider
+        # otherwise spins silently until its default timeout; fail fast
+        # with GKE's message instead.
+        opts=pulumi.ResourceOptions(
+            custom_timeouts=pulumi.CustomTimeouts(create="10m"),
+        ),
+    )
+
+    kubeconfig = pulumi.Output.all(cluster.name, cluster.endpoint, cluster.master_auth).apply(
+        lambda args: json.dumps(
+            {
+                "apiVersion": "v1",
+                "kind": "Config",
+                "clusters": [
+                    {
+                        "name": args[0],
+                        "cluster": {
+                            "server": f"https://{args[1]}",
+                            "certificate-authority-data": args[2]["cluster_ca_certificate"],
+                        },
+                    }
+                ],
+                "contexts": [
+                    {"name": args[0], "context": {"cluster": args[0], "user": args[0]}}
+                ],
+                "current-context": args[0],
+                "users": [
+                    {
+                        "name": args[0],
+                        "user": {
+                            "exec": {
+                                "apiVersion": "client.authentication.k8s.io/v1beta1",
+                                "command": "gke-gcloud-auth-plugin",
+                                "installHint": "Install gke-gcloud-auth-plugin for use with kubectl by following https://cloud.google.com/blog/products/containers-kubernetes/kubectl-auth-changes-in-gke",
+                                "provideClusterInfo": True,
+                            }
+                        },
+                    }
+                ],
+            }
+        )
+    )
+
+    cluster.kubeconfig = kubeconfig
+    return cluster

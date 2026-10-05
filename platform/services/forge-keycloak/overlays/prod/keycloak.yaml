@@ -1,0 +1,26 @@
+apiVersion: k8s.keycloak.org/v2alpha1
+kind: Keycloak
+metadata:
+  name: forge-keycloak
+  namespace: keycloak-system
+spec:
+  bootstrapAdmin:
+    user:
+      secret: forge-keycloak-admin
+  db:
+    database: keycloak
+    host: forge-db.int.blackcircuit.ca
+    passwordSecret:
+      key: password
+      name: forge-keycloak-db
+    usernameSecret:
+      key: username
+      name: forge-keycloak-db
+    vendor: postgres
+  hostname:
+    hostname: sso.blackcircuit.ca
+  http:
+    tlsSecret: forge-keycloak-tls
+  ingress:
+    enabled: false
+  instances: 1

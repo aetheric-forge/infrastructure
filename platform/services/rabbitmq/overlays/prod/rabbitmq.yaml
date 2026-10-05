@@ -1,0 +1,66 @@
+apiVersion: rabbitmq.com/v1beta1
+kind: RabbitmqCluster
+metadata:
+  name: rabbitmq
+  namespace: rabbitmq
+spec:
+  replicas: 1
+
+  image: rabbitmq:4.1-management
+
+  persistence:
+    storageClassName: local-path
+    storage: 10Gi
+
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+
+  override:
+    statefulSet:
+      spec:
+        template:
+          spec:
+            containers:
+              - name: rabbitmq
+                startupProbe:
+                  exec:
+                    command:
+                      - rabbitmq-diagnostics
+                      - check_running
+                  initialDelaySeconds: 10
+                  periodSeconds: 10
+                  timeoutSeconds: 5
+                  failureThreshold: 30
+
+  tls:
+    secretName: rabbitmq-server-tls
+    caSecretName: step-ca-root-ca
+    disableNonTLSListeners: false
+
+  service:
+    type: LoadBalancer
+    annotations:
+      metallb.io/address-pool: private-pool
+      external-dns.alpha.kubernetes.io/hostname: amqp.int.blackcircuit.ca
+
+  rabbitmq:
+    additionalPlugins:
+      - rabbitmq_management
+      - rabbitmq_prometheus
+
+    additionalConfig: |
+      cluster_partition_handling = pause_minority
+
+      ## 1 GiB free disk before alarms
+      disk_free_limit.absolute = 1GB
+
+      ## Statistics every 10 seconds
+      collect_statistics_interval = 10000
+
+      ## Optional: 30 minute consumer timeout
+      consumer_timeout = 1800000

@@ -28,5 +28,10 @@ if cloud == "aws":
     install_ebs_csi(cluster_name, cluster)
     install_autoscaler(cluster, cluster_name, region)
 
-if cloud in {"aws", "civo"}:
+if cloud in {"aws", "civo", "gcp"}:
     pulumi.export("kubeconfig", pulumi.Output.secret(cluster.kubeconfig))
+
+if cloud == "gcp":
+    from kubernetes import GCP_MASTER_IPV4_CIDR
+
+    pulumi.export("master_ipv4_cidr_block", GCP_MASTER_IPV4_CIDR)
