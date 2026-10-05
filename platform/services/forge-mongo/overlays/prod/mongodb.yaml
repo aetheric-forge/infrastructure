@@ -6,39 +6,43 @@ metadata:
 spec:
   members: 1
   type: ReplicaSet
-  version: 8.0.13
+  version: "8.0.13"
+
   security:
     authentication:
       modes:
-      - SCRAM
+        - SCRAM
+
   users:
-  - db: admin
-    name: forge-mongo-admin
-    passwordSecretRef:
-      key: password
-      name: forge-mongo-admin
-    roles:
-    - db: admin
-      name: root
-    scramCredentialsSecretName: forge-mongo-admin-scram
-  - db: blackcircuit
-    name: blackcircuit-admin
-    passwordSecretRef:
-      key: password
-      name: blackcircuit-admin-mongo-password
-    roles:
-    - db: blackcircuit
-      name: readWrite
-    scramCredentialsSecretName: blackcircuit-admin-scram
-  - db: blackcircuit
-    name: blackcircuit-web
-    passwordSecretRef:
-      key: password
-      name: blackcircuit-web-mongo-password
-    roles:
-    - db: blackcircuit
-      name: read
-    scramCredentialsSecretName: blackcircuit-web-scram
+    - name: forge-mongo-admin
+      db: admin
+      passwordSecretRef:
+        name: forge-mongo-admin
+        key: password
+      roles:
+        - name: root
+          db: admin
+      scramCredentialsSecretName: forge-mongo-admin-scram
+
+    - name: blackcircuit-admin
+      db: blackcircuit
+      passwordSecretRef:
+        name: blackcircuit-admin-mongo-password
+        key: password
+      roles:
+        - name: readWrite
+          db: blackcircuit
+      scramCredentialsSecretName: blackcircuit-admin-scram
+    - name: blackcircuit-web
+      db: blackcircuit
+      passwordSecretRef:
+        name: blackcircuit-web-mongo-password
+        key: password
+      roles:
+        - name: read
+          db: blackcircuit
+      scramCredentialsSecretName: blackcircuit-web-scram
+
   statefulSet:
     spec:
       volumeClaimTemplates:
@@ -46,7 +50,7 @@ spec:
           name: data-volume
         spec:
           accessModes:
-          - ReadWriteOnce
+            - ReadWriteOnce
           resources:
             requests:
               storage: 10Gi
