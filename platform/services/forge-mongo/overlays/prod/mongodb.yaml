@@ -42,6 +42,45 @@ spec:
         - name: read
           db: blackcircuit
       scramCredentialsSecretName: blackcircuit-web-scram
+    # Aetheric application accounts. Added to the live resource by hand, now
+    # recorded here so applying this overlay doesn't delete them. Their password
+    # and SCRAM secrets are created in-cluster and are not yet in git.
+    - name: aetheric-maintenance
+      db: aetheric-maintenance
+      passwordSecretRef:
+        name: aetheric-maintenance-mongo-password
+        key: password
+      roles:
+        - name: readWrite
+          db: aetheric-maintenance
+      scramCredentialsSecretName: aetheric-maintenance-scram
+    - name: aetheric-membership-admin
+      db: aetheric-membership
+      passwordSecretRef:
+        name: aetheric-membership-admin-mongo-password
+        key: password
+      roles:
+        - name: readWrite
+          db: aetheric-membership
+      scramCredentialsSecretName: aetheric-membership-admin-scram
+    - name: aetheric-marketing-admin
+      db: aetheric-marketing
+      passwordSecretRef:
+        name: aetheric-marketing-admin-mongo-password
+        key: password
+      roles:
+        - name: readWrite
+          db: aetheric-marketing
+      scramCredentialsSecretName: aetheric-marketing-admin-scram
+    - name: aetheric-web
+      db: aetheric-marketing
+      passwordSecretRef:
+        name: aetheric-web-mongo-password
+        key: password
+      roles:
+        - name: read
+          db: aetheric-marketing
+      scramCredentialsSecretName: aetheric-web-scram
 
   statefulSet:
     spec:
