@@ -72,3 +72,114 @@ spec:
   - hosts:
     - sso.aethericforge.ca
     secretName: aetheric-keycloak-tls
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: keycloak-admin-private
+  namespace: keycloak-system
+  annotations:
+    cert-manager.io/cluster-issuer: step-ca-int-acme
+    external-dns.alpha.kubernetes.io/hostname: sso-admin.int.blackcircuit.ca
+    nginx.ingress.kubernetes.io/backend-protocol: HTTPS
+spec:
+  ingressClassName: nginx-private
+  rules:
+  - host: sso-admin.int.blackcircuit.ca
+    http:
+      paths:
+      - path: /
+        pathType: Exact
+        backend: &id001
+          service:
+            name: forge-keycloak-service
+            port:
+              name: https
+      - path: /admin
+        pathType: Prefix
+        backend: *id001
+      - path: /realms/master
+        pathType: Prefix
+        backend: *id001
+      - path: /resources
+        pathType: Prefix
+        backend: *id001
+  tls:
+  - hosts:
+    - sso-admin.int.blackcircuit.ca
+    secretName: keycloak-admin-tls
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: keycloak-blackcircuit-admin-redirect
+  namespace: keycloak-system
+  annotations:
+    cert-manager.io/cluster-issuer: le-prod
+    external-dns.alpha.kubernetes.io/hostname: sso.blackcircuit.ca
+    nginx.ingress.kubernetes.io/backend-protocol: HTTPS
+    nginx.ingress.kubernetes.io/temporal-redirect: https://sso-admin.int.blackcircuit.ca/admin/master/console/
+spec:
+  ingressClassName: nginx-public
+  rules:
+  - host: sso.blackcircuit.ca
+    http:
+      paths:
+      - path: /
+        pathType: Exact
+        backend: &id001
+          service:
+            name: forge-keycloak-service
+            port:
+              name: https
+      - path: /admin
+        pathType: Exact
+        backend: *id001
+      - path: /admin/
+        pathType: Exact
+        backend: *id001
+      - path: /admin/master/console
+        pathType: Prefix
+        backend: *id001
+  tls:
+  - hosts:
+    - sso.blackcircuit.ca
+    secretName: forge-keycloak-tls
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: keycloak-aetheric-admin-redirect
+  namespace: keycloak-system
+  annotations:
+    cert-manager.io/cluster-issuer: le-prod
+    external-dns.alpha.kubernetes.io/hostname: sso.aethericforge.ca
+    nginx.ingress.kubernetes.io/backend-protocol: HTTPS
+    nginx.ingress.kubernetes.io/temporal-redirect: https://sso-admin.int.blackcircuit.ca/admin/master/console/
+spec:
+  ingressClassName: nginx-public
+  rules:
+  - host: sso.aethericforge.ca
+    http:
+      paths:
+      - path: /
+        pathType: Exact
+        backend: &id001
+          service:
+            name: forge-keycloak-service
+            port:
+              name: https
+      - path: /admin
+        pathType: Exact
+        backend: *id001
+      - path: /admin/
+        pathType: Exact
+        backend: *id001
+      - path: /admin/master/console
+        pathType: Prefix
+        backend: *id001
+  tls:
+  - hosts:
+    - sso.aethericforge.ca
+    secretName: aetheric-keycloak-tls

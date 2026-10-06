@@ -1,4 +1,4 @@
-apiVersion: k8s.keycloak.org/v2alpha1
+apiVersion: k8s.keycloak.org/v2beta1
 kind: Keycloak
 metadata:
   name: forge-keycloak
@@ -9,7 +9,7 @@ spec:
       secret: forge-keycloak-admin
   db:
     database: keycloak
-    host: forge-db.int.blackcircuit.ca
+    host: forge-db-rw.forge-db.svc.cluster.local
     passwordSecret:
       key: password
       name: forge-keycloak-db
@@ -18,9 +18,17 @@ spec:
       name: forge-keycloak-db
     vendor: postgres
   hostname:
-    hostname: sso.blackcircuit.ca
+    hostname: https://sso.blackcircuit.ca
+    admin: https://sso-admin.int.blackcircuit.ca
   http:
     tlsSecret: forge-keycloak-tls
   ingress:
     enabled: false
   instances: 1
+  resources:
+    limits:
+      cpu: 750m
+      memory: 1Gi
+    requests:
+      cpu: 200m
+      memory: 512Mi
