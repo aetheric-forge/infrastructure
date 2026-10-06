@@ -206,7 +206,7 @@ WireGuard provides private administrative access to platform services and is int
 
 ---
 
-## Keycloak (Planned v0.8.1)
+## Keycloak
 
 | Property     | Value                          |
 | ------------ | ------------------------------ |
@@ -224,13 +224,96 @@ WireGuard provides private administrative access to platform services and is int
 - OIDC federation
 - Identity management
 
+### Notes
+
+The Keycloak operator (`platform/operators/keycloak`) manages the Keycloak instance lifecycle; the running realm/service configuration lives in `platform/services/forge-keycloak`.
+
+---
+
+## CloudNativePG
+
+| Property     | Value                        |
+| ------------ | ----------------------------- |
+| Component    | CloudNativePG                 |
+| Role         | PostgreSQL operator            |
+| Owner        | Platform                       |
+| Managed By   | Argo CD                        |
+| Dependencies | Kubernetes                     |
+
+### Responsibilities
+
+- PostgreSQL cluster provisioning
+- Backup and recovery orchestration
+- Database lifecycle management for platform and workload services
+
+### Notes
+
+The operator (`platform/operators/cnpg`) provisions the engine; `platform/services/forge-db` defines the application-facing Postgres cluster and its nightly backup schedule.
+
+---
+
+## MinIO
+
+| Property     | Value               |
+| ------------ | -------------------- |
+| Component    | MinIO                 |
+| Role         | S3-compatible object storage |
+| Owner        | Platform              |
+| Managed By   | Argo CD                |
+| Dependencies | Kubernetes, storage     |
+
+### Responsibilities
+
+- S3-compatible object storage
+- Bucket provisioning for platform and workload services
+
+### Notes
+
+Split across `platform/operators/minio` (operator) and `platform/services/minio` (tenant/instance configuration).
+
+---
+
+## SeaweedFS
+
+| Property     | Value               |
+| ------------ | -------------------- |
+| Component    | SeaweedFS             |
+| Role         | Distributed object/file storage |
+| Owner        | Platform              |
+| Managed By   | Argo CD                |
+| Dependencies | Kubernetes, storage     |
+
+### Responsibilities
+
+- Distributed storage backend for platform data services
+
+---
+
+## Velero
+
+| Property     | Value                 |
+| ------------ | ---------------------- |
+| Component    | Velero                  |
+| Role         | Backup and disaster recovery |
+| Owner        | Platform                 |
+| Managed By   | Argo CD (post-bootstrap)  |
+| Dependencies | Kubernetes, object storage |
+
+### Responsibilities
+
+- Cluster resource and volume backups
+- Disaster recovery restore workflows
+
 ---
 
 # Workload Layer
 
-The following components are planned as part of the application services layer.
+## Redis
 
-## Redis (Planned v0.9.0)
+| Property  | Value                     |
+| --------- | -------------------------- |
+| Component | Redis                       |
+| Managed By| Argo CD (`platform/services/redis`) |
 
 ### Responsibilities
 
@@ -240,7 +323,12 @@ The following components are planned as part of the application services layer.
 
 ---
 
-## RabbitMQ (Planned v0.9.0)
+## RabbitMQ
+
+| Property  | Value                      |
+| --------- | --------------------------- |
+| Component | RabbitMQ                     |
+| Managed By| Argo CD (`platform/operators/rabbitmq`, `platform/services/rabbitmq`) |
 
 ### Responsibilities
 
@@ -250,7 +338,12 @@ The following components are planned as part of the application services layer.
 
 ---
 
-## MongoDB (Planned v0.9.0)
+## MongoDB
+
+| Property  | Value                        |
+| --------- | ------------------------------ |
+| Component | MongoDB                         |
+| Managed By| Argo CD (`platform/operators/forge-mongo`, `platform/services/forge-mongo`) |
 
 ### Responsibilities
 
@@ -276,29 +369,34 @@ Ownership boundaries are intended to minimize operational ambiguity and clarify 
 
 # Dependency Summary
 
-| Component          | Depends On           |
-| ------------------ | -------------------- |
-| Argo CD            | Kubernetes           |
-| WireGuard          | Network connectivity |
-| BIND               | Kubernetes, MetalLB  |
-| step-ca            | DNS                  |
-| cert-manager       | step-ca              |
-| ExternalDNS        | BIND                 |
-| Ingress Controller | MetalLB, step-ca     |
-| Keycloak           | DNS, step-ca         |
-| Redis              | Kubernetes           |
-| RabbitMQ           | Kubernetes           |
-| MongoDB            | Kubernetes           |
+| Component          | Depends On            |
+| ------------------ | ---------------------- |
+| Argo CD            | Kubernetes            |
+| WireGuard          | Network connectivity  |
+| BIND               | Kubernetes, MetalLB   |
+| step-ca            | DNS                   |
+| cert-manager       | step-ca               |
+| ExternalDNS        | BIND                  |
+| Ingress Controller | MetalLB, step-ca      |
+| Keycloak           | DNS, step-ca          |
+| CloudNativePG      | Kubernetes            |
+| MinIO              | Kubernetes, storage   |
+| SeaweedFS          | Kubernetes, storage   |
+| Velero             | Kubernetes, object storage |
+| Redis              | Kubernetes            |
+| RabbitMQ           | Kubernetes            |
+| MongoDB            | Kubernetes            |
 
 ---
 
 # Platform Evolution
 
-| Version | Milestone                           |
-| ------- | ----------------------------------- |
-| v0.8.0  | Bootstrap platform baseline         |
-| v0.8.1  | Identity integration and federation |
-| v0.9.0  | Application services layer          |
-| v1.0.0  | Production reference platform       |
+| Version | Milestone                                                           |
+| ------- | --------------------------------------------------------------------- |
+| v0.8.0  | Bootstrap platform baseline                                           |
+| v0.8.1  | Identity integration and federation (Keycloak)                        |
+| v0.8.2  | Data and storage services (CloudNativePG, MinIO, SeaweedFS, Velero)   |
+| v0.9.0  | Application services layer (Redis, RabbitMQ, MongoDB)                 |
+| current | Production GKE cluster live end to end                                |
 
 This catalog will evolve as platform services are added, removed, or reassigned between ownership layers.

@@ -31,20 +31,15 @@ The goal is to reduce the complexity of establishing a production-ready control 
 
 ## Project Status
 
-Current Release: **v0.8.0**
+Current Release: **v0.8.2**
 
-The platform currently provides a functional GitOps bootstrap layer including infrastructure provisioning, DNS, PKI, networking, ingress, WireGuard administration access, and Argo CD-based reconciliation.
+The platform provides a functional GitOps bootstrap layer including infrastructure provisioning, DNS, PKI, networking, ingress, and WireGuard administration access, plus a running set of platform services deployed through Argo CD: Keycloak (identity), CloudNativePG, MinIO, SeaweedFS, and Velero (data and backup), and Redis, RabbitMQ, and MongoDB (application services).
 
-Current development efforts are focused on expanding platform identity integration and completing the application services layer.
-
-Upcoming milestones include:
-
-- v0.8.1 — Keycloak integration and platform identity completion
-- v0.9.0 — Application services and reference platform workloads
+Production now runs on a GKE cluster; Civo remains the lower-cost cloud development target, and k3s remains the local development target.
 
 ## Architecture
 
-The bootstrap process establishes a minimal operational control plane.
+The bootstrap process establishes a minimal operational control plane. Once bootstrap completes, Argo CD takes over reconciliation of everything else: core networking/PKI services, platform operators, and platform services.
 
 ```text
 Git Repository
@@ -52,14 +47,16 @@ Git Repository
       ▼
    Argo CD
       │
- ┌────┼────┐
- ▼    ▼    ▼
-DNS  PKI  Networking
- │    │       │
-BIND step-ca MetalLB
+ ┌────┼────────────┬─────────────────┐
+ ▼    ▼             ▼                 ▼
+DNS  PKI/Networking Platform Operators Platform Services
+ │    │             (CloudNativePG,    (Keycloak, Redis,
+BIND step-ca        MinIO, Keycloak,   RabbitMQ, MongoDB,
+     MetalLB        RabbitMQ)          MinIO, SeaweedFS,
+     ingress-nginx                     Argo CD, Velero)
 ```
 
-Bootstrap installs foundational services only. Ongoing configuration and platform management are performed through GitOps reconciliation.
+Bootstrap installs foundational services only. Ongoing configuration and platform management are performed through GitOps reconciliation, organized under `platform/core`, `platform/operators`, and `platform/services`.
 
 ## Documentation
 
