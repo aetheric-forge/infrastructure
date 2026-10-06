@@ -14,10 +14,12 @@ Use the following guidelines:
 | ----------------------------------- | ----------------- |
 | Learn GitOps and platform concepts  | Local Development |
 | Develop and test platform changes   | Local Development |
-| Validate cloud deployment workflows | AWS Development   |
-| Operate a production environment    | Production        |
+| Validate cloud deployment workflows | Civo Development  |
+| Operate a production environment    | Production (GCP)  |
 
 Most users should begin with Local Development before deploying to cloud infrastructure.
+
+> The cluster Pulumi project also includes an Amazon EKS code path, but it is not an actively deployed or documented environment in this repository — Civo and GCP are the supported cloud targets.
 
 ---
 
@@ -65,9 +67,9 @@ This model is intended for:
 
 ---
 
-## AWS Development
+## Civo Development
 
-AWS Development deploys Aetheric Forge into Amazon EKS using infrastructure managed through Pulumi.
+Civo Development deploys Aetheric Forge into a managed Civo Kubernetes cluster using infrastructure managed through Pulumi.
 
 This model is intended for:
 
@@ -78,7 +80,7 @@ This model is intended for:
 
 ### Characteristics
 
-- Amazon EKS
+- Civo-managed Kubernetes
 - Pulumi-managed infrastructure
 - GitOps-managed platform services
 - WireGuard administrative access
@@ -88,32 +90,33 @@ This model is intended for:
 
 - Mirrors production architecture
 - Validates cloud deployment workflows
-- Supports realistic testing scenarios
+- Supports realistic testing scenarios at lower cost than GCP
 
 ### Limitations
 
-- AWS costs apply
+- Civo costs apply
 - Additional operational complexity
 - Requires cloud account management
 
 ### Documentation
 
-- AWS Prerequisites
+- Civo Prerequisites
 - Infrastructure Provisioning
 - WireGuard Configuration
-- AWS Bootstrap
+- Civo Bootstrap
 
 ---
 
 ## Production
 
-Production deployments provide a complete operational GitOps platform suitable for organizational workloads.
+Production deployments run on Google Kubernetes Engine (GKE) and provide a complete operational GitOps platform suitable for organizational workloads.
 
 Production environments emphasize stability, security, reproducibility, and operational simplicity.
 
 ### Characteristics
 
-- Cloud-hosted Kubernetes
+- Google Kubernetes Engine (GKE)
+- Pulumi-managed infrastructure
 - Automated GitOps reconciliation
 - Internal and public DNS separation
 - Automated certificate management
@@ -156,9 +159,9 @@ A typical journey follows:
 ```text
 Local Development
         ↓
-AWS Development
+Civo Development
         ↓
-Production
+Production (GCP)
 ```
 
 Users are encouraged to become comfortable with local deployment and GitOps workflows before operating cloud-hosted environments.
