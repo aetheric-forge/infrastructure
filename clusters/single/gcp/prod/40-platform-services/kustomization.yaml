@@ -42,6 +42,20 @@ patches:
       - op: add
         path: /spec/service/annotations/networking.gke.io~1load-balancer-type
         value: Internal
+      # One broker per zone. The node pool spans three zones and standard-rwo
+      # disks are zonal, so each replica's PVC stays in the zone it first lands in.
+      - op: replace
+        path: /spec/replicas
+        value: 3
+      - op: add
+        path: /spec/affinity
+        value:
+          podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              - topologyKey: topology.kubernetes.io/zone
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: rabbitmq
   - target:
       group: mongodbcommunity.mongodb.com
       version: v1
@@ -137,6 +151,16 @@ patches:
       - op: add
         path: /spec/managed/services/additional/0/serviceTemplate/metadata/annotations/networking.gke.io~1load-balancer-type
         value: Internal
+      # Primary plus two replicas, one per zone (same reasoning as RabbitMQ).
+      - op: replace
+        path: /spec/instances
+        value: 3
+      - op: add
+        path: /spec/affinity
+        value:
+          enablePodAntiAffinity: true
+          topologyKey: topology.kubernetes.io/zone
+          podAntiAffinityType: required
   # No argocd-server Ingress patch needed: platform/services/argocd/overlays/prod's
   # own ingress.yaml never had a metallb.io/address-pool annotation to strip
   # (it already sets ingressClassName: nginx-private directly).

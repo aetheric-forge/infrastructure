@@ -7,5 +7,5 @@ metadata:
   labels:
     addonmanager.kubernetes.io/mode: EnsureExists
 data:
-  stubDomains: |
+  stubDomains: |-
     {"INTERNAL_DOMAIN_PLACEHOLDER": ["INT_DNS_HOST_PLACEHOLDER:5335"], "int.aethericforge.ca": ["INT_DNS_HOST_PLACEHOLDER:5335"]}
