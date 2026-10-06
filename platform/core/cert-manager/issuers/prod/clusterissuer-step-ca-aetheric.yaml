@@ -1,0 +1,23 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: step-ca-int-ca
+spec:
+  acme:
+    caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUJ2VENDQVdPZ0F3SUJBZ0lVVXY5Q0lBcHZGTTM4Q3F6WmJTTWQyYXdIa2NJd0NnWUlLb1pJemowRUF3SXcKTERFcU1DZ0dBMVVFQXd3aFFteGhZMnNnUTJseVkzVnBkQ0JFWlhOcFoyNGdTVzVqTGlCU2IyOTBJRU5CTUI0WApEVEkyTVRBd01qRTJOVFkwTjFvWERUTTJNRGt5T1RFMk5UWTBOMW93TERFcU1DZ0dBMVVFQXd3aFFteGhZMnNnClEybHlZM1ZwZENCRVpYTnBaMjRnU1c1akxpQlNiMjkwSUVOQk1Ga3dFd1lIS29aSXpqMENBUVlJS29aSXpqMEQKQVFjRFFnQUVzOGpDaUxNS3hqeUtoakNlVGRLOStFTkt3aWtVTGkzdGhBZkVCVnVqL1JCeDF0RDA4TU12Z3RiMQoxSEJvLzlzd3NXcGtYMEp2QkZMa0tRYnVsME9Qa2FOak1HRXdId1lEVlIwakJCZ3dGb0FVeFM1RzA4UXN2anJFCjBXVzlsMkRRUFYwNE5mMHdEd1lEVlIwVEFRSC9CQVV3QXdFQi96QU9CZ05WSFE4QkFmOEVCQU1DQVFZd0hRWUQKVlIwT0JCWUVGTVV1UnRQRUxMNDZ4TkZsdlpkZzBEMWRPRFg5TUFvR0NDcUdTTTQ5QkFNQ0EwZ0FNRVVDSUVwZwp1NW9vSUJNK1FCSVgxQjEyNnRXeVkzN3U5THhNQzF5QjdBWXZKSitMQWlFQTNPalJscE5Eb3NjQWtSYU5pTTRYCi9HR2doUUVrNHJIVXFnNU1XZTFVSGx3PQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+    email: pki@blackcircuit.ca
+    privateKeySecretRef:
+      name: step-ca-int-ca-account-key
+    server: https://step-ca.step-ca.svc.cluster.local/acme/acme/directory
+    solvers:
+    - dns01:
+        rfc2136:
+          nameserver: 192.168.1.1:5335
+          tsigAlgorithm: HMACSHA256
+          tsigKeyName: cert-manager-blackcircuit-ca-prod
+          tsigSecretSecretRef:
+            key: tsig-secret
+            name: cert-manager-tsig
+      selector:
+        dnsZones:
+        - int.aethericforge.ca

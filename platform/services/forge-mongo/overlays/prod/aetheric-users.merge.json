@@ -1,0 +1,111 @@
+{
+  "spec": {
+    "users": [
+      {
+        "db": "admin",
+        "name": "forge-mongo-admin",
+        "passwordSecretRef": {
+          "key": "password",
+          "name": "forge-mongo-admin"
+        },
+        "roles": [
+          {
+            "db": "admin",
+            "name": "root"
+          }
+        ],
+        "scramCredentialsSecretName": "forge-mongo-admin-scram"
+      },
+      {
+        "db": "blackcircuit",
+        "name": "blackcircuit-admin",
+        "passwordSecretRef": {
+          "key": "password",
+          "name": "blackcircuit-admin-mongo-password"
+        },
+        "roles": [
+          {
+            "db": "blackcircuit",
+            "name": "readWrite"
+          }
+        ],
+        "scramCredentialsSecretName": "blackcircuit-admin-scram"
+      },
+      {
+        "db": "blackcircuit",
+        "name": "blackcircuit-web",
+        "passwordSecretRef": {
+          "key": "password",
+          "name": "blackcircuit-web-mongo-password"
+        },
+        "roles": [
+          {
+            "db": "blackcircuit",
+            "name": "read"
+          }
+        ],
+        "scramCredentialsSecretName": "blackcircuit-web-scram"
+      },
+      {
+        "db": "aetheric-maintenance",
+        "name": "aetheric-maintenance",
+        "passwordSecretRef": {
+          "key": "password",
+          "name": "aetheric-maintenance-mongo-password"
+        },
+        "roles": [
+          {
+            "db": "aetheric-maintenance",
+            "name": "readWrite"
+          }
+        ],
+        "scramCredentialsSecretName": "aetheric-maintenance-scram"
+      },
+      {
+        "db": "aetheric-membership",
+        "name": "aetheric-membership-admin",
+        "passwordSecretRef": {
+          "key": "password",
+          "name": "aetheric-membership-admin-mongo-password"
+        },
+        "roles": [
+          {
+            "db": "aetheric-membership",
+            "name": "readWrite"
+          }
+        ],
+        "scramCredentialsSecretName": "aetheric-membership-admin-scram"
+      },
+      {
+        "db": "aetheric-marketing",
+        "name": "aetheric-marketing-admin",
+        "passwordSecretRef": {
+          "key": "password",
+          "name": "aetheric-marketing-admin-mongo-password"
+        },
+        "roles": [
+          {
+            "db": "aetheric-marketing",
+            "name": "readWrite"
+          }
+        ],
+        "scramCredentialsSecretName": "aetheric-marketing-admin-scram"
+      },
+      {
+        "db": "aetheric-marketing",
+        "name": "aetheric-web",
+        "passwordSecretRef": {
+          "key": "password",
+          "name": "aetheric-web-mongo-password"
+        },
+        "roles": [
+          {
+            "db": "aetheric-marketing",
+            "name": "read"
+          }
+        ],
+        "scramCredentialsSecretName": "aetheric-web-scram"
+      }
+    ]
+  }
+}

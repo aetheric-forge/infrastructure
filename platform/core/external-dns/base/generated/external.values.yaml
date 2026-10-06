@@ -1,27 +1,23 @@
 provider:
   name: cloudflare
-
 env:
   - name: CF_API_TOKEN
     valueFrom:
       secretKeyRef:
         name: cloudflare-api-token
         key: apiToken
-
 sources:
   - service
   - ingress
-
 domainFilters:
   - blackcircuit.ca
-
+  - aethericforge.ca
 registry: txt
 txtOwnerId: external
 policy: sync
-
 extraArgs:
+  - --exclude-domains=int.blackcircuit.ca
   - --exclude-domains=int.aethericforge.ca
-
 serviceAccount:
   create: true
   name: external-dns-external
