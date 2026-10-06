@@ -1,0 +1,102 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: external-dns-aetheric-internal
+  namespace: external-dns
+  labels:
+    app.kubernetes.io/name: external-dns
+    app.kubernetes.io/instance: external-dns-aetheric-internal
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: external-dns
+      app.kubernetes.io/instance: external-dns-aetheric-internal
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/restartedAt: '2026-10-05T10:19:30-06:00'
+      labels:
+        app.kubernetes.io/name: external-dns
+        app.kubernetes.io/instance: external-dns-aetheric-internal
+    spec:
+      automountServiceAccountToken: true
+      containers:
+      - args:
+        - --log-level=info
+        - --log-format=text
+        - --interval=1m
+        - --source=service
+        - --source=ingress
+        - --policy=sync
+        - --registry=txt
+        - --txt-owner-id=aetheric-internal
+        - --domain-filter=int.aethericforge.ca
+        - --provider=rfc2136
+        - --rfc2136-host=192.168.1.1
+        - --rfc2136-port=5335
+        - --rfc2136-tsig-axfr
+        - --rfc2136-tsig-keyname=external-dns-blackcircuit-ca-prod
+        - --rfc2136-tsig-secret-alg=hmac-sha256
+        - --rfc2136-zone=int.aethericforge.ca
+        env:
+        - name: EXTERNAL_DNS_RFC2136_TSIG_SECRET
+          valueFrom:
+            secretKeyRef:
+              key: tsig-secret
+              name: external-dns-internal-tsig
+        image: registry.k8s.io/external-dns/external-dns:v0.21.0
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 2
+          httpGet:
+            path: /healthz
+            port: http
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 5
+        name: external-dns
+        ports:
+        - containerPort: 7979
+          name: http
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 6
+          httpGet:
+            path: /healthz
+            port: http
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 5
+        resources: {}
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+          readOnlyRootFilesystem: true
+          runAsGroup: 65532
+          runAsNonRoot: true
+          runAsUser: 65532
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+        fsGroup: 65534
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccount: external-dns-internal
+      serviceAccountName: external-dns-internal
+      terminationGracePeriodSeconds: 30

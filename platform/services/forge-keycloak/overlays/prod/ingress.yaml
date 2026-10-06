@@ -1,25 +1,74 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
+  name: keycloak-public
+  namespace: keycloak-system
   annotations:
     cert-manager.io/cluster-issuer: le-prod
     nginx.ingress.kubernetes.io/backend-protocol: HTTPS
-  name: keycloak-public
-  namespace: keycloak-system
+    external-dns.alpha.kubernetes.io/hostname: sso.blackcircuit.ca
 spec:
-  ingressClassName: nginx
+  ingressClassName: nginx-public
   rules:
   - host: sso.blackcircuit.ca
     http:
       paths:
-      - backend:
+      - path: /realms/int.blackcircuit.ca
+        pathType: Prefix
+        backend:
           service:
             name: forge-keycloak-service
             port:
               name: https
-        path: /
+      - path: /realms/blackcircuit.ca
         pathType: Prefix
+        backend:
+          service:
+            name: forge-keycloak-service
+            port:
+              name: https
+      - path: /resources
+        pathType: Prefix
+        backend:
+          service:
+            name: forge-keycloak-service
+            port:
+              name: https
   tls:
   - hosts:
     - sso.blackcircuit.ca
     secretName: forge-keycloak-tls
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: keycloak-aetheric-public
+  namespace: keycloak-system
+  annotations:
+    cert-manager.io/cluster-issuer: le-prod
+    nginx.ingress.kubernetes.io/backend-protocol: HTTPS
+    external-dns.alpha.kubernetes.io/hostname: sso.aethericforge.ca
+spec:
+  ingressClassName: nginx-public
+  rules:
+  - host: sso.aethericforge.ca
+    http:
+      paths:
+      - path: /realms/int.aethericforge.ca
+        pathType: Prefix
+        backend:
+          service:
+            name: forge-keycloak-service
+            port:
+              name: https
+      - path: /resources
+        pathType: Prefix
+        backend:
+          service:
+            name: forge-keycloak-service
+            port:
+              name: https
+  tls:
+  - hosts:
+    - sso.aethericforge.ca
+    secretName: aetheric-keycloak-tls
