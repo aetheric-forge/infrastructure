@@ -397,3 +397,27 @@ The primary difference is that the repository stores the encrypted representatio
 Continue with:
 
 - [Application Delivery](09-application-delivery.md)
+
+---
+
+## Giving a Service Its Own SeaweedFS Credentials
+
+Each service that writes to SeaweedFS gets its own S3 identity, limited to one bucket, so a leaked key exposes one bucket and not the others.
+
+`create_seaweedfs_client_secret` in `scripts/bootstrap-secrets.sh` does this in one step:
+
+```bash
+create_seaweedfs_client_secret IDENTITY BUCKET NAMESPACE SECRET_NAME OUT_FILE
+```
+
+It writes a SOPS-encrypted Secret (`access-key-id`, `secret-access-key`) to `OUT_FILE` for the service to mount, and adds the same pair as an identity in `seaweedfs-s3-config`. It is add-only: the identities already there, and the keys Velero and CNPG hold, are never regenerated. Rerunning does nothing, and a run that stopped between the two writes is finished on the next run.
+
+To use a new bucket:
+
+1. Add the bucket to `createBuckets` in `platform/services/seaweedfs/base/kustomization.yaml`.
+2. Call `create_seaweedfs_client_secret` from `create_gitops_artifacts`, and add `OUT_FILE` to the service's `ksops-secrets.yaml`.
+3. Commit the changed `seaweedfs-s3-config.enc.yaml` and the new secret file.
+4. `make create platform`. The bucket Job removes itself ten minutes after it finishes. If the previous one is still there, delete it first (`kubectl -n seaweedfs delete job seaweedfs-bucket-hook`), because a Job's template can't be changed in place.
+5. Restart SeaweedFS so it loads the new identity: `kubectl -n seaweedfs rollout restart deploy/seaweedfs-all-in-one`.
+
+`scripts/tests/test_seaweedfs_identities.py` checks this offline with a throwaway key.
