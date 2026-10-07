@@ -4,6 +4,18 @@ kind: Kustomization
 resources:
   - namespace.yaml
 
+# The chart renders its bucket-creation Job without a namespace, so it landed
+# in `default` and sat in ContainerCreating (its config Secret lives in
+# `seaweedfs`). That is why the velero and forge-db buckets were never created.
+patches:
+  - target:
+      kind: Job
+      name: seaweedfs-bucket-hook
+    patch: |-
+      - op: add
+        path: /metadata/namespace
+        value: seaweedfs
+
 # S3-compatible object storage, replacing MinIO (whose community images and
 # repository are gone). All-in-one mode runs master, volume, filer and the S3
 # gateway in a single pod — enough for backup targets on a small cluster.
