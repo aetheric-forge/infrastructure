@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: keycloak-aetheric-admin-api-private
+  namespace: keycloak-system
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: HTTPS
+spec:
+  ingressClassName: nginx-private
+  rules:
+  - host: sso.aethericforge.ca
+    http:
+      paths:
+      - path: /admin/realms/int.aethericforge.ca
+        pathType: Prefix
+        backend:
+          service:
+            name: forge-keycloak-service
+            port:
+              name: https
+  tls:
+  - hosts:
+    - sso.aethericforge.ca
+    secretName: aetheric-keycloak-tls

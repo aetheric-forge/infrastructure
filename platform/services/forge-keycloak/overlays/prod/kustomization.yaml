@@ -4,3 +4,4 @@ resources:
 - ../../secrets/prod
 - keycloak.yaml
 - ingress.yaml
+- admin-api-ingress.yaml
