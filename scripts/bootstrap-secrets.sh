@@ -375,7 +375,9 @@ function sops_string_data() {
 	local file=$1
 	local key=$2
 
-	SOPS_AGE_KEY_FILE="${SOPS_AGE_KEY/#\~/$HOME}" \
+	# SOPS_AGE_KEY holds a path here; sops would read a variable of that name as
+	# the key itself, so keep it out of sops' environment.
+	env -u SOPS_AGE_KEY SOPS_AGE_KEY_FILE="${SOPS_AGE_KEY/#\~/$HOME}" \
 		sops --decrypt --extract "[\"stringData\"][\"$key\"]" "$file"
 }
 
@@ -418,6 +420,116 @@ function create_seaweedfs_secret() {
 	create_sops_secret "$SEAWEEDFS_NAMESPACE" "seaweedfs-s3-config" "$out_file" \
 		"$(opaque_secret "$SEAWEEDFS_NAMESPACE" "seaweedfs-s3-config" "  seaweedfs_s3_config: |
 $config")"
+}
+
+# Encrypts into a temp file outside the repo and copies the result over
+# out_file, so a failed or interrupted run never leaves plaintext (or a
+# half-written file) in the tree.
+function replace_sops_file() {
+	local out_file=$1
+	local content=$2
+	local tmp
+
+	mkdir -p "$(dirname "$out_file")"
+	tmp=$(mktemp --suffix=.enc.yaml)
+	printf '%s\n' "$content" >"$tmp"
+	if ! env -u SOPS_AGE_KEY SOPS_AGE_KEY_FILE="${SOPS_AGE_KEY/#\~/$HOME}" \
+		sops --config "$ROOT_DIR/.sops.yaml" --encrypt --in-place "$tmp"; then
+		rm -f "$tmp"
+		echo "[Forge] could not encrypt $out_file" >&2
+		return 1
+	fi
+	install -m 0644 "$tmp" "$out_file"
+	rm -f "$tmp"
+}
+
+function seaweedfs_config_file() {
+	echo "$ROOT_DIR/platform/services/seaweedfs/secrets/$ENVIRONMENT/seaweedfs-s3-config.enc.yaml"
+}
+
+function seaweedfs_has_identity() {
+	local name=$1
+
+	sops_string_data "$(seaweedfs_config_file)" seaweedfs_s3_config |
+		jq -e --arg n "$name" '.identities[] | select(.name == $n)' >/dev/null
+}
+
+# Adds one S3 identity, limited to one bucket, to the SeaweedFS config in git.
+# Existing identities are never touched, so the credentials Velero, CNPG and
+# the rest already hold keep working. Returns 3 if the name is already taken.
+function seaweedfs_add_identity() {
+	local name=$1
+	local bucket=$2
+	local access_key=$3
+	local secret_key=$4
+	local file current updated
+
+	file=$(seaweedfs_config_file)
+	[[ -f "$file" ]] || {
+		echo "[Forge] $file not found; create_seaweedfs_secret must run first" >&2
+		return 1
+	}
+
+	current=$(sops_string_data "$file" seaweedfs_s3_config)
+	if jq -e --arg n "$name" '.identities[] | select(.name == $n)' <<<"$current" >/dev/null; then
+		return 3
+	fi
+
+	updated=$(
+		jq --arg n "$name" --arg b "$bucket" --arg k "$access_key" --arg s "$secret_key" \
+			'.identities += [{name: $n,
+				credentials: [{accessKey: $k, secretKey: $s}],
+				actions: (["Read", "List", "Tagging", "Write"] | map(. + ":" + $b))}]' \
+			<<<"$current" | sed 's/^/    /'
+	)
+
+	replace_sops_file "$file" "$(opaque_secret "$SEAWEEDFS_NAMESPACE" "seaweedfs-s3-config" "  seaweedfs_s3_config: |
+$updated")"
+}
+
+# create_seaweedfs_client_secret IDENTITY BUCKET NAMESPACE SECRET OUT_FILE
+#
+# Gives one service its own credentials for one bucket: writes a Secret (keys
+# access-key-id and secret-access-key) to OUT_FILE and registers the same pair
+# as a SeaweedFS identity limited to BUCKET. Safe to rerun: nothing is
+# regenerated once OUT_FILE exists, and if a previous run stopped after writing
+# OUT_FILE but before registering the identity, the registration is finished
+# from OUT_FILE. After the config reaches the cluster, restart SeaweedFS
+# (kubectl -n seaweedfs rollout restart deploy/seaweedfs-all-in-one) so it
+# loads the new identity. The bucket itself comes from createBuckets in
+# platform/services/seaweedfs/base.
+function create_seaweedfs_client_secret() {
+	local identity=$1
+	local bucket=$2
+	local namespace=$3
+	local secret_name=$4
+	local out_file=$5
+	local access_key secret_key rc=0
+
+	if [[ -f "$out_file" ]]; then
+		if seaweedfs_has_identity "$identity"; then
+			echo "[Forge] ${namespace}/${secret_name} and SeaweedFS identity ${identity} already exist; skipping"
+			return
+		fi
+		access_key=$(sops_string_data "$out_file" access-key-id)
+		secret_key=$(sops_string_data "$out_file" secret-access-key)
+	else
+		if seaweedfs_has_identity "$identity"; then
+			echo "[Forge] SeaweedFS identity '${identity}' already exists but ${out_file} does not." >&2
+			echo "[Forge] Its secret key cannot be recovered: restore the file, or remove the identity from seaweedfs-s3-config first." >&2
+			return 1
+		fi
+		access_key=$(rand_alnum 16)
+		secret_key=$(rand_alnum 32)
+		echo "[Forge] creating SeaweedFS client secret ${namespace}/${secret_name} for bucket ${bucket}..."
+		replace_sops_file "$out_file" \
+			"$(opaque_secret "$namespace" "$secret_name" "  access-key-id: $access_key
+  secret-access-key: $secret_key")"
+	fi
+
+	seaweedfs_add_identity "$identity" "$bucket" "$access_key" "$secret_key" || rc=$?
+	[[ $rc -eq 0 ]] || return $rc
+	echo "[Forge] registered SeaweedFS identity ${identity} (bucket ${bucket}); restart SeaweedFS after applying"
 }
 
 # Keys are oauth2-proxy's env var names; the sidecar loads them with envFrom.

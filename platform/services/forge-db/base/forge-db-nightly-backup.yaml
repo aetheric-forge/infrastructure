@@ -1,0 +1,15 @@
+# Base backup of forge-db to the cluster's object store, once a night. WAL
+# archiving alone isn't restorable without one. CNPG's cron has a leading
+# seconds field; this runs at 02:30 UTC, ahead of Velero's 03:00-04:00 runs.
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: forge-db-nightly
+  namespace: forge-db
+spec:
+  schedule: "0 30 2 * * *"
+  cluster:
+    name: forge-db
+  backupOwnerReference: self
+  # Take one right after creation so a broken target shows up now, not tomorrow.
+  immediate: true

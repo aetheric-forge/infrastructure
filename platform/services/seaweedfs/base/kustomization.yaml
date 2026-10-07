@@ -4,6 +4,24 @@ kind: Kustomization
 resources:
   - namespace.yaml
 
+# The chart renders its bucket-creation Job without a namespace, so it landed
+# in `default` and sat in ContainerCreating (its config Secret lives in
+# `seaweedfs`). That is why the velero and forge-db buckets were never created.
+patches:
+  - target:
+      kind: Job
+      name: seaweedfs-bucket-hook
+    patch: |-
+      - op: add
+        path: /metadata/namespace
+        value: seaweedfs
+      # A finished Job otherwise sticks around, and a Job's pod template can't
+      # be changed in place, so the next apply (new buckets, say) would fail.
+      # The script skips buckets that already exist, so rerunning is harmless.
+      - op: add
+        path: /spec/ttlSecondsAfterFinished
+        value: 600
+
 # S3-compatible object storage, replacing MinIO (whose community images and
 # repository are gone). All-in-one mode runs master, volume, filer and the S3
 # gateway in a single pod — enough for backup targets on a small cluster.
@@ -34,6 +52,10 @@ helmCharts:
           createBuckets:
             - name: velero
             - name: forge-db
+            # Identities for these are added with create_seaweedfs_client_secret
+            # in scripts/bootstrap-secrets.sh.
+            - name: mongo-backup
+            - name: loki
         data:
           type: persistentVolumeClaim
           size: 50Gi
