@@ -6,6 +6,7 @@ resources:
   - ../../../../../platform/services/forge-db/overlays/prod
   - ../../../../../platform/services/forge-keycloak/overlays/prod
   - ../../../../../platform/services/forge-mongo/overlays/prod
+  - ../../../../../platform/services/monitoring/overlays/prod
   - ../../../../../platform/services/seaweedfs/overlays/prod
   - ../../../../../platform/services/redis/overlays/prod
   - ../../../../../platform/services/rabbitmq/overlays/prod

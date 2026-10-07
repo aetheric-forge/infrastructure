@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Prometheus Operator CRDs on their own. The services stage applies one
+# rendered file in a single `kubectl apply`, so the CRDs (ServiceMonitor,
+# Prometheus, ...) must land in the operators stage, before the stack and the
+# ServiceMonitors that use them.
+helmCharts:
+  - name: prometheus-operator-crds
+    repo: https://prometheus-community.github.io/helm-charts
+    version: 32.0.1
+    releaseName: prometheus-operator-crds
+    namespace: monitoring
+    includeCRDs: true
