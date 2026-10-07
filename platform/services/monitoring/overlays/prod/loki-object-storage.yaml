@@ -1,0 +1,16 @@
+# Where Loki keeps its logs: any S3-compatible service. Not secret, so it lives
+# in git; the credentials are the loki-s3 Secret.
+#
+# These values point at the SeaweedFS service in this cluster (plain HTTP, so
+# insecure is true, bucket created by the SeaweedFS bucket Job). To use a
+# different service, change them and the loki-s3 Secret together.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: loki-object-storage
+  namespace: monitoring
+data:
+  LOKI_S3_ENDPOINT: seaweedfs-all-in-one.seaweedfs.svc.cluster.local:8333
+  LOKI_S3_BUCKET: loki
+  LOKI_S3_REGION: us-east-1
+  LOKI_S3_INSECURE: "true"
