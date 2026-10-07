@@ -4,7 +4,9 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - serviceaccount.yaml
-  - ../secrets/dev
+  # The cloud-credentials Secret is added per cluster (secrets/dev or
+  # secrets/prod), not here: this base used to include ../secrets/dev, which
+  # gave every cluster, prod included, the dev credentials.
 
 helmCharts:
   - name: velero
