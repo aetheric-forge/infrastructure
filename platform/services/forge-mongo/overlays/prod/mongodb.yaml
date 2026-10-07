@@ -81,6 +81,17 @@ spec:
         - name: read
           db: aetheric-marketing
       scramCredentialsSecretName: aetheric-web-scram
+    # Used by the mongo-backup CronJob; the built-in backup role can read
+    # everything for mongodump and change nothing.
+    - name: mongo-backup
+      db: admin
+      passwordSecretRef:
+        name: mongo-backup-mongo-password
+        key: password
+      roles:
+        - name: backup
+          db: admin
+      scramCredentialsSecretName: mongo-backup-scram
 
   statefulSet:
     spec:

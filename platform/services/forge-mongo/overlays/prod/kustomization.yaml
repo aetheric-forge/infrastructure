@@ -7,3 +7,11 @@ resources:
   - ../../secrets/prod
   - mongodb.yaml
   - service.yaml
+  - mongo-backup.yaml
+
+# The same files run in the CronJob and in local tests of the backup.
+configMapGenerator:
+  - name: mongo-backup-scripts
+    files:
+      - scripts/dump.sh
+      - scripts/upload.sh

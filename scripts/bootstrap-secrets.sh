@@ -649,6 +649,32 @@ EOF
 		"${admin}"
 }
 
+# True when this cluster's services stage deploys the MongoDB backup CronJob
+# (the forge-mongo prod overlay), which needs a database login and storage
+# credentials of its own.
+function uses_mongo_backup() {
+	local deployment_root="$ROOT_DIR/clusters/single/$ENVIRONMENT"
+	if [[ "${CLOUD:-}" == "civo" || "${CLOUD:-}" == "gcp" ]]; then
+		deployment_root="$ROOT_DIR/clusters/single/$CLOUD/$ENVIRONMENT"
+	fi
+
+	grep -q 'platform/services/forge-mongo/overlays/prod' "$deployment_root/40-platform-services/kustomization.yaml" 2>/dev/null
+}
+
+# Credentials for the mongo-backup CronJob: a MongoDB login limited to the
+# built-in backup role, and a SeaweedFS identity limited to the mongo-backup
+# bucket. Must run after create_seaweedfs_secret.
+function create_mongo_backup_secrets() {
+	local dir="$ROOT_DIR/platform/services/forge-mongo/secrets/$ENVIRONMENT"
+
+	create_sops_secret "$FORGE_MONGO_NAMESPACE" "mongo-backup-mongo-password" \
+		"$dir/mongo-backup-mongo-password.enc.yaml" \
+		"$(opaque_secret "$FORGE_MONGO_NAMESPACE" "mongo-backup-mongo-password" "  password: \"$(rand_alnum 32)\"")"
+
+	create_seaweedfs_client_secret mongo-backup mongo-backup "$FORGE_MONGO_NAMESPACE" \
+		mongo-backup-s3 "$dir/mongo-backup-s3.enc.yaml"
+}
+
 function create_redis_secrets() {
 	local auth=$(
 		cat <<EOF
@@ -682,6 +708,9 @@ function create_gitops_artifacts() {
 	create_keycloak_secrets
 	create_argocd_secrets
 	create_mongo_secrets
+	if uses_mongo_backup; then
+		create_mongo_backup_secrets
+	fi
 	create_redis_secrets
 }
 
