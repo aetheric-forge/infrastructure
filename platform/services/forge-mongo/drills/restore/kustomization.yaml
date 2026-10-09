@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Not part of any cluster's stages: apply by hand to prove a backup restores.
+#   kubectl -n forge-mongo delete job mongo-restore-drill --ignore-not-found
+#   kubectl apply -k platform/services/forge-mongo/drills/restore
+#   kubectl -n forge-mongo logs -f job/mongo-restore-drill -c restore
+# See docs/operations/mongodb-backup.md.
+namespace: forge-mongo
+
+resources:
+  - job.yaml
+
+configMapGenerator:
+  - name: mongo-restore-drill-scripts
+    files:
+      - fetch.sh
+      - restore.sh
