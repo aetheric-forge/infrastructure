@@ -120,6 +120,19 @@ patches:
       # ingress.yaml already uses the bare canonical sso.blackcircuit.ca —
       # unlike the aethericforge.ca dev tier, blackcircuit.ca has no sibling
       # dev/test environment to disambiguate from.
+  # The blanket patch above forces every Ingress private. These three also serve the public SSO
+  # hosts (sso.blackcircuit.ca, sso.aethericforge.ca), so they must stay on the public controller:
+  # a private class puts the private LB IP into the public Cloudflare record and, with external-dns
+  # filtering by class, drops the record entirely. The other keycloak Ingresses stay private.
+  - target:
+      group: networking.k8s.io
+      version: v1
+      kind: Ingress
+      name: keycloak-(aetheric-public|blackcircuit-admin-redirect|aetheric-admin-redirect)
+    patch: |-
+      - op: replace
+        path: /spec/ingressClassName
+        value: nginx-public
   - target:
       version: v1
       kind: Service
