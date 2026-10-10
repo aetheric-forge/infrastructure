@@ -1,0 +1,303 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespace.yaml
+
+# Metrics (Prometheus + Grafana), logs (Loki + Alloy). Nothing here names a
+# cloud: environment specifics (hostnames, OIDC endpoints, the object storage
+# Loki writes to) come from the overlay as a ConfigMap/Secret read through env.
+# The Prometheus Operator CRDs are installed earlier by
+# platform/operators/monitoring-crds, so crds.enabled is false below.
+helmCharts:
+  - name: kube-prometheus-stack
+    repo: https://prometheus-community.github.io/helm-charts
+    version: 92.1.0
+    releaseName: prometheus
+    namespace: monitoring
+    valuesInline:
+      crds:
+        enabled: false
+
+      # Alerting is deliberately off for now.
+      alertmanager:
+        enabled: false
+
+      # GKE's managed control plane doesn't expose these, so scraping them
+      # would only produce permanently-down targets and noisy alerts.
+      kubeEtcd:
+        enabled: false
+      kubeScheduler:
+        enabled: false
+      kubeControllerManager:
+        enabled: false
+      kubeProxy:
+        enabled: false
+      coreDns:
+        enabled: false
+      kubeDns:
+        enabled: true
+
+      # Skip the admission webhook and its cert-patching Jobs: the whole stack
+      # is applied in one pass, and a webhook that isn't ready yet would reject
+      # the ServiceMonitors in that same pass. Costs rule/monitor validation.
+      prometheusOperator:
+        admissionWebhooks:
+          enabled: false
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            memory: 256Mi
+
+      prometheus:
+        prometheusSpec:
+          retention: 7d
+          # Safety net under the time limit so a burst can't fill the disk.
+          retentionSize: 16GB
+          # Pick up every ServiceMonitor/PodMonitor/rule in any namespace, not
+          # only ones labelled for this Helm release.
+          serviceMonitorSelectorNilUsesHelmValues: false
+          podMonitorSelectorNilUsesHelmValues: false
+          probeSelectorNilUsesHelmValues: false
+          ruleSelectorNilUsesHelmValues: false
+          scrapeConfigSelectorNilUsesHelmValues: false
+          resources:
+            requests:
+              cpu: 250m
+              memory: 1Gi
+            limits:
+              memory: 2Gi
+          storageSpec:
+            volumeClaimTemplate:
+              spec:
+                accessModes:
+                  - ReadWriteOnce
+                resources:
+                  requests:
+                    storage: 20Gi
+
+      kube-state-metrics:
+        resources:
+          requests:
+            cpu: 20m
+            memory: 64Mi
+          limits:
+            memory: 256Mi
+
+      prometheus-node-exporter:
+        resources:
+          requests:
+            cpu: 20m
+            memory: 32Mi
+          limits:
+            memory: 128Mi
+
+      grafana:
+        # Stable Service name (grafana) for the overlay's Ingress.
+        fullnameOverride: grafana
+        admin:
+          existingSecret: grafana-admin
+          userKey: admin-user
+          passwordKey: admin-password
+        # Keycloak login settings live in the overlay: a ConfigMap of GF_*
+        # variables plus a Secret holding the client secret.
+        envFromConfigMaps:
+          - name: grafana-oidc
+        envFromSecrets:
+          - name: grafana-oauth
+        # The chart's test Pod is a Helm hook, which would be applied as a
+        # normal Pod here.
+        testFramework:
+          enabled: false
+        persistence:
+          enabled: true
+          size: 5Gi
+        resources:
+          requests:
+            cpu: 50m
+            memory: 192Mi
+          limits:
+            memory: 512Mi
+        additionalDataSources:
+          - name: Loki
+            type: loki
+            uid: loki
+            access: proxy
+            url: http://loki.monitoring.svc.cluster.local:3100
+
+  - name: loki
+    repo: https://grafana.github.io/helm-charts
+    version: 7.3.0
+    releaseName: loki
+    namespace: monitoring
+    valuesInline:
+      deploymentMode: SingleBinary
+
+      loki:
+        auth_enabled: false
+        commonConfig:
+          replication_factor: 1
+        schemaConfig:
+          configs:
+            - from: "2024-04-01"
+              store: tsdb
+              object_store: s3
+              schema: v13
+              index:
+                prefix: loki_index_
+                period: 24h
+        # Provider-agnostic object storage over the S3 API. Endpoint, bucket,
+        # region and TLS come from the loki-object-storage ConfigMap and the
+        # credentials from the loki-s3 Secret, all expanded from the container's
+        # environment, so switching providers is a change to those two objects.
+        storage:
+          type: s3
+          bucketNames:
+            chunks: ${LOKI_S3_BUCKET}
+            ruler: ${LOKI_S3_BUCKET}
+            admin: ${LOKI_S3_BUCKET}
+          s3:
+            endpoint: ${LOKI_S3_ENDPOINT}
+            region: ${LOKI_S3_REGION}
+            # true for a plain-HTTP endpoint such as an in-cluster service.
+            insecure: ${LOKI_S3_INSECURE}
+            accessKeyId: ${LOKI_S3_ACCESS_KEY_ID}
+            secretAccessKey: ${LOKI_S3_SECRET_ACCESS_KEY}
+            s3ForcePathStyle: true
+        limits_config:
+          # 14 days of logs.
+          retention_period: 336h
+        compactor:
+          retention_enabled: true
+          delete_request_store: s3
+
+      singleBinary:
+        replicas: 1
+        extraArgs:
+          - -config.expand-env=true
+        extraEnvFrom:
+          - configMapRef:
+              name: loki-object-storage
+        extraEnv:
+          - name: LOKI_S3_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: loki-s3
+                key: access-key-id
+          - name: LOKI_S3_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: loki-s3
+                key: secret-access-key
+        persistence:
+          enabled: true
+          size: 10Gi
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            memory: 1Gi
+
+      # Single-binary mode: switch off every other component and the extras.
+      backend:
+        replicas: 0
+      read:
+        replicas: 0
+      write:
+        replicas: 0
+      ingester:
+        replicas: 0
+      querier:
+        replicas: 0
+      queryFrontend:
+        replicas: 0
+      queryScheduler:
+        replicas: 0
+      distributor:
+        replicas: 0
+      compactor:
+        replicas: 0
+      indexGateway:
+        replicas: 0
+      bloomCompactor:
+        replicas: 0
+      bloomGateway:
+        replicas: 0
+      gateway:
+        enabled: false
+      chunksCache:
+        enabled: false
+      resultsCache:
+        enabled: false
+      lokiCanary:
+        enabled: false
+      test:
+        enabled: false
+
+  - name: alloy
+    repo: https://grafana.github.io/helm-charts
+    version: 1.13.0
+    releaseName: alloy
+    namespace: monitoring
+    valuesInline:
+      controller:
+        type: daemonset
+      alloy:
+        # Each Alloy only tails pods on its own node, otherwise every instance
+        # would ship every pod's logs.
+        extraEnv:
+          - name: NODE_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.nodeName
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 256Mi
+        configMap:
+          create: true
+          content: |
+            discovery.kubernetes "pods" {
+              role = "pod"
+              selectors {
+                role  = "pod"
+                field = "spec.nodeName=" + sys.env("NODE_NAME")
+              }
+            }
+
+            discovery.relabel "pod_logs" {
+              targets = discovery.kubernetes.pods.targets
+
+              rule {
+                source_labels = ["__meta_kubernetes_namespace"]
+                target_label  = "namespace"
+              }
+              rule {
+                source_labels = ["__meta_kubernetes_pod_name"]
+                target_label  = "pod"
+              }
+              rule {
+                source_labels = ["__meta_kubernetes_pod_container_name"]
+                target_label  = "container"
+              }
+              rule {
+                source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+                target_label  = "app"
+              }
+            }
+
+            loki.source.kubernetes "pods" {
+              targets    = discovery.relabel.pod_logs.output
+              forward_to = [loki.write.default.receiver]
+            }
+
+            loki.write "default" {
+              endpoint {
+                url = "http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push"
+              }
+            }

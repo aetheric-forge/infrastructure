@@ -16,6 +16,7 @@ RABBITMQ_NAMESPACE="rabbitmq"
 FORGE_MONGO_NAMESPACE="forge-mongo"
 REDIS_NAMESPACE="redis"
 SEAWEEDFS_NAMESPACE="seaweedfs"
+MONITORING_NAMESPACE="monitoring"
 
 function require_env() {
 	for name in "$@"; do
@@ -350,6 +351,16 @@ spec:
 EOF
 }
 
+# True when this cluster's services stage deploys the monitoring stack.
+function uses_monitoring() {
+	local deployment_root="$ROOT_DIR/clusters/single/$ENVIRONMENT"
+	if [[ "${CLOUD:-}" == "civo" || "${CLOUD:-}" == "gcp" ]]; then
+		deployment_root="$ROOT_DIR/clusters/single/$CLOUD/$ENVIRONMENT"
+	fi
+
+	grep -q 'platform/services/monitoring' "$deployment_root/40-platform-services/kustomization.yaml" 2>/dev/null
+}
+
 # True when this cluster's services stage deploys SeaweedFS instead of MinIO.
 function uses_seaweedfs() {
 	local deployment_root="$ROOT_DIR/clusters/single/$ENVIRONMENT"
@@ -532,6 +543,43 @@ function create_seaweedfs_console_secret() {
   OAUTH2_PROXY_COOKIE_SECRET: $(rand_alnum 32)")"
 }
 
+# Grafana's admin login (a break-glass account; people sign in through
+# Keycloak), its Keycloak client secret (registered in Keycloak by
+# scripts/keycloak/bootstrap-grafana.sh, which reads it back from the cluster),
+# and the credentials Loki uses for its log storage.
+#
+# Loki's storage is an S3-compatible service described in
+# platform/services/monitoring/overlays/prod/loki-object-storage.yaml. Its
+# credentials (the loki-s3 Secret, keys access-key-id and secret-access-key)
+# come from one of two places:
+#   - LOKI_S3_ACCESS_KEY_ID and LOKI_S3_SECRET_ACCESS_KEY set in .env: used
+#     as given, for any provider you point the ConfigMap at;
+#   - otherwise, if this cluster runs SeaweedFS, a key pair is generated and
+#     registered as a SeaweedFS identity limited to the loki bucket.
+function create_monitoring_secrets() {
+	local dir="$ROOT_DIR/platform/services/monitoring/secrets/$ENVIRONMENT"
+	local loki_file="$dir/loki-s3.enc.yaml"
+
+	create_sops_secret "$MONITORING_NAMESPACE" "grafana-admin" "$dir/grafana-admin.enc.yaml" \
+		"$(opaque_secret "$MONITORING_NAMESPACE" "grafana-admin" "  admin-user: admin
+  admin-password: $(rand_alnum 32)")"
+
+	create_sops_secret "$MONITORING_NAMESPACE" "grafana-oauth" "$dir/grafana-oauth.enc.yaml" \
+		"$(opaque_secret "$MONITORING_NAMESPACE" "grafana-oauth" "  GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET: $(rand_alnum 32)")"
+
+	if [[ -n "${LOKI_S3_ACCESS_KEY_ID:-}" ]]; then
+		require_env LOKI_S3_SECRET_ACCESS_KEY
+		create_sops_secret "$MONITORING_NAMESPACE" "loki-s3" "$loki_file" \
+			"$(opaque_secret "$MONITORING_NAMESPACE" "loki-s3" "  access-key-id: $LOKI_S3_ACCESS_KEY_ID
+  secret-access-key: $LOKI_S3_SECRET_ACCESS_KEY")"
+	elif uses_seaweedfs; then
+		create_seaweedfs_client_secret loki loki "$MONITORING_NAMESPACE" loki-s3 "$loki_file"
+	else
+		echo "[Forge] Loki needs storage credentials: set LOKI_S3_ACCESS_KEY_ID and LOKI_S3_SECRET_ACCESS_KEY in .env" >&2
+		return 1
+	fi
+}
+
 function create_minio_secret() {
 	local config
 
@@ -678,6 +726,9 @@ function create_gitops_artifacts() {
 	if uses_seaweedfs; then
 		create_seaweedfs_secret
 		create_seaweedfs_console_secret
+	fi
+	if uses_monitoring; then
+		create_monitoring_secrets
 	fi
 	create_keycloak_secrets
 	create_argocd_secrets
