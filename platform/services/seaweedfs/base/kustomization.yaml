@@ -43,6 +43,10 @@ helmCharts:
         enabled: false
       allInOne:
         enabled: true
+        # Provisioning creates persistent, bucket-scoped identities through embedded IAM.
+        # Requests remain authenticated with the existing S3 administrative credentials.
+        extraArgs:
+          - -s3.iam.readOnly=false
         s3:
           enabled: true
           enableAuth: true
