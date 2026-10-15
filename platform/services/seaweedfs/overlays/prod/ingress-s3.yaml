@@ -16,7 +16,7 @@ metadata:
   name: seaweedfs-s3
   namespace: seaweedfs
 spec:
-  ingressClassName: nginx
+  ingressClassName: nginx-private
   rules:
   - host: s3.int.blackcircuit.ca
     http:
