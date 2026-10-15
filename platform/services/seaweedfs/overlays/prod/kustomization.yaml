@@ -6,3 +6,12 @@ resources:
   - ../../secrets/prod
   - ingress-s3.yaml
   - console.yaml
+
+# Public root certificate only: used to authenticate the re-encrypted upstream.
+secretGenerator:
+  - name: seaweedfs-s3-upstream-ca
+    namespace: seaweedfs
+    files:
+      - ca.crt=s3-upstream-ca.crt
+generatorOptions:
+  disableNameSuffixHash: true
