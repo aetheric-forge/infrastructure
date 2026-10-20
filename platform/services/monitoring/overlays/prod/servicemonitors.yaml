@@ -1,0 +1,48 @@
+# Scrape targets owned by other namespaces. Prometheus selects every
+# ServiceMonitor in the cluster (see the base values).
+#
+# cert-manager: the controller, cainjector and webhook each expose :9402 under
+# a different port name.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: cert-manager
+  namespace: cert-manager
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: cert-manager
+    matchExpressions:
+      - key: app.kubernetes.io/component
+        operator: In
+        values: [controller, cainjector, webhook]
+  endpoints:
+    - port: tcp-prometheus-servicemonitor
+    - port: http-metrics
+    - port: metrics
+---
+# RabbitMQ: the operator exposes the exporter only over TLS (prometheus-tls,
+# 15691), using the same server certificate as the broker. This is a plain
+# HTTPS scrape; it doesn't involve the AMQP/AMQPS listeners. The certificate
+# is issued for amqp.<internal domain>, not the pod IPs Prometheus connects
+# to, hence serverName. The Service-level selector skips rabbitmq-nodes, which
+# has no such port.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: rabbitmq
+  namespace: rabbitmq
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: rabbitmq
+      app.kubernetes.io/component: rabbitmq
+  endpoints:
+    - port: prometheus-tls
+      scheme: https
+      tlsConfig:
+        serverName: amqp.INTERNAL_DOMAIN_PLACEHOLDER
+        ca:
+          secret:
+            name: step-ca-root-ca
+            key: ca.crt

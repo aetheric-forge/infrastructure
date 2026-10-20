@@ -344,6 +344,10 @@ deploy_platform_bootstrap() {
 	if grep -q 'platform/operators/minio' "$CLUSTER_DEPLOYMENT_ROOT/30-platform-operators/kustomization.yaml"; then
 		crds+=(crd/tenants.minio.min.io)
 	fi
+	# The monitoring stack and its ServiceMonitors are applied in the next phase.
+	if grep -q 'platform/operators/monitoring-crds' "$CLUSTER_DEPLOYMENT_ROOT/30-platform-operators/kustomization.yaml"; then
+		crds+=(crd/prometheuses.monitoring.coreos.com crd/servicemonitors.monitoring.coreos.com)
+	fi
 
 	kubectl wait \
 		--for=condition=Established \

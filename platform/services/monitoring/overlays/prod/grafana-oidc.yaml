@@ -1,0 +1,24 @@
+# Grafana's Keycloak login, as GF_* environment variables (loaded by the
+# chart through envFromConfigMaps). The client secret is in grafana-oauth.
+# Keycloak objects come from scripts/keycloak/bootstrap-grafana.sh.
+#
+# Roles come from Keycloak groups: grafana-admins -> Admin, grafana-viewers ->
+# Viewer. With ROLE_ATTRIBUTE_STRICT, a user in neither group is refused.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-oidc
+  namespace: monitoring
+data:
+  GF_SERVER_ROOT_URL: https://grafana.INTERNAL_DOMAIN_PLACEHOLDER
+  GF_AUTH_GENERIC_OAUTH_ENABLED: "true"
+  GF_AUTH_GENERIC_OAUTH_NAME: Keycloak
+  GF_AUTH_GENERIC_OAUTH_CLIENT_ID: grafana
+  GF_AUTH_GENERIC_OAUTH_SCOPES: openid profile email
+  GF_AUTH_GENERIC_OAUTH_USE_PKCE: "true"
+  GF_AUTH_GENERIC_OAUTH_AUTH_URL: https://sso.EXTERNAL_DOMAIN_PLACEHOLDER/realms/INTERNAL_DOMAIN_PLACEHOLDER/protocol/openid-connect/auth
+  GF_AUTH_GENERIC_OAUTH_TOKEN_URL: https://sso.EXTERNAL_DOMAIN_PLACEHOLDER/realms/INTERNAL_DOMAIN_PLACEHOLDER/protocol/openid-connect/token
+  GF_AUTH_GENERIC_OAUTH_API_URL: https://sso.EXTERNAL_DOMAIN_PLACEHOLDER/realms/INTERNAL_DOMAIN_PLACEHOLDER/protocol/openid-connect/userinfo
+  GF_AUTH_GENERIC_OAUTH_LOGIN_ATTRIBUTE_PATH: preferred_username
+  GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH: "contains(groups[*], 'grafana-admins') && 'Admin' || contains(groups[*], 'grafana-viewers') && 'Viewer'"
+  GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_STRICT: "true"

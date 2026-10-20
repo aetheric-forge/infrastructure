@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: grafana.INTERNAL_DOMAIN_PLACEHOLDER
+    cert-manager.io/cluster-issuer: step-ca-int-acme
+  name: grafana
+  namespace: monitoring
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: grafana.INTERNAL_DOMAIN_PLACEHOLDER
+    http:
+      paths:
+      - backend:
+          service:
+            name: grafana
+            port:
+              number: 80
+        path: /
+        pathType: Prefix
+  tls:
+  - hosts:
+    - grafana.INTERNAL_DOMAIN_PLACEHOLDER
+    secretName: grafana-tls
