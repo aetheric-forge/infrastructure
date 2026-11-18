@@ -1,7 +1,32 @@
  # Aetheric Forge Kubernetes cluster
 
 This Pulumi project provisions the platform Kubernetes cluster. It supports AWS
-EKS, Civo Kubernetes, and a local pre-existing kubeconfig.
+EKS, Civo Kubernetes, GKE, and a local pre-existing kubeconfig.
+
+## GKE production single-worker rollout
+
+The production stack keeps the regional GKE control plane and runs one worker in
+`GCP_ZONE`. The `singleZoneWorkers` stack setting pins the worker pool at one
+node, overriding `NODE_MIN_SIZE`, `NODE_MAX_SIZE` and `NODE_DESIRED_SIZE`.
+The node machine type and disk settings still come from the existing environment.
+
+For an existing multi-zone deployment, complete the workload changes before
+reducing the worker pool:
+
+1. Confirm recoverable backups and inventory all bound persistent volumes and
+   their zones. Choose `GCP_ZONE` based on the volumes the workloads will keep.
+   Migrate any retained zonal disks outside that zone before removing workers.
+2. Reduce CloudNativePG to one instance and verify that the remaining primary is
+   healthy. Verify that its data and any WAL volumes are in the retained zone.
+3. Migrate RabbitMQ to a one-broker cluster. The pinned RabbitMQ Cluster Operator
+   v2.21.1 rejects an in-place change from three replicas to one. Plan a broker
+   cutover that preserves definitions and accounts for queued messages before
+   retiring the old cluster.
+4. Run `pulumi preview --stack prod` with the deployment environment loaded.
+   Confirm that the planned worker-pool change preserves the regional control
+   plane. After the worker reduction, check for pending pods and verify storage,
+   database, broker and ingress health. Worker maintenance can interrupt service
+   in this configuration.
 
 ## Civo
 

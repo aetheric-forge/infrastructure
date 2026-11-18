@@ -424,6 +424,27 @@ GCP_REGION_ZONE_COUNT = 3
 
 
 def create_gcp_cluster():
+    single_zone_workers = pulumi.Config().get_bool("singleZoneWorkers")
+    node_locations = None
+    node_min, node_max, node_desired = gcp_node_min, gcp_node_max, gcp_node_desired
+    zone_count = GCP_REGION_ZONE_COUNT
+    if single_zone_workers:
+        zone = must("GCP_ZONE")
+        if zone.rpartition("-")[0] != gcp_region:
+            raise ValueError(f"GCP_ZONE={zone} must be in GCP_REGION={gcp_region}")
+        node_locations = [zone]
+        node_min = node_max = node_desired = zone_count = 1
+
+    # GKE takes an initial count per zone and autoscaling limits for the pool.
+    initial_per_zone = max(1, math.ceil(node_desired / zone_count))
+    initial_total = initial_per_zone * zone_count
+    if not node_min <= initial_total <= node_max:
+        raise ValueError(
+            f"NODE_DESIRED_SIZE={node_desired} starts {initial_total} nodes "
+            f"({initial_per_zone} per zone x {zone_count} zones), outside "
+            f"NODE_MIN_SIZE={node_min}..NODE_MAX_SIZE={node_max}"
+        )
+
     cluster = gcp.container.Cluster(
         cluster_name,
         name=cluster_name,
@@ -476,28 +497,16 @@ def create_gcp_cluster():
         ),
     )
 
-    # GKE treats initial/min/max node counts on a regional pool as per-zone,
-    # so NODE_DESIRED_SIZE=3 used to mean 9 nodes (and a 36-vCPU quota
-    # check). The NODE_* settings are cluster-wide totals: autoscaling uses
-    # the total_* limits, and the initial count is spread across zones.
-    initial_per_zone = max(1, math.ceil(gcp_node_desired / GCP_REGION_ZONE_COUNT))
-    initial_total = initial_per_zone * GCP_REGION_ZONE_COUNT
-    if not gcp_node_min <= initial_total <= gcp_node_max:
-        raise ValueError(
-            f"NODE_DESIRED_SIZE={gcp_node_desired} starts {initial_total} nodes "
-            f"({initial_per_zone} per zone x {GCP_REGION_ZONE_COUNT} zones), outside "
-            f"NODE_MIN_SIZE={gcp_node_min}..NODE_MAX_SIZE={gcp_node_max}"
-        )
-
     gcp.container.NodePool(
         f"{cluster_name}-ng",
         name=f"{cluster_name}-ng",
         project=gcp_project,
         location=gcp_region,
         cluster=cluster.name,
+        node_locations=node_locations,
         autoscaling=gcp.container.NodePoolAutoscalingArgs(
-            total_min_node_count=gcp_node_min,
-            total_max_node_count=gcp_node_max,
+            total_min_node_count=node_min,
+            total_max_node_count=node_max,
         ),
         initial_node_count=initial_per_zone,
         node_config=gcp.container.NodePoolNodeConfigArgs(
